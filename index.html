@@ -8,161 +8,171 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <style>
-  :root {
-    --navy:#0D1B2A; --orange:#F5820A; --blue:#1A6FD4; --green:#2DC653;
-    --dark:#080F17; --surface:#111D2C; --surface2:#162436;
-    --border:rgba(255,255,255,0.07); --text:#E8EDF2; --muted:#6B8099;
-  }
+  :root{--navy:#0D1B2A;--orange:#F5820A;--blue:#1A6FD4;--green:#2DC653;--dark:#080F17;--surface:#111D2C;--surface2:#162436;--border:rgba(255,255,255,0.07);--text:#E8EDF2;--muted:#6B8099;--red:#E53E3E;}
   *{margin:0;padding:0;box-sizing:border-box;}
-  body{background:var(--dark);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;padding-bottom:40px;}
-
-  header{background:linear-gradient(135deg,var(--navy),#0a1520);border-bottom:2px solid var(--orange);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 4px 24px rgba(0,0,0,0.5);}
-  .logo{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:var(--orange);line-height:1;}
-  .logo span{color:var(--text);font-size:0.65rem;display:block;letter-spacing:3px;font-family:'DM Sans',sans-serif;font-weight:300;margin-top:2px;}
-  .live-clock{font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:600;color:var(--orange);text-align:right;}
-  .live-clock .date{font-size:0.62rem;color:var(--muted);font-weight:400;}
-
+  body{background:var(--dark);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;padding-bottom:50px;}
+  header{background:linear-gradient(135deg,var(--navy),#0a1520);border-bottom:2px solid var(--orange);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 4px 24px rgba(0,0,0,0.5);}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:1.35rem;letter-spacing:2px;color:var(--orange);line-height:1;}
+  .logo span{color:var(--text);font-size:0.62rem;display:block;letter-spacing:3px;font-family:'DM Sans',sans-serif;font-weight:300;margin-top:2px;}
+  .live-clock{font-family:'JetBrains Mono',monospace;font-size:0.95rem;font-weight:600;color:var(--orange);text-align:right;}
+  .live-clock .dt{font-size:0.6rem;color:var(--muted);font-weight:400;}
   .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
   .tabs::-webkit-scrollbar{display:none;}
-  .tab{flex:1;min-width:72px;padding:12px 6px;text-align:center;font-size:0.7rem;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;transition:all 0.2s;white-space:nowrap;}
+  .tab{flex:1;min-width:65px;padding:11px 5px;text-align:center;font-size:0.68rem;font-weight:600;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;transition:all 0.2s;white-space:nowrap;}
   .tab.active{color:var(--orange);border-bottom-color:var(--orange);}
-  .tab:hover:not(.active){color:var(--text);}
-
-  .page{display:none;padding:16px;}
+  .page{display:none;padding:14px;}
   .page.active{display:block;}
-  .section-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:var(--orange);margin-bottom:14px;}
+  .section-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:var(--orange);margin-bottom:12px;}
 
   /* BANNER */
-  #modelBanner{background:rgba(26,111,212,0.12);border:1px solid rgba(26,111,212,0.35);border-radius:10px;padding:11px 13px;font-size:0.78rem;color:#7DB8F7;margin-bottom:16px;display:flex;align-items:center;gap:10px;max-width:500px;}
-  .spinner{width:17px;height:17px;border:2px solid rgba(255,255,255,0.15);border-top-color:var(--orange);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;}
+  #modelBanner{background:rgba(26,111,212,0.12);border:1px solid rgba(26,111,212,0.35);border-radius:10px;padding:10px 12px;font-size:0.76rem;color:#7DB8F7;margin-bottom:14px;display:flex;align-items:center;gap:9px;max-width:500px;}
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,0.15);border-top-color:var(--orange);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
   /* WORKER CARDS */
-  .worker-grid{display:grid;gap:11px;max-width:500px;margin:0 auto;}
-  .worker-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;transition:border-color 0.2s;}
+  .worker-grid{display:grid;gap:10px;max-width:500px;margin:0 auto;}
+  .worker-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px;display:flex;align-items:center;gap:11px;transition:border-color 0.2s;}
   .worker-card.clocked-in{border-color:var(--green);background:rgba(45,198,83,0.05);}
-  .worker-avatar-img{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0;}
-  .worker-avatar-placeholder{width:50px;height:50px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--orange);flex-shrink:0;}
-  .worker-card.clocked-in .worker-avatar-placeholder{border-color:var(--green);}
-  .worker-info{flex:1;min-width:0;}
-  .worker-name{font-weight:600;font-size:0.93rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .worker-rate-lbl{font-size:0.73rem;color:var(--muted);margin-top:2px;}
-  .worker-status{font-size:0.7rem;margin-top:4px;}
-  .worker-status.in{color:var(--green);font-weight:600;}
-  .worker-status.out{color:var(--muted);}
-  .clock-btn{padding:9px 14px;border-radius:10px;border:none;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.78rem;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
-  .clock-btn.in{background:var(--green);color:#fff;}
-  .clock-btn.out{background:var(--orange);color:#fff;}
-  .clock-btn:hover{opacity:0.85;}
-  .clock-btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .w-avatar-img{width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0;}
+  .w-avatar-ph{width:48px;height:48px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--orange);flex-shrink:0;}
+  .worker-card.clocked-in .w-avatar-ph{border-color:var(--green);}
+  .wi{flex:1;min-width:0;}
+  .wn{font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .wr{font-size:0.7rem;color:var(--muted);margin-top:2px;}
+  .ws{font-size:0.68rem;margin-top:3px;}
+  .ws.in{color:var(--green);font-weight:600;}
+  .ws.out{color:var(--muted);}
+  .cbtn{padding:8px 13px;border-radius:9px;border:none;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.76rem;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+  .cbtn.in{background:var(--green);color:#fff;}
+  .cbtn.out{background:var(--orange);color:#fff;}
+  .cbtn:hover{opacity:0.85;}
+  .cbtn:disabled{opacity:0.4;cursor:not-allowed;}
 
   /* MODAL */
-  .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:300;align-items:center;justify-content:center;padding:14px;}
+  .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);z-index:300;align-items:center;justify-content:center;padding:12px;}
   .modal-backdrop.open{display:flex;}
-  .modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:22px 18px;max-width:380px;width:100%;animation:slideUp 0.25s ease;max-height:90vh;overflow-y:auto;}
-  @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
-  .modal h2{font-size:1.05rem;font-weight:700;margin-bottom:5px;text-align:center;}
-  .modal .sub{font-size:0.8rem;color:var(--muted);text-align:center;margin-bottom:14px;line-height:1.5;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 16px;max-width:400px;width:100%;animation:slideUp 0.25s ease;max-height:92vh;overflow-y:auto;}
+  @keyframes slideUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  .modal h2{font-size:1rem;font-weight:700;margin-bottom:4px;text-align:center;}
+  .modal .sub{font-size:0.78rem;color:var(--muted);text-align:center;margin-bottom:12px;line-height:1.5;}
 
   /* CAMERA */
-  .cam-wrap{position:relative;border-radius:14px;overflow:hidden;background:#000;margin-bottom:13px;aspect-ratio:4/3;}
+  .cam-wrap{position:relative;border-radius:13px;overflow:hidden;background:#000;margin-bottom:12px;aspect-ratio:4/3;}
   #camVideo{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);}
   #camCanvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);}
   .face-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
-  .face-oval{width:58%;aspect-ratio:3/4;border:3px solid rgba(245,130,10,0.7);border-radius:50%;animation:ovalPulse 2s ease-in-out infinite;}
-  @keyframes ovalPulse{0%,100%{border-color:rgba(245,130,10,0.5)}50%{border-color:rgba(245,130,10,1)}}
-  .face-status{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:0.76rem;font-weight:600;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.8);}
-  .snap-preview{width:100%;border-radius:12px;margin-bottom:13px;display:none;}
-
-  .result-box{border-radius:12px;padding:14px;text-align:center;margin-bottom:13px;}
+  .face-oval{width:56%;aspect-ratio:3/4;border:3px solid rgba(245,130,10,0.7);border-radius:50%;animation:op 2s ease-in-out infinite;}
+  @keyframes op{0%,100%{border-color:rgba(245,130,10,0.5)}50%{border-color:rgba(245,130,10,1)}}
+  .face-st{position:absolute;bottom:9px;left:0;right:0;text-align:center;font-size:0.74rem;font-weight:600;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.8);}
+  .snap-preview{width:100%;border-radius:11px;margin-bottom:12px;display:none;}
+  .result-box{border-radius:11px;padding:13px;text-align:center;margin-bottom:12px;}
   .result-box.success{background:rgba(45,198,83,0.12);border:1px solid rgba(45,198,83,0.3);}
   .result-box.error{background:rgba(229,62,62,0.12);border:1px solid rgba(229,62,62,0.3);}
-  .result-box .icon{font-size:1.8rem;margin-bottom:5px;}
-  .result-box .msg{font-size:0.85rem;font-weight:600;}
-  .result-box .detail{font-size:0.72rem;color:var(--muted);margin-top:3px;}
-
-  .modal-btns{display:flex;gap:9px;}
-  .btn{flex:1;padding:11px;border-radius:10px;border:none;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.85rem;cursor:pointer;transition:all 0.2s;}
+  .result-box .ri{font-size:1.7rem;margin-bottom:4px;}
+  .result-box .rm{font-size:0.83rem;font-weight:600;}
+  .result-box .rd{font-size:0.7rem;color:var(--muted);margin-top:3px;}
+  .modal-btns{display:flex;gap:8px;}
+  .btn{flex:1;padding:11px;border-radius:9px;border:none;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.83rem;cursor:pointer;transition:all 0.2s;}
   .btn-primary{background:var(--orange);color:#fff;}
   .btn-primary:hover{background:#d9720a;}
   .btn-primary:disabled{opacity:0.5;cursor:not-allowed;}
   .btn-ghost{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
   .btn-ghost:hover{color:var(--text);}
   .btn-green{background:var(--green);color:#fff;}
-  .btn-green:hover{background:#25a844;}
-  .btn-blue{background:var(--blue);color:#fff;}
+  .btn-red{background:rgba(229,62,62,0.15);color:#FC8181;border:1px solid rgba(229,62,62,0.25);}
 
   /* FORMS */
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;max-width:500px;}
-  .form-row{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:11px;}
-  .form-field{flex:1;min-width:130px;}
-  label{display:block;font-size:0.7rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;}
-  input[type="text"],input[type="number"],input[type="email"],input[type="datetime-local"],input[type="time"],select.form-select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:0.84rem;transition:border-color 0.2s;}
-  input:focus,select.form-select:focus{outline:none;border-color:var(--orange);}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:14px;margin-bottom:12px;max-width:500px;}
+  .card h3{font-size:0.88rem;font-weight:700;margin-bottom:4px;}
+  .card p{font-size:0.76rem;color:var(--muted);margin-bottom:11px;line-height:1.5;}
+  .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .form-field{flex:1;min-width:120px;}
+  label{display:block;font-size:0.68rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px;}
+  input[type="text"],input[type="number"],input[type="email"],input[type="datetime-local"],select.fs{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-family:'DM Sans',sans-serif;font-size:0.82rem;transition:border-color 0.2s;}
+  input:focus,select.fs:focus{outline:none;border-color:var(--orange);}
 
   /* WORKERS LIST */
-  .workers-list{display:grid;gap:9px;max-width:500px;}
-  .worker-list-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px 15px;display:flex;align-items:center;gap:11px;}
-  .worker-list-card .info{flex:1;}
-  .worker-list-card .name{font-weight:600;font-size:0.88rem;}
-  .worker-list-card .meta{font-size:0.73rem;color:var(--muted);margin-top:2px;}
-  .btn-danger{background:rgba(229,62,62,0.12);color:#FC8181;border:1px solid rgba(229,62,62,0.2);border-radius:8px;padding:6px 11px;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+  .workers-list{display:grid;gap:8px;max-width:500px;}
+  .wlc{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+  .wlc .info{flex:1;}
+  .wlc .nm{font-weight:600;font-size:0.86rem;}
+  .wlc .mt{font-size:0.71rem;color:var(--muted);margin-top:2px;}
+  .btn-danger{background:rgba(229,62,62,0.12);color:#FC8181;border:1px solid rgba(229,62,62,0.2);border-radius:7px;padding:6px 10px;font-size:0.7rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
   .btn-danger:hover{background:rgba(229,62,62,0.25);}
-  .btn-sm{padding:6px 11px;border-radius:8px;border:none;font-family:'DM Sans',sans-serif;font-size:0.72rem;font-weight:600;cursor:pointer;}
+  .btn-sm{padding:5px 10px;border-radius:7px;border:none;font-family:'DM Sans',sans-serif;font-size:0.7rem;font-weight:600;cursor:pointer;}
   .btn-sm.edit{background:rgba(26,111,212,0.15);color:#5BA4F5;border:1px solid rgba(26,111,212,0.2);}
   .btn-sm.edit:hover{background:rgba(26,111,212,0.28);}
 
-  /* LOGS */
-  .filter-bar{display:flex;gap:9px;margin-bottom:13px;flex-wrap:wrap;}
-  .filter-bar select,.filter-bar input{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:0.8rem;flex:1;min-width:120px;}
+  /* LOGS TABLE */
+  .filter-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .filter-bar select,.filter-bar input{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:0.78rem;flex:1;min-width:110px;}
   .filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:var(--orange);}
-  .log-table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);}
-  table{width:100%;border-collapse:collapse;font-size:0.78rem;}
+  .log-table-wrap{overflow-x:auto;border-radius:11px;border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;font-size:0.75rem;}
   thead{background:var(--surface2);}
-  th{padding:10px 11px;text-align:left;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:0.66rem;white-space:nowrap;}
-  td{padding:10px 11px;border-top:1px solid var(--border);vertical-align:middle;white-space:nowrap;}
+  th{padding:9px 10px;text-align:left;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:0.63rem;white-space:nowrap;}
+  td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:middle;white-space:nowrap;}
   tr:hover td{background:rgba(255,255,255,0.02);}
-  .badge{display:inline-block;padding:3px 7px;border-radius:20px;font-size:0.66rem;font-weight:600;}
+  .badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:0.63rem;font-weight:600;}
   .badge.in{background:rgba(45,198,83,0.15);color:var(--green);}
   .badge.complete{background:rgba(26,111,212,0.15);color:#5BA4F5;}
-  .wage{font-family:'JetBrains Mono',monospace;font-size:0.76rem;color:var(--green);}
-  .no-records{text-align:center;padding:34px;color:var(--muted);font-size:0.85rem;}
-
-  /* EXPORT */
-  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px;max-width:500px;}
-  .summary-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;}
-  .summary-box .lbl{font-size:0.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;}
-  .summary-box .val{font-family:'JetBrains Mono',monospace;font-size:1.15rem;font-weight:600;}
+  .no-records{text-align:center;padding:30px;color:var(--muted);font-size:0.83rem;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .green{color:var(--green);}
+  .orange{color:var(--orange);}
 
   /* ADMIN */
-  .admin-section{max-width:500px;margin-bottom:22px;}
-  .admin-log-row{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-  .admin-log-row .alr-info{flex:1;min-width:160px;}
-  .admin-log-row .alr-name{font-weight:600;font-size:0.85rem;}
-  .admin-log-row .alr-meta{font-size:0.72rem;color:var(--muted);margin-top:2px;}
+  .admin-section{max-width:500px;margin-bottom:20px;}
+  .admin-section-title{font-weight:700;font-size:0.86rem;margin-bottom:9px;color:var(--text);}
+  .alr{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .alr-info{flex:1;min-width:150px;}
+  .alr-name{font-weight:600;font-size:0.83rem;}
+  .alr-meta{font-size:0.7rem;color:var(--muted);margin-top:2px;}
+  .alr-btns{display:flex;gap:6px;}
 
-  .empty-state{text-align:center;padding:38px 18px;color:var(--muted);}
-  .empty-state .icon{font-size:2rem;margin-bottom:9px;}
-  .empty-state p{font-size:0.82rem;line-height:1.6;}
+  /* LOANS/SAVINGS */
+  .ls-tabs{display:flex;gap:8px;margin-bottom:12px;}
+  .ls-tab{flex:1;padding:9px;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:0.76rem;font-weight:600;cursor:pointer;text-align:center;transition:all 0.2s;}
+  .ls-tab.active{background:var(--orange);color:#fff;border-color:var(--orange);}
+  .ls-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:9px;}
+  .ls-item .lsi{flex:1;}
+  .ls-item .lsn{font-weight:600;font-size:0.83rem;}
+  .ls-item .lsm{font-size:0.7rem;color:var(--muted);margin-top:2px;}
+  .ls-badge{padding:3px 8px;border-radius:20px;font-size:0.68rem;font-weight:600;}
+  .ls-badge.loan{background:rgba(229,62,62,0.15);color:#FC8181;}
+  .ls-badge.saving{background:rgba(26,111,212,0.15);color:#5BA4F5;}
 
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 17px;border-radius:10px;font-size:0.8rem;font-weight:500;z-index:999;transition:transform 0.3s ease;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+  /* EXPORT */
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px;max-width:500px;}
+  .sbox{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px;}
+  .sbox .lbl{font-size:0.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px;}
+  .sbox .val{font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:600;}
+
+  /* DEDUCTION SUMMARY */
+  .deduction-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px;margin-bottom:9px;max-width:500px;}
+  .deduction-card .dc-title{font-weight:700;font-size:0.82rem;margin-bottom:8px;color:var(--text);}
+  .dc-row{display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+  .dc-row:last-child{border-bottom:none;margin-bottom:0;}
+  .dc-row.total{font-weight:700;font-size:0.85rem;color:var(--green);}
+
+  .empty-state{text-align:center;padding:34px 16px;color:var(--muted);}
+  .empty-state .icon{font-size:2rem;margin-bottom:8px;}
+  .empty-state p{font-size:0.8rem;line-height:1.6;}
+  .calc-preview{font-size:0.78rem;margin-bottom:10px;min-height:18px;}
+  .calc-preview.ok{color:var(--green);}
+  .calc-preview.err{color:#FC8181;}
+  .divider{height:1px;background:var(--border);margin:16px 0;max-width:500px;}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 16px;border-radius:9px;font-size:0.78rem;font-weight:500;z-index:999;transition:transform 0.3s ease;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
   .toast.show{transform:translateX(-50%) translateY(0);}
   .toast.success{border-color:var(--green);}
-  .toast.error{border-color:#E53E3E;}
-
-  /* EDIT MODAL */
-  #editModal .modal{max-width:420px;}
-  .divider{height:1px;background:var(--border);margin:14px 0;}
+  .toast.error{border-color:var(--red);}
+  .warning-box{background:rgba(245,130,10,0.1);border:1px solid rgba(245,130,10,0.35);border-radius:10px;padding:11px 13px;font-size:0.76rem;color:#FDBA74;margin-bottom:14px;line-height:1.5;max-width:500px;}
 </style>
 </head>
 <body>
-
 <header>
   <div class="logo">Eagle Electrical<span>Time Clock System</span></div>
-  <div class="live-clock">
-    <div id="clockTime">--:--:--</div>
-    <div class="date" id="clockDate">---</div>
-  </div>
+  <div class="live-clock"><div id="clockTime">--:--:--</div><div class="dt" id="clockDate">---</div></div>
 </header>
 
 <div class="tabs">
@@ -173,21 +183,16 @@
   <div class="tab" onclick="switchTab('export')">📤 Export</div>
 </div>
 
-<!-- ══════════════════ CLOCK TAB ══════════════════ -->
+<!-- CLOCK -->
 <div class="page active" id="page-clock">
   <div style="max-width:500px;margin:0 auto;">
-    <div id="modelBanner">
-      <div class="spinner"></div>
-      <span id="modelStatus">Loading face recognition models…</span>
-    </div>
+    <div id="modelBanner"><div class="spinner"></div><span id="modelStatus">Loading face recognition models…</span></div>
     <div class="section-title">Select Worker</div>
-    <div class="worker-grid" id="workerGrid">
-      <div class="empty-state"><div class="icon">👷</div><p>No workers added yet.<br>Go to the <strong>Workers</strong> tab to add your team.</p></div>
-    </div>
+    <div class="worker-grid" id="workerGrid"><div class="empty-state"><div class="icon">👷</div><p>No workers added yet.<br>Go to <strong>Workers</strong> tab to add your team.</p></div></div>
   </div>
 </div>
 
-<!-- ══════════════════ LOGS TAB ══════════════════ -->
+<!-- LOGS -->
 <div class="page" id="page-logs">
   <div class="section-title">Attendance Log</div>
   <div class="filter-bar">
@@ -197,13 +202,13 @@
   </div>
   <div class="log-table-wrap">
     <table>
-      <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>Rate/hr</th><th>Wage</th><th>Status</th></tr></thead>
-      <tbody id="logsBody"><tr><td colspan="8" class="no-records">No records yet</td></tr></tbody>
+      <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>Rate/hr</th><th>Wage</th><th>Status</th><th>Edit</th></tr></thead>
+      <tbody id="logsBody"><tr><td colspan="9" class="no-records">No records yet</td></tr></tbody>
     </table>
   </div>
 </div>
 
-<!-- ══════════════════ WORKERS TAB ══════════════════ -->
+<!-- WORKERS -->
 <div class="page" id="page-workers">
   <div class="section-title">Manage Workers</div>
   <div class="card">
@@ -212,88 +217,86 @@
       <div class="form-field"><label>Job Title</label><input type="text" id="wTitle" placeholder="e.g. Electrician"></div>
     </div>
     <div class="form-row">
-      <div class="form-field"><label>Normal Rate (R/hr)</label><input type="number" id="wRate" placeholder="43.75" min="1" step="0.01"></div>
-      <div class="form-field"><label>Overtime Rate (R/hr)</label><input type="number" id="wOvertimeRate" placeholder="65.63" min="1" step="0.01"></div>
+      <div class="form-field"><label>Normal Rate (R/hr)</label><input type="number" id="wRate" placeholder="43.75" min="0.01" step="0.01"></div>
+      <div class="form-field"><label>Overtime Rate (R/hr)</label><input type="number" id="wOT" placeholder="65.63" min="0.01" step="0.01"></div>
     </div>
     <button class="btn btn-primary" onclick="addWorker()" style="width:100%;padding:11px;">+ Add Worker & Register Face</button>
   </div>
-  <div class="workers-list" id="workersList">
-    <div class="empty-state"><div class="icon">👷</div><p>No workers yet</p></div>
-  </div>
+  <div class="workers-list" id="workersList"><div class="empty-state"><div class="icon">👷</div><p>No workers yet</p></div></div>
 </div>
 
-<!-- ══════════════════ ADMIN TAB ══════════════════ -->
+<!-- ADMIN -->
 <div class="page" id="page-admin">
   <div class="section-title">Admin Panel</div>
 
-  <!-- EDIT WORKER RATES & INFO -->
   <div class="admin-section">
-    <div style="font-weight:700;font-size:0.9rem;margin-bottom:10px;color:var(--text);">👷 Edit Worker Information & Rates</div>
-    <div id="adminWorkersList">
-      <div class="empty-state"><div class="icon">👷</div><p>No workers yet</p></div>
-    </div>
+    <div class="admin-section-title">👷 Edit Worker Information & Rates</div>
+    <div id="adminWorkersList"><div class="empty-state"><div class="icon">👷</div><p>No workers yet</p></div></div>
   </div>
 
-  <div class="divider" style="max-width:500px;"></div>
+  <div class="divider"></div>
 
-  <!-- ADD / EDIT TIME RECORDS -->
   <div class="admin-section">
-    <div style="font-weight:700;font-size:0.9rem;margin-bottom:10px;color:var(--text);">🕐 Add Manual Time Entry</div>
+    <div class="admin-section-title">🕐 Add Manual Time Entry</div>
     <div class="card">
+      <div class="form-row"><div class="form-field"><label>Worker</label><select class="fs" id="manWorker" onchange="previewManual()"></select></div></div>
       <div class="form-row">
-        <div class="form-field">
-          <label>Worker</label>
-          <select class="form-select" id="manWorker"></select>
-        </div>
+        <div class="form-field"><label>Clock In Date & Time</label><input type="datetime-local" id="manIn" oninput="previewManual()"></div>
+        <div class="form-field"><label>Clock Out Date & Time</label><input type="datetime-local" id="manOut" oninput="previewManual()"></div>
       </div>
-      <div class="form-row">
-        <div class="form-field"><label>Clock In Date & Time</label><input type="datetime-local" id="manIn"></div>
-        <div class="form-field"><label>Clock Out Date & Time</label><input type="datetime-local" id="manOut"></div>
-      </div>
-      <div id="manCalcPreview" style="font-size:0.8rem;color:var(--muted);margin-bottom:11px;min-height:18px;"></div>
+      <div class="calc-preview" id="manCalcPreview"></div>
       <button class="btn btn-primary" onclick="addManualEntry()" style="width:100%;padding:11px;">+ Add Time Entry</button>
     </div>
   </div>
 
-  <div class="divider" style="max-width:500px;"></div>
+  <div class="divider"></div>
 
-  <!-- EDIT EXISTING LOG ENTRIES -->
   <div class="admin-section">
-    <div style="font-weight:700;font-size:0.9rem;margin-bottom:10px;color:var(--text);">✏️ Edit Existing Records</div>
-    <div id="adminLogsList">
-      <div class="empty-state"><div class="icon">📋</div><p>No records yet</p></div>
+    <div class="admin-section-title">💰 Loans & Savings</div>
+    <div id="lsWorkerWrap" style="margin-bottom:10px;">
+      <label>Select Worker</label>
+      <select class="fs" id="lsWorkerSelect" onchange="renderLoansSection()" style="max-width:500px;margin-top:4px;"></select>
     </div>
+    <div id="lsSectionContent"></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="admin-section">
+    <div class="admin-section-title">✏️ Edit Existing Records</div>
+    <div id="adminLogsList"><div class="empty-state"><div class="icon">📋</div><p>No records yet</p></div></div>
   </div>
 </div>
 
-<!-- ══════════════════ EXPORT TAB ══════════════════ -->
+<!-- EXPORT -->
 <div class="page" id="page-export">
   <div class="section-title">Export & Reports</div>
   <div class="summary-grid">
-    <div class="summary-box"><div class="lbl">Workers</div><div class="val" style="color:var(--orange)" id="sumWorkers">0</div></div>
-    <div class="summary-box"><div class="lbl">Records</div><div class="val" id="sumRecords">0</div></div>
-    <div class="summary-box"><div class="lbl">Total Hours</div><div class="val" style="color:var(--orange)" id="sumHours">0.0h</div></div>
-    <div class="summary-box"><div class="lbl">Total Wages</div><div class="val" style="color:var(--green)" id="sumWages">R0.00</div></div>
+    <div class="sbox"><div class="lbl">Workers</div><div class="val orange" id="sumWorkers">0</div></div>
+    <div class="sbox"><div class="lbl">Records</div><div class="val" id="sumRecords">0</div></div>
+    <div class="sbox"><div class="lbl">Total Hours</div><div class="val orange" id="sumHours">0.0h</div></div>
+    <div class="sbox"><div class="lbl">Gross Wages</div><div class="val green" id="sumWages">R0.00</div></div>
   </div>
+  <div id="deductionSummary"></div>
   <div class="card">
-    <h3 style="font-size:0.92rem;font-weight:700;margin-bottom:5px;">📥 Download Excel</h3>
-    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:13px;line-height:1.5;">Full attendance with hours and wages. Two sheets: detail + per-worker summary.</p>
+    <h3>📥 Download Excel</h3>
+    <p>Full attendance with hours, wages, loans and savings deductions.</p>
     <div class="form-row">
-      <select class="form-select" id="exFilterWorker"><option value="">All Workers</option></select>
-      <input type="date" id="exFrom" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-family:'DM Sans',sans-serif;font-size:0.8rem;flex:1;">
-      <input type="date" id="exTo" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-family:'DM Sans',sans-serif;font-size:0.8rem;flex:1;">
+      <select class="fs" id="exFilterWorker" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-family:'DM Sans',sans-serif;font-size:0.8rem;"><option value="">All Workers</option></select>
+      <input type="date" id="exFrom" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-family:'DM Sans',sans-serif;font-size:0.8rem;">
+      <input type="date" id="exTo" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-family:'DM Sans',sans-serif;font-size:0.8rem;">
     </div>
     <button class="btn btn-primary" onclick="exportExcel()" style="width:100%;padding:11px;">⬇ Download Excel (.xlsx)</button>
   </div>
   <div class="card">
-    <h3 style="font-size:0.92rem;font-weight:700;margin-bottom:5px;">📧 Email Report</h3>
-    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:13px;line-height:1.5;">Opens your email app with a full attendance summary.</p>
-    <div style="margin-bottom:11px;"><label>Your Email</label><input type="email" id="emailAddr" placeholder="you@example.com"></div>
+    <h3>📧 Email Report</h3>
+    <p>Opens your email app with a full attendance and deduction summary.</p>
+    <div style="margin-bottom:10px;"><label>Your Email</label><input type="email" id="emailAddr" placeholder="you@example.com"></div>
     <button class="btn btn-primary" onclick="emailReport()" style="width:100%;padding:11px;">✉ Open Email App</button>
   </div>
 </div>
 
-<!-- ══════════════════ FACE MODAL ══════════════════ -->
+<!-- FACE MODAL -->
 <div class="modal-backdrop" id="faceModal">
   <div class="modal">
     <h2 id="faceTitle">Register Face</h2>
@@ -302,13 +305,11 @@
       <video id="camVideo" autoplay playsinline muted></video>
       <canvas id="camCanvas"></canvas>
       <div class="face-overlay"><div class="face-oval" id="faceOval"></div></div>
-      <div class="face-status" id="faceStatusTxt">Detecting face…</div>
+      <div class="face-st" id="faceStatusTxt">Detecting face…</div>
     </div>
     <img id="snapPreview" class="snap-preview" alt="Captured">
     <div class="result-box" id="resultBox" style="display:none">
-      <div class="icon" id="resultIcon"></div>
-      <div class="msg" id="resultMsg"></div>
-      <div class="detail" id="resultDetail"></div>
+      <div class="ri" id="resultIcon"></div><div class="rm" id="resultMsg"></div><div class="rd" id="resultDetail"></div>
     </div>
     <div class="modal-btns" id="modalBtns">
       <button class="btn btn-ghost" id="modalCancelBtn" onclick="closeModal()">Cancel</button>
@@ -317,25 +318,25 @@
   </div>
 </div>
 
-<!-- ══════════════════ EDIT LOG MODAL ══════════════════ -->
-<div class="modal-backdrop" id="editModal">
+<!-- EDIT LOG MODAL -->
+<div class="modal-backdrop" id="editLogModal">
   <div class="modal">
     <h2>✏️ Edit Time Record</h2>
-    <p class="sub" id="editModalSub"></p>
+    <p class="sub" id="editLogSub"></p>
     <input type="hidden" id="editLogId">
     <div class="form-row">
-      <div class="form-field"><label>Clock In</label><input type="datetime-local" id="editClockIn"></div>
-      <div class="form-field"><label>Clock Out</label><input type="datetime-local" id="editClockOut"></div>
+      <div class="form-field"><label>Clock In</label><input type="datetime-local" id="editClockIn" oninput="previewEditLog()"></div>
+      <div class="form-field"><label>Clock Out</label><input type="datetime-local" id="editClockOut" oninput="previewEditLog()"></div>
     </div>
-    <div id="editCalcPreview" style="font-size:0.8rem;color:var(--muted);margin-bottom:11px;min-height:18px;"></div>
+    <div class="calc-preview" id="editLogPreview"></div>
     <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-ghost" onclick="closeEditLogModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditedLog()">Save Changes</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════ EDIT WORKER MODAL ══════════════════ -->
+<!-- EDIT WORKER MODAL -->
 <div class="modal-backdrop" id="editWorkerModal">
   <div class="modal">
     <h2>✏️ Edit Worker</h2>
@@ -346,12 +347,33 @@
       <div class="form-field"><label>Job Title</label><input type="text" id="editWorkerTitle"></div>
     </div>
     <div class="form-row">
-      <div class="form-field"><label>Normal Rate (R/hr)</label><input type="number" id="editWorkerRate" step="0.01"></div>
-      <div class="form-field"><label>Overtime Rate (R/hr)</label><input type="number" id="editWorkerOT" step="0.01"></div>
+      <div class="form-field"><label>Normal Rate (R/hr)</label><input type="number" id="editWorkerRate" step="0.01" min="0.01"></div>
+      <div class="form-field"><label>Overtime Rate (R/hr)</label><input type="number" id="editWorkerOT" step="0.01" min="0.01"></div>
     </div>
     <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="closeEditWorkerModal()">Cancel</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('editWorkerModal').classList.remove('open')">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditedWorker()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD LOAN/SAVING MODAL -->
+<div class="modal-backdrop" id="lsModal">
+  <div class="modal">
+    <h2 id="lsModalTitle">Add Loan</h2>
+    <p class="sub" id="lsModalSub"></p>
+    <input type="hidden" id="lsType">
+    <input type="hidden" id="lsWorkerId">
+    <div class="form-row">
+      <div class="form-field"><label>Description</label><input type="text" id="lsDesc" placeholder="e.g. Advance payment"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Amount (R)</label><input type="number" id="lsAmount" placeholder="500.00" min="0.01" step="0.01"></div>
+      <div class="form-field"><label>Date</label><input type="datetime-local" id="lsDate"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('lsModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLoanSaving()">Add</button>
     </div>
   </div>
 </div>
@@ -359,36 +381,81 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
+// STATE — load fresh, sanitise rates
+// ════════════════════════════════════════════
 let workers = JSON.parse(localStorage.getItem('eev_workers') || '[]');
 let logs    = JSON.parse(localStorage.getItem('eev_logs')    || '[]');
-function save(){ localStorage.setItem('eev_workers',JSON.stringify(workers)); localStorage.setItem('eev_logs',JSON.stringify(logs)); }
+let lsData  = JSON.parse(localStorage.getItem('eev_ls')      || '{}'); // loans & savings per worker id
 
-// ═══════════════════════════════════════════════════
-// WAGE CALCULATION — fixed, accurate
-// ═══════════════════════════════════════════════════
-function calcWage(clockInISO, clockOutISO, rate, overtimeRate){
-  const ms = new Date(clockOutISO) - new Date(clockInISO);
+// FIX: sanitise any old bad rates (e.g. 4375 → 43.75 if clearly wrong scale)
+workers.forEach(w => {
+  // If rate looks like it's been stored as pence/cents (* 100), fix it
+  if (w.rate > 5000) w.rate = Math.round((w.rate / 100) * 100) / 100;
+  if (w.overtimeRate > 5000) w.overtimeRate = Math.round((w.overtimeRate / 100) * 100) / 100;
+});
+// Also fix rates in existing log records
+logs.forEach(l => {
+  if (l.rate > 5000) l.rate = Math.round((l.rate / 100) * 100) / 100;
+  if (l.overtimeRate > 5000) l.overtimeRate = Math.round((l.overtimeRate / 100) * 100) / 100;
+  // Recalculate wage if both times present
+  if (l.clockIn && l.clockOut && l.status === 'complete') {
+    const c = calcWage(l.clockIn, l.clockOut, l.rate, l.overtimeRate);
+    l.hoursWorked = c.hours;
+    l.wage = c.wage;
+  }
+});
+
+function save(){
+  localStorage.setItem('eev_workers', JSON.stringify(workers));
+  localStorage.setItem('eev_logs',    JSON.stringify(logs));
+  localStorage.setItem('eev_ls',      JSON.stringify(lsData));
+}
+save(); // persist sanitised data immediately
+
+// ════════════════════════════════════════════
+// WAGE CALCULATION — correct, precise
+// ════════════════════════════════════════════
+function calcWage(inISO, outISO, rate, otRate) {
+  const ms = new Date(outISO) - new Date(inISO);
   if (ms <= 0) return { hours: 0, wage: 0 };
-  const hours     = ms / 3600000;                          // exact decimal hours
-  const normHours = Math.min(hours, 8);
-  const otHours   = Math.max(hours - 8, 0);
-  const wage      = (normHours * rate) + (otHours * overtimeRate);
+  // Convert ms to hours with full precision
+  const totalHours = ms / (1000 * 60 * 60);
+  const normHours  = Math.min(totalHours, 8);
+  const otHours    = Math.max(totalHours - 8, 0);
+  const wage       = (normHours * rate) + (otHours * otRate);
+  // Round hours to 2 decimal places, wage to 2 decimal places
   return {
-    hours: Math.round(hours * 100) / 100,
-    wage:  Math.round(wage  * 100) / 100
+    hours: Math.round(totalHours * 100) / 100,
+    wage:  Math.round(wage       * 100) / 100
   };
 }
 
-// Format money — always R with 2 decimal places and comma separator
-function fmtMoney(val){ return 'R' + Number(val).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
-function fmtHours(h){ return Number(h).toFixed(2) + 'h'; }
+// ════════════════════════════════════════════
+// FORMATTING
+// ════════════════════════════════════════════
+function fmtMoney(v) {
+  // Always show as R43.75, R1,234.56 etc — never R4375
+  return 'R' + Number(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function fmtHours(h) {
+  if (h === null || h === undefined) return '—';
+  const hrs  = Math.floor(h);
+  const mins = Math.round((h - hrs) * 60);
+  if (hrs === 0) return mins + 'min';
+  if (mins === 0) return hrs + 'h';
+  return hrs + 'h ' + mins + 'min';
+}
+function toDatetimeLocal(iso) {
+  const d = new Date(iso);
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function initials(n){ return n.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2); }
 
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // CLOCK
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 function updateClock(){
   const n=new Date();
   document.getElementById('clockTime').textContent=n.toLocaleTimeString('en-ZA');
@@ -396,9 +463,9 @@ function updateClock(){
 }
 updateClock(); setInterval(updateClock,1000);
 
-// ═══════════════════════════════════════════════════
-// FACE-API MODELS
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
+// FACE-API
+// ════════════════════════════════════════════
 const MODEL_URL='https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
 let modelsLoaded=false;
 async function loadModels(){
@@ -411,38 +478,39 @@ async function loadModels(){
     await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
     modelsLoaded=true;
     const b=document.getElementById('modelBanner');
-    b.style.cssText='background:rgba(45,198,83,0.1);border:1px solid rgba(45,198,83,0.35);border-radius:10px;padding:11px 13px;font-size:0.78rem;color:#6EE7A0;margin-bottom:16px;max-width:500px;';
+    b.style.cssText='background:rgba(45,198,83,0.1);border:1px solid rgba(45,198,83,0.35);border-radius:10px;padding:10px 12px;font-size:0.76rem;color:#6EE7A0;margin-bottom:14px;max-width:500px;';
     b.innerHTML='✅ Face recognition ready';
     setTimeout(()=>b.style.display='none',3000);
   }catch(e){document.getElementById('modelStatus').textContent='⚠ Could not load face models. Check internet and refresh.';}
 }
 loadModels();
 
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // TABS
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 function switchTab(name){
   const names=['clock','logs','workers','admin','export'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  if(name==='logs')   renderLogs();
-  if(name==='export') renderSummary();
-  if(name==='admin')  renderAdmin();
+  if(name==='logs')  renderLogs();
+  if(name==='export')renderSummary();
+  if(name==='admin') renderAdmin();
 }
 
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // WORKERS
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 function addWorker(){
-  if(!modelsLoaded) return showToast('Face models still loading…','error');
+  if(!modelsLoaded)return showToast('Face models still loading…','error');
   const name =document.getElementById('wName').value.trim();
   const title=document.getElementById('wTitle').value.trim();
   const rate =parseFloat(document.getElementById('wRate').value);
-  const ot   =parseFloat(document.getElementById('wOvertimeRate').value)||rate*1.5;
-  if(!name)        return showToast('Enter worker name','error');
-  if(!rate||rate<=0) return showToast('Enter valid hourly rate','error');
-  pendingWorker={id:Date.now().toString(),name,title:title||'Worker',rate,overtimeRate:Math.round(ot*100)/100,faceDescriptor:null,photoURL:null,clockedIn:false,clockInTime:null};
+  const ot   =parseFloat(document.getElementById('wOT').value);
+  if(!name)         return showToast('Enter worker name','error');
+  if(!rate||rate<=0)return showToast('Enter valid hourly rate (e.g. 43.75)','error');
+  const otRate = (!ot||ot<=0) ? Math.round(rate*1.5*100)/100 : ot;
+  pendingWorker={id:Date.now().toString(),name,title:title||'Worker',rate,overtimeRate:otRate,faceDescriptor:null,photoURL:null,clockedIn:false,clockInTime:null};
   pendingAction='register';
   openCameraModal('register',pendingWorker);
 }
@@ -450,18 +518,18 @@ function addWorker(){
 function removeWorker(id){
   if(!confirm('Remove this worker? Their logs will be kept.'))return;
   workers=workers.filter(w=>w.id!==id);
-  save();renderWorkersList();renderWorkerGrid();updateFilterDropdowns();renderAdmin();
+  save();renderWorkersList();renderWorkerGrid();updateDropdowns();renderAdmin();
 }
 
 function renderWorkersList(){
   const el=document.getElementById('workersList');
   if(!workers.length){el.innerHTML='<div class="empty-state"><div class="icon">👷</div><p>No workers yet</p></div>';return;}
   el.innerHTML=workers.map(w=>`
-    <div class="worker-list-card">
-      ${w.photoURL?`<img src="${w.photoURL}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--green);flex-shrink:0;">`:`<div class="worker-avatar-placeholder" style="flex-shrink:0;">${initials(w.name)}</div>`}
+    <div class="wlc">
+      ${w.photoURL?`<img src="${w.photoURL}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid var(--green);flex-shrink:0;">`:`<div class="w-avatar-ph" style="flex-shrink:0;">${initials(w.name)}</div>`}
       <div class="info">
-        <div class="name">${w.name} ${w.faceDescriptor?'✅':'⚠ No face'}</div>
-        <div class="meta">${w.title} · ${fmtMoney(w.rate)}/hr · OT: ${fmtMoney(w.overtimeRate)}/hr</div>
+        <div class="nm">${w.name} ${w.faceDescriptor?'✅':'⚠ No face'}</div>
+        <div class="mt">${w.title} · ${fmtMoney(w.rate)}/hr · OT: ${fmtMoney(w.overtimeRate)}/hr</div>
       </div>
       <button class="btn-danger" onclick="removeWorker('${w.id}')">Remove</button>
     </div>`).join('');
@@ -469,49 +537,45 @@ function renderWorkersList(){
 
 function renderWorkerGrid(){
   const el=document.getElementById('workerGrid');
-  if(!workers.length){el.innerHTML='<div class="empty-state"><div class="icon">👷</div><p>No workers added yet.<br>Go to the <strong>Workers</strong> tab to add your team.</p></div>';return;}
+  if(!workers.length){el.innerHTML='<div class="empty-state"><div class="icon">👷</div><p>No workers added yet.<br>Go to <strong>Workers</strong> tab to add your team.</p></div>';return;}
   el.innerHTML=workers.map(w=>{
     const since=w.clockedIn&&w.clockInTime?`Since ${new Date(w.clockInTime).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}`:'Not clocked in';
     return `<div class="worker-card ${w.clockedIn?'clocked-in':''}">
-      ${w.photoURL?`<img class="worker-avatar-img" src="${w.photoURL}" style="${w.clockedIn?'border-color:var(--green)':''}">`:`<div class="worker-avatar-placeholder" style="${w.clockedIn?'border-color:var(--green)':''};">${initials(w.name)}</div>`}
-      <div class="worker-info">
-        <div class="worker-name">${w.name}</div>
-        <div class="worker-rate-lbl">${w.title} · ${fmtMoney(w.rate)}/hr</div>
-        <div class="worker-status ${w.clockedIn?'in':'out'}">${w.clockedIn?'🟢 '+since:'⚫ '+since}</div>
+      ${w.photoURL?`<img class="w-avatar-img" src="${w.photoURL}" style="${w.clockedIn?'border-color:var(--green)':''}">`:`<div class="w-avatar-ph" style="${w.clockedIn?'border-color:var(--green)':''};">${initials(w.name)}</div>`}
+      <div class="wi">
+        <div class="wn">${w.name}</div>
+        <div class="wr">${w.title} · ${fmtMoney(w.rate)}/hr</div>
+        <div class="ws ${w.clockedIn?'in':'out'}">${w.clockedIn?'🟢 '+since:'⚫ '+since}</div>
       </div>
       ${w.clockedIn
-        ?`<button class="clock-btn out" onclick="initClockAction('${w.id}','out')">Clock Out</button>`
-        :`<button class="clock-btn in"  onclick="initClockAction('${w.id}','in')">Clock In</button>`}
+        ?`<button class="cbtn out" onclick="initClockAction('${w.id}','out')">Clock Out</button>`
+        :`<button class="cbtn in"  onclick="initClockAction('${w.id}','in')">Clock In</button>`}
     </div>`;
   }).join('');
 }
 
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // CLOCK ACTION
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 let modalMode=null,pendingWorker=null,pendingAction=null,stream=null,detectionLoop=null,capturedDescriptor=null,snapshotDataURL=null,faceDetected=false;
 
 function initClockAction(wid,action){
-  if(!modelsLoaded) return showToast('Face models still loading…','error');
-  const w=workers.find(x=>x.id===wid);
-  if(!w)return;
-  if(!w.faceDescriptor) return showToast(`${w.name} has no registered face. Re-add them.`,'error');
-  pendingWorker=w; pendingAction=action;
+  if(!modelsLoaded)return showToast('Face models still loading…','error');
+  const w=workers.find(x=>x.id===wid);if(!w)return;
+  if(!w.faceDescriptor)return showToast(`${w.name} has no registered face. Re-add them.`,'error');
+  pendingWorker=w;pendingAction=action;
   openCameraModal('verify',w,action);
 }
 
-// ═══════════════════════════════════════════════════
-// CAMERA MODAL
-// ═══════════════════════════════════════════════════
 async function openCameraModal(mode,worker,action){
   modalMode=mode;
   const btn=document.getElementById('mainActionBtn');
-  const cancelBtn=document.getElementById('modalCancelBtn');
+  const cb=document.getElementById('modalCancelBtn');
   document.getElementById('snapPreview').style.display='none';
   document.getElementById('resultBox').style.display='none';
   document.getElementById('camWrap').style.display='block';
   btn.textContent='Capture';btn.className='btn btn-primary';btn.onclick=handleMainAction;btn.disabled=false;
-  cancelBtn.textContent='Cancel';cancelBtn.onclick=closeModal;
+  cb.textContent='Cancel';cb.onclick=closeModal;
   capturedDescriptor=null;snapshotDataURL=null;faceDetected=false;
   document.getElementById('faceStatusTxt').textContent='Detecting face…';
   document.getElementById('faceOval').style.borderColor='rgba(245,130,10,0.7)';
@@ -526,7 +590,7 @@ async function startCamera(){
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:480},audio:false});
     const v=document.getElementById('camVideo');v.srcObject=stream;
     await new Promise(r=>v.onloadedmetadata=r);v.play();
-  }catch(e){showResult(false,'Camera access denied','Please allow camera access and try again.');}
+  }catch(e){showResult(false,'Camera access denied','Please allow camera access in your browser settings.');}
 }
 function stopCamera(){if(detectionLoop){clearInterval(detectionLoop);detectionLoop=null;}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
 function startDetectionLoop(){
@@ -535,12 +599,12 @@ function startDetectionLoop(){
     try{
       const d=await faceapi.detectSingleFace(v,new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:0.5})).withFaceLandmarks(true);
       const st=document.getElementById('faceStatusTxt');const ov=document.getElementById('faceOval');
-      if(d){faceDetected=true;st.textContent='✅ Face detected — tap Capture';ov.style.borderColor='rgba(45,198,83,0.9)';drawFaceBox(d);}
+      if(d){faceDetected=true;st.textContent='✅ Face detected — tap Capture';ov.style.borderColor='rgba(45,198,83,0.9)';drawBox(d);}
       else{faceDetected=false;st.textContent='No face detected — look at camera';ov.style.borderColor='rgba(245,130,10,0.6)';clearCanvas();}
     }catch(_){}
   },400);
 }
-function drawFaceBox(d){const c=document.getElementById('camCanvas'),v=document.getElementById('camVideo');c.width=v.videoWidth;c.height=v.videoHeight;const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const b=d.detection.box;ctx.strokeStyle='#2DC653';ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.width,b.height);}
+function drawBox(d){const c=document.getElementById('camCanvas'),v=document.getElementById('camVideo');c.width=v.videoWidth;c.height=v.videoHeight;const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const b=d.detection.box;ctx.strokeStyle='#2DC653';ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.width,b.height);}
 function clearCanvas(){const c=document.getElementById('camCanvas');c.getContext('2d').clearRect(0,0,c.width,c.height);}
 
 async function handleMainAction(){
@@ -564,7 +628,7 @@ async function doCapture(){
     document.getElementById('faceSub').textContent='Does this photo look good?';
     btn.disabled=false;btn.textContent='✅ Save & Register';btn.className='btn btn-green';
     modalMode='confirmRegister';
-    const cancelBtn=document.getElementById('modalCancelBtn');cancelBtn.textContent='🔄 Retake';cancelBtn.onclick=retakePhoto;
+    const cb=document.getElementById('modalCancelBtn');cb.textContent='🔄 Retake';cb.onclick=retakePhoto;
   }catch(e){btn.disabled=false;btn.textContent='Capture';showToast('Error — try again','error');}
 }
 
@@ -573,7 +637,7 @@ function retakePhoto(){
   document.getElementById('camWrap').style.display='block';
   document.getElementById('faceSub').textContent='Position face in oval, then tap Capture';
   const btn=document.getElementById('mainActionBtn');btn.textContent='Capture';btn.className='btn btn-primary';btn.onclick=handleMainAction;
-  const cancelBtn=document.getElementById('modalCancelBtn');cancelBtn.textContent='Cancel';cancelBtn.onclick=closeModal;
+  const cb=document.getElementById('modalCancelBtn');cb.textContent='Cancel';cb.onclick=closeModal;
   modalMode='register';capturedDescriptor=null;snapshotDataURL=null;
   startCamera().then(()=>startDetectionLoop());
 }
@@ -581,8 +645,8 @@ function retakePhoto(){
 function doConfirmRegister(){
   const w=pendingWorker;w.faceDescriptor=Array.from(capturedDescriptor);w.photoURL=snapshotDataURL;
   workers.push(w);save();
-  ['wName','wTitle','wRate','wOvertimeRate'].forEach(id=>document.getElementById(id).value='');
-  renderWorkersList();renderWorkerGrid();updateFilterDropdowns();renderAdmin();
+  ['wName','wTitle','wRate','wOT'].forEach(id=>document.getElementById(id).value='');
+  renderWorkersList();renderWorkerGrid();updateDropdowns();renderAdmin();
   closeModal();showToast(`${w.name} registered ✓`,'success');
 }
 
@@ -600,7 +664,7 @@ async function doVerify(){
       showResult(true,'Identity Verified ✅',`Confidence: ${Math.round((1-dist)*100)}%`);
       setTimeout(()=>completeClockAction(),1400);
     }else{
-      showResult(false,'Face Not Recognised ❌',`Please try again in better lighting.`);
+      showResult(false,'Face Not Recognised ❌','Try again in better lighting.');
       btn.disabled=false;btn.textContent='Try Again';btn.className='btn btn-primary';
       btn.onclick=()=>{document.getElementById('resultBox').style.display='none';document.getElementById('camWrap').style.display='block';document.getElementById('faceSub').textContent='Try again — look directly at camera';startCamera().then(()=>startDetectionLoop());};
     }
@@ -644,9 +708,9 @@ function closeModal(){
   pendingWorker=null;pendingAction=null;modalMode=null;capturedDescriptor=null;snapshotDataURL=null;
 }
 
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // LOGS
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 function renderLogs(){
   const fw=document.getElementById('filterWorker').value;
   const ff=document.getElementById('filterFrom').value;
@@ -656,61 +720,66 @@ function renderLogs(){
   if(ff)data=data.filter(l=>l.clockIn>=ff);
   if(ft)data=data.filter(l=>l.clockIn<=ft+'T23:59:59');
   const tb=document.getElementById('logsBody');
-  if(!data.length){tb.innerHTML='<tr><td colspan="8" class="no-records">No records</td></tr>';return;}
+  if(!data.length){tb.innerHTML='<tr><td colspan="9" class="no-records">No records</td></tr>';return;}
   tb.innerHTML=data.map(l=>{
     const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;
     return `<tr>
-      <td><strong>${l.workerName}</strong><br><span style="color:var(--muted);font-size:0.66rem">${l.workerTitle}</span>${l.manual?'<br><span style="color:var(--orange);font-size:0.62rem">manual</span>':''}</td>
+      <td><strong>${l.workerName}</strong><br><span style="color:var(--muted);font-size:0.63rem">${l.workerTitle}</span>${l.manual?'<br><span style="color:var(--orange);font-size:0.6rem">manual</span>':''}</td>
       <td>${din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}</td>
-      <td style="font-family:'JetBrains Mono',monospace">${din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</td>
-      <td style="font-family:'JetBrains Mono',monospace">${dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'<span style="color:var(--muted)">—</span>'}</td>
-      <td style="font-family:'JetBrains Mono',monospace">${l.hoursWorked!==null?fmtHours(l.hoursWorked):'<span style="color:var(--muted)">—</span>'}</td>
-      <td style="font-family:'JetBrains Mono',monospace">${fmtMoney(l.rate)}</td>
-      <td class="wage">${l.wage!==null?fmtMoney(l.wage):'<span style="color:var(--muted)">—</span>'}</td>
+      <td class="mono">${din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td class="mono">${dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'<span style="color:var(--muted)">—</span>'}</td>
+      <td class="mono">${l.hoursWorked!==null?fmtHours(l.hoursWorked):'<span style="color:var(--muted)">—</span>'}</td>
+      <td class="mono">${fmtMoney(l.rate)}</td>
+      <td class="mono green">${l.wage!==null?fmtMoney(l.wage):'<span style="color:var(--muted)">—</span>'}</td>
       <td><span class="badge ${l.status}">${l.status==='in'?'Active':'Complete'}</span></td>
+      <td><button class="btn-sm edit" onclick="openEditLog('${l.id}')">Edit</button></td>
     </tr>`;
   }).join('');
 }
 
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // ADMIN
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 function renderAdmin(){
-  // Worker edit list
+  // Workers
   const wEl=document.getElementById('adminWorkersList');
   if(!workers.length){wEl.innerHTML='<div class="empty-state"><div class="icon">👷</div><p>No workers yet</p></div>';}
-  else{wEl.innerHTML=workers.map(w=>`
-    <div class="admin-log-row">
-      ${w.photoURL?`<img src="${w.photoURL}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--green);flex-shrink:0;">`:`<div class="worker-avatar-placeholder" style="width:40px;height:40px;font-size:1rem;flex-shrink:0;">${initials(w.name)}</div>`}
+  else wEl.innerHTML=workers.map(w=>`
+    <div class="alr">
+      ${w.photoURL?`<img src="${w.photoURL}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--green);flex-shrink:0;">`:`<div class="w-avatar-ph" style="width:38px;height:38px;font-size:0.9rem;flex-shrink:0;">${initials(w.name)}</div>`}
       <div class="alr-info">
         <div class="alr-name">${w.name}</div>
         <div class="alr-meta">${w.title} · ${fmtMoney(w.rate)}/hr · OT: ${fmtMoney(w.overtimeRate)}/hr</div>
       </div>
-      <button class="btn-sm edit" onclick="openEditWorker('${w.id}')">Edit</button>
-    </div>`).join('');}
+      <div class="alr-btns"><button class="btn-sm edit" onclick="openEditWorker('${w.id}')">Edit</button></div>
+    </div>`).join('');
 
-  // Worker dropdown for manual entry
+  // Manual entry worker dropdown
   const mw=document.getElementById('manWorker');
   mw.innerHTML=workers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
 
-  // Log edit list — show last 30 records
-  const lEl=document.getElementById('adminLogsList');
-  const recent=[...logs].reverse().slice(0,30);
-  if(!recent.length){lEl.innerHTML='<div class="empty-state"><div class="icon">📋</div><p>No records yet</p></div>';}
-  else{lEl.innerHTML=recent.map(l=>{
-    const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;
-    return `<div class="admin-log-row">
-      <div class="alr-info">
-        <div class="alr-name">${l.workerName} ${l.manual?'<span style="color:var(--orange);font-size:0.68rem">(manual)</span>':''}</div>
-        <div class="alr-meta">${din.toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · In: ${din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})} · Out: ${dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'—'} · ${l.hoursWorked!==null?fmtHours(l.hoursWorked)+' · ':''} ${l.wage!==null?fmtMoney(l.wage):''}</div>
-      </div>
-      <button class="btn-sm edit" onclick="openEditLog('${l.id}')">Edit</button>
-      <button class="btn-danger" style="font-size:0.68rem;padding:5px 9px;" onclick="deleteLog('${l.id}')">Del</button>
-    </div>`;
-  }).join('');}
+  // Loans/savings worker dropdown
+  const lsw=document.getElementById('lsWorkerSelect');
+  lsw.innerHTML=workers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
+  if(workers.length)renderLoansSection();
 
-  // Live preview on manual entry form
-  ['manIn','manOut'].forEach(id=>document.getElementById(id).addEventListener('input',previewManual));
+  // Logs list
+  const lEl=document.getElementById('adminLogsList');
+  const recent=[...logs].reverse().slice(0,40);
+  if(!recent.length){lEl.innerHTML='<div class="empty-state"><div class="icon">📋</div><p>No records yet</p></div>';}
+  else lEl.innerHTML=recent.map(l=>{
+    const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;
+    return `<div class="alr">
+      <div class="alr-info">
+        <div class="alr-name">${l.workerName} ${l.manual?'<span style="color:var(--orange);font-size:0.66rem">(manual)</span>':''}</div>
+        <div class="alr-meta">${din.toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · In: ${din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})} · Out: ${dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'—'} · ${l.hoursWorked!==null?fmtHours(l.hoursWorked)+' · ':''}${l.wage!==null?fmtMoney(l.wage):''}</div>
+      </div>
+      <div class="alr-btns">
+        <button class="btn-sm edit" onclick="openEditLog('${l.id}')">Edit</button>
+        <button class="btn-danger" style="font-size:0.66rem;padding:5px 9px;" onclick="deleteLog('${l.id}')">Del</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function previewManual(){
@@ -719,10 +788,10 @@ function previewManual(){
   const wid=document.getElementById('manWorker').value;
   const w=workers.find(x=>x.id===wid);
   const el=document.getElementById('manCalcPreview');
-  if(!inV||!outV||!w){el.textContent='';return;}
+  if(!inV||!outV||!w){el.textContent='';el.className='calc-preview';return;}
   const c=calcWage(inV,outV,w.rate,w.overtimeRate);
-  if(c.hours<=0){el.textContent='⚠ Clock out must be after clock in';el.style.color='#FC8181';return;}
-  el.style.color='var(--green)';
+  if(c.hours<=0){el.textContent='⚠ Clock out must be after clock in';el.className='calc-preview err';return;}
+  el.className='calc-preview ok';
   el.textContent=`✓ ${fmtHours(c.hours)} worked · Wage: ${fmtMoney(c.wage)}`;
 }
 
@@ -732,7 +801,7 @@ function addManualEntry(){
   const outV=document.getElementById('manOut').value;
   const w=workers.find(x=>x.id===wid);
   if(!w)return showToast('Select a worker','error');
-  if(!inV||!outV)return showToast('Enter both clock in and out times','error');
+  if(!inV||!outV)return showToast('Enter both times','error');
   const c=calcWage(inV,outV,w.rate,w.overtimeRate);
   if(c.hours<=0)return showToast('Clock out must be after clock in','error');
   logs.push({id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,rate:w.rate,overtimeRate:w.overtimeRate,clockIn:new Date(inV).toISOString(),clockOut:new Date(outV).toISOString(),hoursWorked:c.hours,wage:c.wage,status:'complete',manual:true});
@@ -743,31 +812,29 @@ function addManualEntry(){
 
 function deleteLog(id){
   if(!confirm('Delete this record?'))return;
-  logs=logs.filter(l=>l.id!==id);save();renderAdmin();showToast('Record deleted','success');
+  logs=logs.filter(l=>l.id!==id);save();renderAdmin();renderLogs();showToast('Record deleted','success');
 }
 
-// ── EDIT LOG MODAL ──
+// ─── EDIT LOG ────────────────────────────────
 function openEditLog(id){
   const l=logs.find(x=>x.id===id);if(!l)return;
   document.getElementById('editLogId').value=id;
-  document.getElementById('editModalSub').textContent=`${l.workerName} — ${new Date(l.clockIn).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}`;
-  // Convert ISO to datetime-local format
+  document.getElementById('editLogSub').textContent=`${l.workerName} — ${new Date(l.clockIn).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}`;
   document.getElementById('editClockIn').value=toDatetimeLocal(l.clockIn);
   document.getElementById('editClockOut').value=l.clockOut?toDatetimeLocal(l.clockOut):'';
-  document.getElementById('editCalcPreview').textContent='';
-  document.getElementById('editModal').classList.add('open');
-  ['editClockIn','editClockOut'].forEach(id=>document.getElementById(id).addEventListener('input',previewEdit));
+  document.getElementById('editLogPreview').textContent='';
+  document.getElementById('editLogModal').classList.add('open');
 }
-function previewEdit(){
+function previewEditLog(){
   const id=document.getElementById('editLogId').value;
   const l=logs.find(x=>x.id===id);if(!l)return;
   const inV=document.getElementById('editClockIn').value;
   const outV=document.getElementById('editClockOut').value;
-  const el=document.getElementById('editCalcPreview');
-  if(!inV||!outV){el.textContent='';return;}
+  const el=document.getElementById('editLogPreview');
+  if(!inV||!outV){el.textContent='';el.className='calc-preview';return;}
   const c=calcWage(inV,outV,l.rate,l.overtimeRate);
-  if(c.hours<=0){el.textContent='⚠ Clock out must be after clock in';el.style.color='#FC8181';return;}
-  el.style.color='var(--green)';el.textContent=`✓ ${fmtHours(c.hours)} worked · Wage: ${fmtMoney(c.wage)}`;
+  if(c.hours<=0){el.textContent='⚠ Clock out must be after clock in';el.className='calc-preview err';return;}
+  el.className='calc-preview ok';el.textContent=`✓ ${fmtHours(c.hours)} worked · Wage: ${fmtMoney(c.wage)}`;
 }
 function saveEditedLog(){
   const id=document.getElementById('editLogId').value;
@@ -781,11 +848,11 @@ function saveEditedLog(){
     if(c.hours<=0)return showToast('Clock out must be after clock in','error');
     l.clockOut=new Date(outV).toISOString();l.hoursWorked=c.hours;l.wage=c.wage;l.status='complete';
   }else{l.clockOut=null;l.hoursWorked=null;l.wage=null;l.status='in';}
-  save();closeEditModal();renderAdmin();showToast('Record updated ✓','success');
+  save();closeEditLogModal();renderAdmin();renderLogs();showToast('Record updated ✓','success');
 }
-function closeEditModal(){document.getElementById('editModal').classList.remove('open');}
+function closeEditLogModal(){document.getElementById('editLogModal').classList.remove('open');}
 
-// ── EDIT WORKER MODAL ──
+// ─── EDIT WORKER ─────────────────────────────
 function openEditWorker(id){
   const w=workers.find(x=>x.id===id);if(!w)return;
   document.getElementById('editWorkerId').value=id;
@@ -805,23 +872,120 @@ function saveEditedWorker(){
   const ot=parseFloat(document.getElementById('editWorkerOT').value);
   if(!name)return showToast('Enter name','error');
   if(!rate||rate<=0)return showToast('Enter valid rate','error');
-  w.name=name;w.title=title||w.title;w.rate=rate;w.overtimeRate=ot||rate*1.5;
-  save();closeEditWorkerModal();renderWorkersList();renderWorkerGrid();renderAdmin();updateFilterDropdowns();
+  w.name=name;w.title=title||w.title;w.rate=rate;w.overtimeRate=ot||Math.round(rate*1.5*100)/100;
+  save();document.getElementById('editWorkerModal').classList.remove('open');
+  renderWorkersList();renderWorkerGrid();renderAdmin();updateDropdowns();
   showToast(`${w.name} updated ✓`,'success');
 }
-function closeEditWorkerModal(){document.getElementById('editWorkerModal').classList.remove('open');}
 
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
+// LOANS & SAVINGS
+// ════════════════════════════════════════════
+function getLS(wid){ if(!lsData[wid])lsData[wid]={loans:[],savings:[]}; return lsData[wid]; }
+
+function renderLoansSection(){
+  const wid=document.getElementById('lsWorkerSelect').value;
+  if(!wid){document.getElementById('lsSectionContent').innerHTML='';return;}
+  const w=workers.find(x=>x.id===wid);
+  const ls=getLS(wid);
+  const totalLoans   = ls.loans.reduce((a,x)=>a+x.amount,0);
+  const totalSavings = ls.savings.reduce((a,x)=>a+x.amount,0);
+
+  document.getElementById('lsSectionContent').innerHTML=`
+    <div style="display:flex;gap:9px;margin-bottom:10px;">
+      <div class="sbox" style="flex:1;"><div class="lbl">Total Loans</div><div class="val" style="color:#FC8181;font-size:1rem;">${fmtMoney(totalLoans)}</div></div>
+      <div class="sbox" style="flex:1;"><div class="lbl">Total Savings</div><div class="val" style="color:#5BA4F5;font-size:1rem;">${fmtMoney(totalSavings)}</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;max-width:500px;">
+      <button class="btn btn-primary" style="flex:1;padding:10px;" onclick="openLSModal('loan','${wid}')">+ Add Loan</button>
+      <button class="btn" style="flex:1;padding:10px;background:rgba(26,111,212,0.2);color:#5BA4F5;border:1px solid rgba(26,111,212,0.3);" onclick="openLSModal('saving','${wid}')">+ Add Saving</button>
+    </div>
+    <div id="lsItemsList">${renderLSItems(wid)}</div>`;
+}
+
+function renderLSItems(wid){
+  const ls=getLS(wid);
+  const all=[
+    ...ls.loans.map(x=>({...x,type:'loan'})),
+    ...ls.savings.map(x=>({...x,type:'saving'}))
+  ].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(!all.length)return '<div class="empty-state" style="padding:20px;"><p>No loans or savings yet</p></div>';
+  return all.map(x=>`
+    <div class="ls-item">
+      <div class="lsi">
+        <div class="lsn">${x.desc} <span class="ls-badge ${x.type}">${x.type==='loan'?'Loan':'Saving'}</span></div>
+        <div class="lsm">${new Date(x.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${fmtMoney(x.amount)}</div>
+      </div>
+      <button class="btn-danger" style="font-size:0.68rem;padding:5px 9px;" onclick="deleteLS('${wid}','${x.type}','${x.id}')">Del</button>
+    </div>`).join('');
+}
+
+function openLSModal(type,wid){
+  const w=workers.find(x=>x.id===wid);
+  document.getElementById('lsType').value=type;
+  document.getElementById('lsWorkerId').value=wid;
+  document.getElementById('lsModalTitle').textContent=type==='loan'?'💸 Add Loan':'🏦 Add Saving';
+  document.getElementById('lsModalSub').textContent=w?w.name:'';
+  document.getElementById('lsDesc').value='';document.getElementById('lsAmount').value='';
+  const now=new Date();document.getElementById('lsDate').value=toDatetimeLocal(now.toISOString());
+  document.getElementById('lsModal').classList.add('open');
+}
+function saveLoanSaving(){
+  const type=document.getElementById('lsType').value;
+  const wid=document.getElementById('lsWorkerId').value;
+  const desc=document.getElementById('lsDesc').value.trim();
+  const amount=parseFloat(document.getElementById('lsAmount').value);
+  const date=document.getElementById('lsDate').value;
+  if(!desc)return showToast('Enter description','error');
+  if(!amount||amount<=0)return showToast('Enter valid amount','error');
+  if(!date)return showToast('Select date','error');
+  const ls=getLS(wid);
+  const entry={id:Date.now().toString(),desc,amount,date:new Date(date).toISOString()};
+  if(type==='loan')ls.loans.push(entry);else ls.savings.push(entry);
+  save();document.getElementById('lsModal').classList.remove('open');
+  renderLoansSection();showToast(`${type==='loan'?'Loan':'Saving'} added ✓`,'success');
+}
+function deleteLS(wid,type,id){
+  if(!confirm('Delete this entry?'))return;
+  const ls=getLS(wid);
+  if(type==='loan')ls.loans=ls.loans.filter(x=>x.id!==id);
+  else ls.savings=ls.savings.filter(x=>x.id!==id);
+  save();renderLoansSection();showToast('Deleted','success');
+}
+
+// ════════════════════════════════════════════
 // EXPORT
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 function renderSummary(){
   document.getElementById('sumWorkers').textContent=workers.length;
   const done=logs.filter(l=>l.status==='complete');
   document.getElementById('sumRecords').textContent=done.length;
   document.getElementById('sumHours').textContent=fmtHours(done.reduce((a,l)=>a+(l.hoursWorked||0),0));
-  document.getElementById('sumWages').textContent=fmtMoney(done.reduce((a,l)=>a+(l.wage||0),0));
-  updateFilterDropdowns();
+  const gross=done.reduce((a,l)=>a+(l.wage||0),0);
+  document.getElementById('sumWages').textContent=fmtMoney(gross);
+  updateDropdowns();
+
+  // Deduction summary per worker
+  let html='';
+  workers.forEach(w=>{
+    const wLogs=done.filter(l=>l.workerId===w.id);
+    if(!wLogs.length)return;
+    const wGross=wLogs.reduce((a,l)=>a+(l.wage||0),0);
+    const ls=getLS(w.id);
+    const loans=ls.loans.reduce((a,x)=>a+x.amount,0);
+    const savings=ls.savings.reduce((a,x)=>a+x.amount,0);
+    const net=wGross-loans-savings;
+    html+=`<div class="deduction-card">
+      <div class="dc-title">${w.name}</div>
+      <div class="dc-row"><span>Gross Wages</span><span class="mono green">${fmtMoney(wGross)}</span></div>
+      ${loans>0?`<div class="dc-row"><span>Loans Deduction</span><span class="mono" style="color:#FC8181;">− ${fmtMoney(loans)}</span></div>`:''}
+      ${savings>0?`<div class="dc-row"><span>Savings Deduction</span><span class="mono" style="color:#5BA4F5;">− ${fmtMoney(savings)}</span></div>`:''}
+      <div class="dc-row total"><span>Net Pay</span><span class="mono">${fmtMoney(net)}</span></div>
+    </div>`;
+  });
+  document.getElementById('deductionSummary').innerHTML=html;
 }
+
 function exportExcel(){
   const fw=document.getElementById('exFilterWorker').value;
   const ff=document.getElementById('exFrom').value;
@@ -831,40 +995,78 @@ function exportExcel(){
   if(ff)data=data.filter(l=>l.clockIn>=ff);
   if(ft)data=data.filter(l=>l.clockIn<=ft+'T23:59:59');
   if(!data.length)return showToast('No completed records to export','error');
+
   const wb=XLSX.utils.book_new();
+
+  // Sheet 1: Detail
   const rows=data.map(l=>{
     const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;
-    return{'Worker':l.workerName,'Title':l.workerTitle,'Date':din.toLocaleDateString('en-ZA'),'Day':din.toLocaleDateString('en-ZA',{weekday:'long'}),'Clock In':din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),'Clock Out':dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'',' Hours':l.hoursWorked,'Normal Hrs':Math.min(l.hoursWorked,8).toFixed(2),'OT Hrs':Math.max(l.hoursWorked-8,0).toFixed(2),'Rate (R)':l.rate,'OT Rate (R)':l.overtimeRate,'Wage (R)':l.wage,'Manual':l.manual?'Yes':'No'};
+    return{'Worker':l.workerName,'Title':l.workerTitle,'Date':din.toLocaleDateString('en-ZA'),'Day':din.toLocaleDateString('en-ZA',{weekday:'long'}),'Clock In':din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),'Clock Out':dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'',' Hours':l.hoursWorked,'Normal Hrs':parseFloat(Math.min(l.hoursWorked,8).toFixed(2)),'OT Hrs':parseFloat(Math.max(l.hoursWorked-8,0).toFixed(2)),'Rate (R)':l.rate,'OT Rate (R)':l.overtimeRate,'Wage (R)':l.wage,'Manual':l.manual?'Yes':'No'};
   });
-  const ws1=XLSX.utils.json_to_sheet(rows);ws1['!cols']=[14,12,11,10,9,9,8,9,8,9,10,10,7].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws1,'Attendance Detail');
-  const wmap={};data.forEach(l=>{if(!wmap[l.workerId])wmap[l.workerId]={name:l.workerName,title:l.workerTitle,days:0,hours:0,wage:0,rate:l.rate};wmap[l.workerId].days++;wmap[l.workerId].hours+=l.hoursWorked;wmap[l.workerId].wage+=l.wage;});
-  const sum=Object.values(wmap).map(w=>({'Worker':w.name,'Title':w.title,'Rate (R)':w.rate,'Days':w.days,'Total Hours':Number(w.hours.toFixed(2)),'Total Wage (R)':Number(w.wage.toFixed(2))}));
+  const ws1=XLSX.utils.json_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws1,'Attendance Detail');
+
+  // Sheet 2: Worker Summary with deductions
+  const wmap={};
+  data.forEach(l=>{
+    if(!wmap[l.workerId])wmap[l.workerId]={name:l.workerName,title:l.workerTitle,days:0,hours:0,gross:0,rate:l.rate};
+    wmap[l.workerId].days++;wmap[l.workerId].hours+=l.hoursWorked;wmap[l.workerId].gross+=l.wage;
+  });
+  const sum=Object.entries(wmap).map(([wid,w])=>{
+    const ls=getLS(wid);
+    const loans=ls.loans.reduce((a,x)=>a+x.amount,0);
+    const savings=ls.savings.reduce((a,x)=>a+x.amount,0);
+    return{'Worker':w.name,'Title':w.title,'Rate (R)':w.rate,'Days':w.days,'Total Hours':parseFloat(w.hours.toFixed(2)),'Gross Wage (R)':parseFloat(w.gross.toFixed(2)),'Loans (R)':parseFloat(loans.toFixed(2)),'Savings (R)':parseFloat(savings.toFixed(2)),'Net Pay (R)':parseFloat((w.gross-loans-savings).toFixed(2))};
+  });
   const ws2=XLSX.utils.json_to_sheet(sum);XLSX.utils.book_append_sheet(wb,ws2,'Worker Summary');
+
+  // Sheet 3: Loans & Savings
+  const lsRows=[];
+  workers.forEach(w=>{
+    const ls=getLS(w.id);
+    ls.loans.forEach(x=>lsRows.push({'Worker':w.name,'Type':'Loan','Description':x.desc,'Amount (R)':x.amount,'Date':new Date(x.date).toLocaleDateString('en-ZA')}));
+    ls.savings.forEach(x=>lsRows.push({'Worker':w.name,'Type':'Saving','Description':x.desc,'Amount (R)':x.amount,'Date':new Date(x.date).toLocaleDateString('en-ZA')}));
+  });
+  if(lsRows.length){const ws3=XLSX.utils.json_to_sheet(lsRows);XLSX.utils.book_append_sheet(wb,ws3,'Loans & Savings');}
+
   XLSX.writeFile(wb,`EagleElectrical_Attendance_${new Date().toLocaleDateString('en-ZA').replace(/\//g,'-')}.xlsx`);
   showToast('Excel downloaded ✓','success');
 }
+
 function emailReport(){
   const email=document.getElementById('emailAddr').value.trim();
   if(!email)return showToast('Enter your email','error');
   const data=logs.filter(l=>l.status==='complete');
   if(!data.length)return showToast('No records to email','error');
-  const totalHrs=data.reduce((a,l)=>a+(l.hoursWorked||0),0),totalWage=data.reduce((a,l)=>a+(l.wage||0),0);
-  let body=`EAGLE ELECTRICAL VENTURES — ATTENDANCE REPORT\nGenerated: ${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})}\n\nSUMMARY\n${'─'.repeat(38)}\nTotal Workers: ${workers.length}\nTotal Records: ${data.length}\nTotal Hours: ${fmtHours(totalHrs)}\nTotal Wages: ${fmtMoney(totalWage)}\n\nDETAILED LOG\n${'─'.repeat(38)}\n`;
-  data.forEach(l=>{const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;body+=`\n${l.workerName} (${l.workerTitle})${l.manual?' [manual]':''}\n  Date: ${din.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short'})}\n  In: ${din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}  Out: ${dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'N/A'}\n  Hours: ${fmtHours(l.hoursWorked)}  Rate: ${fmtMoney(l.rate)}/hr  Wage: ${fmtMoney(l.wage)}\n`;});
+  const totalHrs=data.reduce((a,l)=>a+(l.hoursWorked||0),0);
+  const gross=data.reduce((a,l)=>a+(l.wage||0),0);
+  let body=`EAGLE ELECTRICAL VENTURES — ATTENDANCE REPORT\nGenerated: ${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})}\n\nSUMMARY\n${'─'.repeat(40)}\nTotal Workers: ${workers.length}\nTotal Records: ${data.length}\nTotal Hours: ${fmtHours(totalHrs)}\nGross Wages: ${fmtMoney(gross)}\n\nDEDUCTIONS PER WORKER\n${'─'.repeat(40)}\n`;
+  workers.forEach(w=>{
+    const wl=data.filter(l=>l.workerId===w.id);if(!wl.length)return;
+    const wg=wl.reduce((a,l)=>a+(l.wage||0),0);
+    const ls=getLS(w.id);
+    const loans=ls.loans.reduce((a,x)=>a+x.amount,0);
+    const savings=ls.savings.reduce((a,x)=>a+x.amount,0);
+    body+=`\n${w.name} (${w.title})\n  Gross: ${fmtMoney(wg)}  Loans: ${fmtMoney(loans)}  Savings: ${fmtMoney(savings)}  NET PAY: ${fmtMoney(wg-loans-savings)}\n`;
+  });
+  body+=`\nDETAILED LOG\n${'─'.repeat(40)}\n`;
+  data.forEach(l=>{const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;body+=`\n${l.workerName}${l.manual?' [manual]':''}\n  ${din.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short'})}  In:${din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})} Out:${dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'N/A'}  ${fmtHours(l.hoursWorked)}  ${fmtMoney(l.wage)}\n`;});
   const sub=encodeURIComponent(`Eagle Electrical — Attendance ${new Date().toLocaleDateString('en-ZA')}`);
   window.location.href=`mailto:${email}?subject=${sub}&body=${encodeURIComponent(body)}`;
 }
 
-// ═══════════════════════════════════════════════════
+// ════════════════════════════════════════════
 // HELPERS
-// ═══════════════════════════════════════════════════
-function initials(n){return n.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);}
+// ════════════════════════════════════════════
 function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.className='toast',3200);}
-function updateFilterDropdowns(){['filterWorker','exFilterWorker'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const v=el.value;el.innerHTML='<option value="">All Workers</option>'+workers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');el.value=v;});}
-function toDatetimeLocal(iso){const d=new Date(iso);const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+function updateDropdowns(){
+  ['filterWorker','exFilterWorker'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const v=el.value;el.innerHTML='<option value="">All Workers</option>'+workers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');el.value=v;
+  });
+}
 
-// ─── INIT ─────────────────────────────────────────
-renderWorkerGrid();renderWorkersList();updateFilterDropdowns();
+// ─── INIT ──────────────────────────────────
+renderWorkerGrid();renderWorkersList();updateDropdowns();
 </script>
 </body>
 </html>
