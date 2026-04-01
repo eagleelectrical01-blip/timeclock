@@ -842,13 +842,32 @@ function saveEditedLog(){
   const inV=document.getElementById('editClockIn').value;
   const outV=document.getElementById('editClockOut').value;
   if(!inV)return showToast('Enter clock in time','error');
+
   l.clockIn=new Date(inV).toISOString();
   if(outV){
     const c=calcWage(inV,outV,l.rate,l.overtimeRate);
     if(c.hours<=0)return showToast('Clock out must be after clock in','error');
-    l.clockOut=new Date(outV).toISOString();l.hoursWorked=c.hours;l.wage=c.wage;l.status='complete';
-  }else{l.clockOut=null;l.hoursWorked=null;l.wage=null;l.status='in';}
-  save();closeEditLogModal();renderAdmin();renderLogs();showToast('Record updated ✓','success');
+    l.clockOut=new Date(outV).toISOString();
+    l.hoursWorked=c.hours; l.wage=c.wage; l.status='complete';
+  }else{
+    l.clockOut=null; l.hoursWorked=null; l.wage=null; l.status='in';
+  }
+
+  // ── FIX 2: Sync the worker's Clock tab state to match the updated log ──
+  const w = workers.find(x=>x.id===l.workerId);
+  if(w){
+    if(l.status==='complete'){
+      // Log is now complete — if this was the open session, mark worker as clocked out
+      const hasOpenLog = logs.some(x=>x.workerId===w.id && x.id!==l.id && x.status==='in');
+      if(!hasOpenLog){ w.clockedIn=false; w.clockInTime=null; }
+    } else {
+      // Log is now open (no clock out) — mark worker as clocked in
+      w.clockedIn=true; w.clockInTime=l.clockIn;
+    }
+  }
+
+  save(); closeEditLogModal(); renderAdmin(); renderLogs(); renderWorkerGrid();
+  showToast('Record updated ✓','success');
 }
 function closeEditLogModal(){document.getElementById('editLogModal').classList.remove('open');}
 
@@ -872,10 +891,27 @@ function saveEditedWorker(){
   const ot=parseFloat(document.getElementById('editWorkerOT').value);
   if(!name)return showToast('Enter name','error');
   if(!rate||rate<=0)return showToast('Enter valid rate','error');
-  w.name=name;w.title=title||w.title;w.rate=rate;w.overtimeRate=ot||Math.round(rate*1.5*100)/100;
-  save();document.getElementById('editWorkerModal').classList.remove('open');
-  renderWorkersList();renderWorkerGrid();renderAdmin();updateDropdowns();
-  showToast(`${w.name} updated ✓`,'success');
+  const newOT = ot&&ot>0 ? ot : Math.round(rate*1.5*100)/100;
+
+  // Update worker
+  w.name=name; w.title=title||w.title; w.rate=rate; w.overtimeRate=newOT;
+
+  // ── FIX 1: Recalculate ALL existing completed logs for this worker with new rates ──
+  logs.forEach(l=>{
+    if(l.workerId !== id) return;
+    // Always update the stored rate/name/title to stay in sync
+    l.rate=rate; l.overtimeRate=newOT; l.workerName=name; l.workerTitle=title||w.title;
+    // Recalculate wage if the log is complete
+    if(l.status==='complete' && l.clockIn && l.clockOut){
+      const c=calcWage(l.clockIn, l.clockOut, rate, newOT);
+      l.hoursWorked=c.hours; l.wage=c.wage;
+    }
+  });
+
+  save();
+  document.getElementById('editWorkerModal').classList.remove('open');
+  renderWorkersList(); renderWorkerGrid(); renderAdmin(); updateDropdowns(); renderLogs();
+  showToast(`${w.name} updated — wages recalculated ✓`,'success');
 }
 
 // ════════════════════════════════════════════
