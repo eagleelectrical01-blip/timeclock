@@ -4,30 +4,65 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Time Clock System</title>
-<link id="appleTouchIcon" rel="apple-touch-icon" sizes="192x192">
-<link id="faviconLink" rel="icon" type="image/png" sizes="192x192">
 <script>
+// Generate icon as base64 and inject into head before anything else loads
 (function(){
   const c=document.createElement('canvas');c.width=192;c.height=192;
   const ctx=c.getContext('2d');
+  // Background
   ctx.fillStyle='#0D1B2A';
-  ctx.beginPath();ctx.roundRect(0,0,192,192,32);ctx.fill();
-  ctx.strokeStyle='#F5820A';ctx.lineWidth=8;
-  ctx.beginPath();ctx.roundRect(4,4,184,184,28);ctx.stroke();
-  ctx.fillStyle='#E8EDF2';
-  ctx.font='90px serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('🕐',96,80);
-  ctx.font='68px serif';
-  ctx.fillText('👷',96,150);
-  const url=c.toDataURL('image/png');
-  document.getElementById('appleTouchIcon').href=url;
-  document.getElementById('faviconLink').href=url;
-  const manifest={name:'Time Clock System',short_name:'TimeClock',start_url:'.',display:'standalone',background_color:'#080F17',theme_color:'#0D1B2A',icons:[{src:url,sizes:'192x192',type:'image/png'}]};
-  const blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
-  const ml=document.createElement('link');ml.rel='manifest';ml.href=URL.createObjectURL(blob);
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(0,0,192,192,32); else ctx.rect(0,0,192,192);
+  ctx.fill();
+  // Orange border
+  ctx.strokeStyle='#F5820A';ctx.lineWidth=9;
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(5,5,182,182,28); else ctx.rect(5,5,182,182);
+  ctx.stroke();
+  // Clock emoji
+  ctx.font='88px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('🕐',96,76);
+  // Worker emoji
+  ctx.font='64px serif';
+  ctx.fillText('👷',96,148);
+  const ico=c.toDataURL('image/png');
+  // Favicon
+  const fav=document.createElement('link');
+  fav.rel='icon';fav.type='image/png';fav.sizes='192x192';fav.href=ico;
+  document.head.appendChild(fav);
+  // Apple touch icon
+  const ati=document.createElement('link');
+  ati.rel='apple-touch-icon';ati.sizes='192x192';ati.href=ico;
+  document.head.appendChild(ati);
+  // PWA manifest with base64 icon (NOT a blob — base64 works on Android)
+  const manifest={
+    name:'Time Clock System',
+    short_name:'TimeClock',
+    description:'Eagle Electrical Time Clock',
+    start_url:'.',
+    display:'standalone',
+    orientation:'portrait',
+    background_color:'#080F17',
+    theme_color:'#0D1B2A',
+    icons:[
+      {src:ico,sizes:'192x192',type:'image/png',purpose:'any maskable'},
+      {src:ico,sizes:'512x512',type:'image/png',purpose:'any maskable'}
+    ]
+  };
+  const manifestStr=JSON.stringify(manifest);
+  const manifestB64=btoa(unescape(encodeURIComponent(manifestStr)));
+  const ml=document.createElement('link');ml.rel='manifest';
+  ml.href='data:application/manifest+json;base64,'+manifestB64;
   document.head.appendChild(ml);
+  // Store icon for SW if needed
+  window._appIcon=ico;
 })();
 </script>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TimeClock">
+<meta name="theme-color" content="#0D1B2A">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
@@ -220,6 +255,11 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <div id="modelBanner"><div class="spinner"></div><span id="modelStatus">Loading face recognition models...</span></div>
     <div class="section-title">Select Worker</div>
     <div class="worker-grid" id="workerGrid"><div class="empty-state"><div class="icon">👷</div><p>No workers added yet.<br>Contact your admin to add workers.</p></div></div>
+    <div style="margin-top:32px;padding:0 4px;">
+      <button onclick="closeApp()" style="width:100%;padding:13px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:0.8rem;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span style="font-size:1rem;">✕</span> Close App
+      </button>
+    </div>
   </div>
 </div>
 
@@ -619,8 +659,21 @@ function enterAdminMode(isSuperAdmin){
   switchAdminTab('logs');
   renderAdmin();
 }
-function doLogout(){
-  adminIn=false; superIn=false;
+let _backPressTime=0;
+function closeApp(){
+  try{ window.open('','_self'); window.close(); } catch(e){}
+  setTimeout(function(){ try{ history.go(-(history.length+1)); }catch(e){} },100);
+  setTimeout(function(){ try{ window.location.replace('about:blank'); }catch(e){} },300);
+}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'||e.key==='BrowserBack'||e.key==='GoBack'){
+    e.preventDefault();
+    const now=Date.now();
+    if(now-_backPressTime<2200){window.close();}
+    else{_backPressTime=now;showToast('Press back again to close the app','');}
+  }
+});
+function doLogout(){  adminIn=false; superIn=false;
   document.getElementById('publicTabs').style.display='flex';
   document.getElementById('adminTabs').style.display='none';
   document.getElementById('logoutBtn').style.display='none';
