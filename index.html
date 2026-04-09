@@ -647,20 +647,18 @@ function saveNewPassword(){
   enterCompanyApp(co);
 }
 function enterCompanyApp(co){
-  // Init sub data if needed
+  document.getElementById('companyScreen').classList.add('hidden');
+  document.getElementById('setPwScreen').classList.remove('open');
   let sub = getSubData(co.id);
   if(!sub){ sub={trialStart:new Date().toISOString()}; saveSubData(co.id,sub); }
   loadSASettings();
   loadCompanyData();
-  document.getElementById('publicTabs').style.display='flex';
-  document.getElementById('page-clock').style.display='block';
-  document.getElementById('page-clock').classList.add('active');
   updateHeaderLogo();
   updateTrialBanner();
   checkExpired();
   startClock();
   loadFaceModels();
-  renderWorkerGrid();
+  goHome();
 }
 function initSuperAdminUI(){
   // Hide public tabs, show super admin tab directly
@@ -727,6 +725,7 @@ function checkExpired(){
 }
 function showExpiredLogin(){
   document.getElementById('expiredOverlay').classList.remove('open');
+  setActiveTab(document.getElementById('adminTabBtn'));
   showPage('adminlogin');
 }
 
@@ -734,8 +733,9 @@ function showExpiredLogin(){
 // ADMIN LOGIN (company level)
 // ═══════════════════════════════════════
 function handleAdminTabClick(){
-  if(adminIn) switchAdminTab('logs');
-  else showPage('adminlogin');
+  if(adminIn){ switchAdminTab('logs'); return; }
+  setActiveTab(document.getElementById('adminTabBtn'));
+  showPage('adminlogin');
 }
 function doAdminLogin(){
   loadCompanies();
@@ -758,23 +758,18 @@ function doAdminLogin(){
 function doLogout(){
   adminIn=false; isSuperAdmin=false;
   document.getElementById('adminTabs').style.display='none';
-  document.getElementById('publicTabs').style.display='flex';
+  document.getElementById('publicTabs').style.display='none';
   document.getElementById('logoutBtn').style.display='none';
-  const st=document.getElementById('superAdminTab');if(st)st.remove();
-  if(currentCompanyId==='__SA__'){
-    // Return to company screen
-    currentCompanyId=null;
-    document.getElementById('companyScreen').classList.remove('hidden');
-    document.getElementById('companyCodeInput').value='';
-    document.getElementById('saCodeInput').value='';
-    document.getElementById('headerLogo').innerHTML='Time Clock<span>System</span>';
-    document.getElementById('trialBanner').style.display='none';
-    document.getElementById('publicTabs').style.display='none';
-    document.getElementById('adminTabs').style.display='none';
-    hideAllPages();
-    return;
-  }
-  goHome();
+  document.getElementById('trialBanner').style.display='none';
+  const st=document.getElementById('superAdminTab'); if(st) st.remove();
+  hideAllPages();
+  currentCompanyId=null;
+  workers=[]; logs=[]; lsData={};
+  document.getElementById('companyScreen').classList.remove('hidden');
+  document.getElementById('companyCodeInput').value='';
+  document.getElementById('saCodeInput').value='';
+  document.getElementById('adminPwInput').value='';
+  document.getElementById('headerLogo').innerHTML='Time Clock<span>System</span>';
 }
 
 // ═══════════════════════════════════════
@@ -789,11 +784,13 @@ function showPage(id){
   if(p){p.style.display='block';p.classList.add('active');}
 }
 function goHome(){
+  adminIn=false;
   document.getElementById('adminTabs').style.display='none';
   document.getElementById('publicTabs').style.display='flex';
-  adminIn=false;
+  document.getElementById('logoutBtn').style.display='none';
   setActiveTab(document.getElementById('publicTabs').children[0]);
   showPage('clock');
+  renderWorkerGrid();
 }
 function switchAdminTab(tab){
   showPage(tab);
