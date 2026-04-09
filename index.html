@@ -662,8 +662,7 @@ function enterAdminMode(isSuperAdmin){
 let _backPressTime=0;
 function closeApp(){
   try{ window.open('','_self'); window.close(); } catch(e){}
-  setTimeout(function(){ try{ history.go(-(history.length+1)); }catch(e){} },100);
-  setTimeout(function(){ try{ window.location.replace('about:blank'); }catch(e){} },300);
+  setTimeout(function(){ try{ window.close(); }catch(e){} },200);
 }
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'||e.key==='BrowserBack'||e.key==='GoBack'){
