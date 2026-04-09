@@ -5,56 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Time Clock System</title>
 <script>
-// Generate icon as base64 and inject into head before anything else loads
 (function(){
   const c=document.createElement('canvas');c.width=192;c.height=192;
   const ctx=c.getContext('2d');
-  // Background
   ctx.fillStyle='#0D1B2A';
   ctx.beginPath();
-  if(ctx.roundRect) ctx.roundRect(0,0,192,192,32); else ctx.rect(0,0,192,192);
+  if(ctx.roundRect)ctx.roundRect(0,0,192,192,32);else ctx.rect(0,0,192,192);
   ctx.fill();
-  // Orange border
   ctx.strokeStyle='#F5820A';ctx.lineWidth=9;
   ctx.beginPath();
-  if(ctx.roundRect) ctx.roundRect(5,5,182,182,28); else ctx.rect(5,5,182,182);
+  if(ctx.roundRect)ctx.roundRect(5,5,182,182,28);else ctx.rect(5,5,182,182);
   ctx.stroke();
-  // Clock emoji
   ctx.font='88px serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('🕐',96,76);
-  // Worker emoji
+  ctx.fillText('\uD83D\uDD50',96,76);
   ctx.font='64px serif';
-  ctx.fillText('👷',96,148);
+  ctx.fillText('\uD83D\uDC77',96,148);
   const ico=c.toDataURL('image/png');
-  // Favicon
-  const fav=document.createElement('link');
-  fav.rel='icon';fav.type='image/png';fav.sizes='192x192';fav.href=ico;
-  document.head.appendChild(fav);
-  // Apple touch icon
-  const ati=document.createElement('link');
-  ati.rel='apple-touch-icon';ati.sizes='192x192';ati.href=ico;
-  document.head.appendChild(ati);
-  // PWA manifest with base64 icon (NOT a blob — base64 works on Android)
-  const manifest={
-    name:'Time Clock System',
-    short_name:'TimeClock',
-    description:'Eagle Electrical Time Clock',
-    start_url:'.',
-    display:'standalone',
-    orientation:'portrait',
-    background_color:'#080F17',
-    theme_color:'#0D1B2A',
-    icons:[
-      {src:ico,sizes:'192x192',type:'image/png',purpose:'any maskable'},
-      {src:ico,sizes:'512x512',type:'image/png',purpose:'any maskable'}
-    ]
-  };
-  const manifestStr=JSON.stringify(manifest);
-  const manifestB64=btoa(unescape(encodeURIComponent(manifestStr)));
-  const ml=document.createElement('link');ml.rel='manifest';
-  ml.href='data:application/manifest+json;base64,'+manifestB64;
-  document.head.appendChild(ml);
-  // Store icon for SW if needed
+  const fav=document.createElement('link');fav.rel='icon';fav.type='image/png';fav.sizes='192x192';fav.href=ico;document.head.appendChild(fav);
+  const ati=document.createElement('link');ati.rel='apple-touch-icon';ati.sizes='192x192';ati.href=ico;document.head.appendChild(ati);
+  const manifest={name:'Time Clock System',short_name:'TimeClock',description:'Eagle Electrical Time Clock',start_url:'.',display:'standalone',orientation:'portrait',background_color:'#080F17',theme_color:'#0D1B2A',icons:[{src:ico,sizes:'192x192',type:'image/png',purpose:'any maskable'},{src:ico,sizes:'512x512',type:'image/png',purpose:'any maskable'}]};
+  const mb64=btoa(unescape(encodeURIComponent(JSON.stringify(manifest))));
+  const ml=document.createElement('link');ml.rel='manifest';ml.href='data:application/manifest+json;base64,'+mb64;document.head.appendChild(ml);
   window._appIcon=ico;
 })();
 </script>
@@ -188,7 +159,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .alr-info{flex:1;min-width:150px;}
 .alr-name{font-weight:600;font-size:0.83rem;}
 .alr-meta{font-size:0.7rem;color:var(--muted);margin-top:2px;}
-.alr-btns{display:flex;gap:6px;}
+.alr-btns{display:flex;gap:6px;flex-wrap:wrap;}
 .ls-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:9px;}
 .ls-item .lsi{flex:1;}
 .ls-item .lsn{font-weight:600;font-size:0.83rem;}
@@ -226,10 +197,70 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .toast.show{transform:translateX(-50%) translateY(0);}
 .toast.success{border-color:var(--green);}
 .toast.error{border-color:var(--red);}
+/* Company entry screen */
+#companyScreen{position:fixed;inset:0;background:var(--dark);z-index:800;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+#companyScreen.hidden{display:none;}
+.cs-logo{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:4px;color:var(--orange);margin-bottom:4px;}
+.cs-sub{font-size:0.72rem;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:36px;}
+.cs-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px 22px;max-width:340px;width:100%;}
+.cs-card h3{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:var(--text);margin-bottom:4px;text-align:center;}
+.cs-card p{font-size:0.76rem;color:var(--muted);text-align:center;margin-bottom:18px;}
+/* Set password screen */
+#setPwScreen{position:fixed;inset:0;background:var(--dark);z-index:800;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+#setPwScreen.open{display:flex;}
+.spw-card{background:var(--surface);border:1px solid rgba(45,198,83,0.4);border-radius:18px;padding:28px 22px;max-width:340px;width:100%;text-align:center;}
+.spw-card .spw-icon{font-size:2.4rem;margin-bottom:10px;}
+.spw-card h3{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:var(--green);margin-bottom:4px;}
+.spw-card p{font-size:0.76rem;color:var(--muted);margin-bottom:18px;line-height:1.6;}
 </style>
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════
+     COMPANY CODE ENTRY SCREEN
+═══════════════════════════════════════ -->
+<div id="companyScreen">
+  <div class="cs-logo">&#128336; TimeClock</div>
+  <div class="cs-sub">Eagle Electrical Ventures</div>
+  <div class="cs-card">
+    <h3>Welcome</h3>
+    <p>Enter your company code to access your Time Clock system.</p>
+    <div style="margin-bottom:14px;">
+      <label>Company Code</label>
+      <input type="text" id="companyCodeInput" placeholder="e.g. SMITH01" style="text-transform:uppercase;letter-spacing:2px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:1.1rem;" onkeydown="if(event.key==='Enter')submitCompanyCode()">
+    </div>
+    <button class="btn btn-primary" onclick="submitCompanyCode()" style="width:100%;padding:13px;">Enter</button>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+      <p style="font-size:0.7rem;color:var(--muted);margin-bottom:10px;">System Administrator?</p>
+      <input type="password" id="saCodeInput" placeholder="Super Admin password" style="margin-bottom:8px;" onkeydown="if(event.key==='Enter')submitSACode()">
+      <button class="btn btn-ghost" onclick="submitSACode()" style="width:100%;padding:10px;font-size:0.78rem;">Super Admin Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SET PASSWORD SCREEN (first login)
+═══════════════════════════════════════ -->
+<div id="setPwScreen">
+  <div class="spw-card">
+    <div class="spw-icon">&#128274;</div>
+    <h3>Set Your Password</h3>
+    <p>Welcome! You are logging in for the first time.<br>Please create your own admin password.</p>
+    <div style="margin-bottom:10px;text-align:left;">
+      <label>New Password</label>
+      <input type="password" id="newPwInput" placeholder="Enter new password">
+    </div>
+    <div style="margin-bottom:16px;text-align:left;">
+      <label>Confirm Password</label>
+      <input type="password" id="confirmPwInput" placeholder="Confirm new password" onkeydown="if(event.key==='Enter')saveNewPassword()">
+    </div>
+    <button class="btn btn-green" onclick="saveNewPassword()" style="width:100%;padding:13px;">Save Password &amp; Enter</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN APP
+═══════════════════════════════════════ -->
 <div id="trialBanner"></div>
 
 <header>
@@ -237,37 +268,37 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <div class="live-clock"><div id="clockTime">--:--:--</div><div class="dt" id="clockDate">---</div></div>
 </header>
 
-<div class="tabs" id="publicTabs">
-  <div class="tab active" onclick="goHome()">⏱ Clock</div>
-  <div class="tab" id="adminTabBtn" onclick="handleAdminTabClick()">🔐 Admin</div>
+<div class="tabs" id="publicTabs" style="display:none;">
+  <div class="tab active" onclick="goHome()">&#9201; Clock</div>
+  <div class="tab" id="adminTabBtn" onclick="handleAdminTabClick()">&#128272; Admin</div>
 </div>
 
 <div class="tabs" id="adminTabs" style="display:none;">
-  <div class="tab active" onclick="switchAdminTab('logs')">📋 Logs</div>
-  <div class="tab" onclick="switchAdminTab('workers')">👷 Workers</div>
-  <div class="tab" onclick="switchAdminTab('admin')">⚙️ Admin</div>
-  <div class="tab" onclick="switchAdminTab('export')">📤 Export</div>
+  <div class="tab active" onclick="switchAdminTab('logs')">&#128203; Logs</div>
+  <div class="tab" onclick="switchAdminTab('workers')">&#128119; Workers</div>
+  <div class="tab" onclick="switchAdminTab('admin')">&#9881; Admin</div>
+  <div class="tab" onclick="switchAdminTab('export')">&#128228; Export</div>
 </div>
 
 <!-- CLOCK PAGE -->
-<div class="page active" id="page-clock">
+<div class="page" id="page-clock" style="display:none;">
   <div style="max-width:500px;margin:0 auto;">
     <div id="modelBanner"><div class="spinner"></div><span id="modelStatus">Loading face recognition models...</span></div>
     <div class="section-title">Select Worker</div>
-    <div class="worker-grid" id="workerGrid"><div class="empty-state"><div class="icon">👷</div><p>No workers added yet.<br>Contact your admin to add workers.</p></div></div>
+    <div class="worker-grid" id="workerGrid"><div class="empty-state"><div class="icon">&#128119;</div><p>No workers added yet.<br>Contact your admin to add workers.</p></div></div>
     <div style="margin-top:32px;padding:0 4px;">
       <button onclick="closeApp()" style="width:100%;padding:13px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:0.8rem;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-        <span style="font-size:1rem;">✕</span> Close App
+        <span style="font-size:1rem;">&#10005;</span> Close App
       </button>
     </div>
   </div>
 </div>
 
 <!-- ADMIN LOGIN PAGE -->
-<div class="page" id="page-adminlogin">
+<div class="page" id="page-adminlogin" style="display:none;">
   <div class="login-wrap">
     <div class="login-card">
-      <div class="lc-icon">🔐</div>
+      <div class="lc-icon">&#128272;</div>
       <h2>Admin Login</h2>
       <p>Enter your admin password to access the management panel.</p>
       <div style="margin-bottom:12px;text-align:left;">
@@ -275,17 +306,12 @@ tr:hover td{background:rgba(255,255,255,0.02);}
         <input type="password" id="adminPwInput" placeholder="Enter password" onkeydown="if(event.key==='Enter')doAdminLogin()">
       </div>
       <button class="btn btn-primary" onclick="doAdminLogin()" style="width:100%;padding:12px;">Login</button>
-      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
-        <p style="font-size:0.72rem;color:var(--muted);margin-bottom:8px;">Super Admin access</p>
-        <input type="password" id="superPwInput" placeholder="Super Admin password" style="margin-bottom:8px;" onkeydown="if(event.key==='Enter')doSuperLogin()">
-        <button class="btn btn-ghost" onclick="doSuperLogin()" style="width:100%;padding:10px;font-size:0.78rem;">Super Admin Login</button>
-      </div>
     </div>
   </div>
 </div>
 
 <!-- LOGS PAGE -->
-<div class="page" id="page-logs">
+<div class="page" id="page-logs" style="display:none;">
   <div class="section-title">Attendance Log</div>
   <div class="filter-bar">
     <select id="filterWorker" onchange="renderLogs()"><option value="">All Workers</option></select>
@@ -295,119 +321,122 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <div id="logTotals"></div>
   <div class="log-table-wrap">
     <table>
-      <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>Rate/hr</th><th>Wage</th><th>Status</th><th>Edit</th></tr></thead>
-      <tbody id="logsBody"><tr><td colspan="9" class="no-records">No records yet</td></tr></tbody>
+      <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>Wage</th><th>Status</th><th></th></tr></thead>
+      <tbody id="logBody"></tbody>
     </table>
   </div>
 </div>
 
 <!-- WORKERS PAGE -->
-<div class="page" id="page-workers">
-  <div class="section-title">Manage Workers</div>
+<div class="page" id="page-workers" style="display:none;">
+  <div class="section-title">Workers</div>
   <div class="card">
+    <h3>&#10133; Add Worker</h3>
+    <p>Register a new worker with face recognition.</p>
     <div class="form-row">
-      <div class="form-field"><label>Full Name</label><input type="text" id="wName" placeholder="e.g. John Dlamini"></div>
-      <div class="form-field"><label>Job Title</label><input type="text" id="wTitle" placeholder="e.g. Electrician"></div>
+      <div class="form-field"><label>Full Name</label><input type="text" id="workerName" placeholder="John Smith"></div>
+      <div class="form-field"><label>Job Title</label><input type="text" id="workerTitle" placeholder="Electrician"></div>
     </div>
     <div class="form-row">
-      <div class="form-field"><label>Normal Rate (R/hr)</label><input type="number" id="wRate" placeholder="43.75" min="0.01" step="0.01"></div>
-      <div class="form-field"><label>Overtime Rate (R/hr)</label><input type="number" id="wOT" placeholder="65.63" min="0.01" step="0.01"></div>
+      <div class="form-field"><label>Rate (R/hr)</label><input type="number" id="workerRate" placeholder="75" min="1" step="0.5"></div>
+      <div class="form-field"><label>OT Rate (R/hr)</label><input type="number" id="workerOTRate" placeholder="112.50" min="1" step="0.5"></div>
     </div>
-    <button class="btn btn-primary" onclick="addWorker()" style="width:100%;padding:11px;">+ Add Worker &amp; Register Face</button>
+    <button class="btn btn-primary" onclick="openRegisterFace()" style="width:100%;padding:11px;">&#128247; Capture Face &amp; Register</button>
   </div>
-  <div class="workers-list" id="workersList"><div class="empty-state"><div class="icon">👷</div><p>No workers yet</p></div></div>
+  <div class="section-title" style="margin-top:8px;">Registered Workers</div>
+  <div class="workers-list" id="workersList"></div>
 </div>
 
 <!-- ADMIN PANEL PAGE -->
-<div class="page" id="page-admin">
+<div class="page" id="page-admin" style="display:none;">
   <div class="section-title">Admin Panel</div>
-  <div class="admin-section">
-    <div class="admin-section-title">🏢 Company Settings</div>
-    <div class="card">
-      <div class="form-row">
-        <div class="form-field"><label>Company Name</label><input type="text" id="companyNameInput" placeholder="e.g. ABC Construction" oninput="previewCompanyName()"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-field"><label>New Admin Password</label><input type="password" id="adminPwChange" placeholder="Leave blank to keep current"></div>
-      </div>
-      <button class="btn btn-primary" onclick="saveCompanySettings()" style="width:100%;padding:11px;">💾 Save Settings</button>
+  <div class="card">
+    <h3>&#127970; Company Settings</h3>
+    <p>Update your company name and admin password.</p>
+    <div class="form-field" style="margin-bottom:10px;"><label>Company Name</label><input type="text" id="companyNameInput" placeholder="e.g. Smith Builders" oninput="previewCompanyName()"></div>
+    <div class="form-field" style="margin-bottom:12px;"><label>New Admin Password</label><input type="password" id="newAdminPw" placeholder="Leave blank to keep current"></div>
+    <button class="btn btn-primary" onclick="saveCompanySettings()" style="width:100%;padding:11px;">&#128190; Save Settings</button>
+  </div>
+  <div class="divider"></div>
+  <div class="section-title">Manual Time Entry</div>
+  <div class="card">
+    <div class="form-row">
+      <div class="form-field"><label>Worker</label><select class="fs" id="manWorker"><option value="">Select worker</option></select></div>
     </div>
-  </div>
-  <div class="divider"></div>
-  <div class="admin-section">
-    <div class="admin-section-title">👷 Edit Worker Information &amp; Rates</div>
-    <div id="adminWorkersList"><div class="empty-state"><div class="icon">👷</div><p>No workers yet</p></div></div>
-  </div>
-  <div class="divider"></div>
-  <div class="admin-section">
-    <div class="admin-section-title">🕐 Add Manual Time Entry</div>
-    <div class="card">
-      <div class="form-row"><div class="form-field"><label>Worker</label><select class="fs" id="manWorker" onchange="previewManual()"></select></div></div>
-      <div class="form-row">
-        <div class="form-field"><label>Clock In</label><input type="datetime-local" id="manIn" oninput="previewManual()"></div>
-        <div class="form-field"><label>Clock Out</label><input type="datetime-local" id="manOut" oninput="previewManual()"></div>
-      </div>
-      <div class="calc-preview" id="manCalcPreview"></div>
-      <button class="btn btn-primary" onclick="addManualEntry()" style="width:100%;padding:11px;">+ Add Time Entry</button>
+    <div class="form-row">
+      <div class="form-field"><label>Clock In</label><input type="datetime-local" id="manIn" oninput="previewManual()"></div>
+      <div class="form-field"><label>Clock Out</label><input type="datetime-local" id="manOut" oninput="previewManual()"></div>
     </div>
+    <div class="calc-preview" id="manPreview"></div>
+    <button class="btn btn-primary" onclick="saveManualEntry()" style="width:100%;padding:11px;">&#10133; Add Entry</button>
   </div>
   <div class="divider"></div>
-  <div class="admin-section">
-    <div class="admin-section-title">💰 Loans &amp; Savings</div>
-    <div style="margin-bottom:10px;"><label>Select Worker</label><select class="fs" id="lsWorkerSelect" onchange="renderLoansSection()" style="max-width:500px;margin-top:4px;"></select></div>
-    <div id="lsSectionContent"></div>
+  <div class="section-title">Loans &amp; Savings</div>
+  <div class="card">
+    <div class="form-row">
+      <div class="form-field"><label>Worker</label><select class="fs" id="lsWorker"><option value="">Select worker</option></select></div>
+      <div class="form-field"><label>Type</label><select class="fs" id="lsType"><option value="loan">Loan</option><option value="saving">Saving</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Description</label><input type="text" id="lsDesc" placeholder="e.g. Tool advance"></div>
+      <div class="form-field"><label>Amount (R)</label><input type="number" id="lsAmount" placeholder="500" min="1"></div>
+    </div>
+    <button class="btn btn-primary" onclick="addLSEntry()" style="width:100%;padding:11px;">&#10133; Add Entry</button>
   </div>
-  <div class="divider"></div>
-  <div class="admin-section">
-    <div class="admin-section-title">✏️ Edit Existing Records</div>
-    <div id="adminLogsList"><div class="empty-state"><div class="icon">📋</div><p>No records yet</p></div></div>
-  </div>
+  <div class="section-title">Loans &amp; Savings Records</div>
+  <div id="lsList"></div>
 </div>
 
 <!-- EXPORT PAGE -->
-<div class="page" id="page-export">
+<div class="page" id="page-export" style="display:none;">
   <div class="section-title">Export &amp; Reports</div>
-  <div class="summary-grid">
-    <div class="sbox"><div class="lbl">Workers</div><div class="val orange" id="sumWorkers">0</div></div>
-    <div class="sbox"><div class="lbl">Records</div><div class="val" id="sumRecords">0</div></div>
-    <div class="sbox"><div class="lbl">Total Hours</div><div class="val orange" id="sumHours">0h</div></div>
-    <div class="sbox"><div class="lbl">Gross Wages</div><div class="val green" id="sumWages">R0.00</div></div>
-  </div>
-  <div id="deductionSummary"></div>
+  <div class="summary-grid" id="summaryGrid"></div>
   <div class="card">
-    <h3>📥 Download Excel</h3>
-    <p>Full attendance with hours, wages, loans and savings deductions.</p>
-    <div class="form-row">
-      <select class="fs" id="exFilterWorker" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:0.8rem;font-family:'DM Sans',sans-serif;"><option value="">All Workers</option></select>
-      <input type="date" id="exFrom" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:0.8rem;">
-      <input type="date" id="exTo" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:0.8rem;">
+    <h3>&#128202; Per-Worker Summary</h3>
+    <p>Breakdown of wages and deductions per worker.</p>
+    <div class="filter-bar" style="margin-bottom:12px;">
+      <input type="date" id="expFrom">
+      <input type="date" id="expTo">
     </div>
-    <button class="btn btn-primary" onclick="exportExcel()" style="width:100%;padding:11px;">⬇ Download Excel (.xlsx)</button>
-  </div>
-  <div class="card">
-    <h3>📧 Email Report</h3>
-    <p>Opens your email app with a full attendance summary.</p>
-    <div style="margin-bottom:10px;"><label>Your Email</label><input type="email" id="emailAddr" placeholder="you@example.com"></div>
-    <button class="btn btn-primary" onclick="emailReport()" style="width:100%;padding:11px;">✉ Open Email App</button>
+    <div id="workerSummary"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-primary" onclick="exportExcel()" style="flex:1;padding:11px;">&#128202; Export Excel</button>
+      <button class="btn btn-ghost" onclick="emailReport()" style="flex:1;padding:11px;">&#128231; Email Report</button>
+    </div>
   </div>
 </div>
 
 <!-- SUPER ADMIN PAGE -->
-<div class="page" id="page-superadmin">
-  <div class="section-title">⚡ Super Admin</div>
+<div class="page" id="page-superadmin" style="display:none;">
+  <div class="section-title">&#9889; Super Admin</div>
+
   <div class="admin-section">
-    <div class="admin-section-title">📋 Subscription Management</div>
-    <div id="saCompanyCard"></div>
-    <div class="card" style="margin-top:12px;">
-      <div class="admin-section-title" style="font-size:0.78rem;margin-bottom:10px;">✏️ Edit Settings</div>
+    <div class="admin-section-title">&#127970; Register New Company</div>
+    <div class="card">
       <div class="form-row">
-        <div class="form-field"><label>Company Name</label><input type="text" id="saCompanyName" placeholder="e.g. ABC Construction"></div>
-        <div class="form-field"><label>Admin Password</label><input type="text" id="saAdminPw" placeholder="Leave blank to keep current"></div>
+        <div class="form-field"><label>Company Name</label><input type="text" id="newCoName" placeholder="e.g. Smith Builders"></div>
+        <div class="form-field"><label>Company Code</label><input type="text" id="newCoCode" placeholder="e.g. SMITH01" style="text-transform:uppercase;letter-spacing:1px;"></div>
       </div>
       <div class="form-row">
-        <div class="form-field"><label>Monthly Price (R)</label><input type="number" id="saPrice" min="1" step="1"></div>
-        <div class="form-field"><label>Trial Days</label><input type="number" id="saTrialDays" min="1" max="365"></div>
+        <div class="form-field"><label>Temporary Password</label><input type="text" id="newCoPw" placeholder="e.g. Welcome123"></div>
+        <div class="form-field"><label>Trial Days</label><input type="number" id="newCoTrial" value="30" min="1"></div>
       </div>
+      <button class="btn btn-green" onclick="registerNewCompany()" style="width:100%;padding:11px;">&#10133; Register Company</button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="admin-section">
+    <div class="admin-section-title">&#127970; All Companies</div>
+    <div id="saCompaniesList"></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="admin-section">
+    <div class="admin-section-title">&#9881; Global System Settings</div>
+    <div class="card">
       <div class="form-row">
         <div class="form-field"><label>PayShap ShapID</label><input type="text" id="saShapId" placeholder="0823747094@nedbank"></div>
         <div class="form-field"><label>Display Name</label><input type="text" id="saShapName" placeholder="D VAN VOLLENSTEE"></div>
@@ -416,27 +445,17 @@ tr:hover td{background:rgba(255,255,255,0.02);}
         <div class="form-field"><label>PayFast Merchant ID</label><input type="text" id="saPfMid"></div>
         <div class="form-field"><label>PayFast Merchant Key</label><input type="text" id="saPfKey"></div>
       </div>
-      <button class="btn btn-primary" onclick="saveSASettings()" style="width:100%;padding:11px;">💾 Save All Settings</button>
+      <button class="btn btn-primary" onclick="saveGlobalSettings()" style="width:100%;padding:11px;">&#128190; Save Global Settings</button>
     </div>
-  </div>
-  <div class="divider"></div>
-  <div class="admin-section">
-    <div class="admin-section-title">👷 All Workers</div>
-    <div id="saWorkersList"></div>
-  </div>
-  <div class="divider"></div>
-  <div class="admin-section">
-    <div class="admin-section-title">📋 Recent Records (last 50)</div>
-    <div id="saLogsList"></div>
   </div>
 </div>
 
 <!-- EXPIRED OVERLAY -->
 <div id="expiredOverlay">
   <div class="expired-card">
-    <div class="icon">⏰</div>
+    <div class="icon">&#9200;</div>
     <h2>Trial Expired</h2>
-    <p id="expiredMsg">Your free trial has ended. Subscribe to continue using the Time Clock System.</p>
+    <p id="expiredMsg">Your free trial has ended. Subscribe to continue.</p>
     <div class="payshap-box">
       <div class="ph-label">Pay via PayShap</div>
       <div class="ph-val" id="expShapId">Contact your supplier</div>
@@ -444,13 +463,13 @@ tr:hover td{background:rgba(255,255,255,0.02);}
       <div class="ph-val" id="expShapName"></div>
       <div class="ph-label" style="margin-top:8px;">Amount</div>
       <div class="ph-val" id="expAmount">R199/month</div>
-      <div class="ph-note">Open your banking app → Transact → PayShap → Send → enter the ShapID above → pay the amount shown.<br><br>Works on Capitec, FNB, Absa, Standard Bank and Nedbank.<br><br>Once paid, send a screenshot to your supplier — they will activate your subscription.</div>
+      <div class="ph-note">Open your banking app &#8594; Transact &#8594; PayShap &#8594; Send &#8594; enter the ShapID above &#8594; pay the amount shown.<br><br>Works on Capitec, FNB, Absa, Standard Bank and Nedbank.<br><br>Once paid, send a screenshot to your supplier — they will activate your subscription.</div>
     </div>
-    <button class="btn btn-ghost" onclick="showExpiredLogin()" style="width:100%;padding:12px;">🔐 Admin Login</button>
+    <button class="btn btn-ghost" onclick="showExpiredLogin()" style="width:100%;padding:12px;">&#128272; Admin Login</button>
   </div>
 </div>
 
-<button class="logout-btn" id="logoutBtn" style="display:none;" onclick="doLogout()">🔒 Logout</button>
+<button class="logout-btn" id="logoutBtn" style="display:none;" onclick="doLogout()">&#128274; Logout</button>
 
 <!-- FACE MODAL -->
 <div class="modal-backdrop" id="faceModal">
@@ -463,13 +482,35 @@ tr:hover td{background:rgba(255,255,255,0.02);}
       <div class="face-overlay"><div class="face-oval" id="faceOval"></div></div>
       <div class="face-st" id="faceStatusTxt">Detecting face...</div>
     </div>
-    <img id="snapPreview" class="snap-preview" alt="Captured">
-    <div class="result-box" id="resultBox" style="display:none">
-      <div class="ri" id="resultIcon"></div><div class="rm" id="resultMsg"></div><div class="rd" id="resultDetail"></div>
+    <img id="snapPreview" class="snap-preview">
+    <div id="faceResult"></div>
+    <div class="modal-btns" id="faceBtns">
+      <button class="btn btn-ghost" onclick="closeFaceModal()">Cancel</button>
+      <button class="btn btn-primary" id="capBtn" onclick="captureFace()">&#128247; Capture</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT WORKER MODAL -->
+<div class="modal-backdrop" id="editWorkerModal">
+  <div class="modal">
+    <h2>Edit Worker</h2>
+    <p class="sub">Update worker details. Leave face blank to keep existing.</p>
+    <input type="hidden" id="editWorkerId">
+    <div class="form-row">
+      <div class="form-field"><label>Full Name</label><input type="text" id="editWorkerName"></div>
+      <div class="form-field"><label>Job Title</label><input type="text" id="editWorkerTitle"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Rate (R/hr)</label><input type="number" id="editWorkerRate" step="0.5" min="1"></div>
+      <div class="form-field"><label>OT Rate (R/hr)</label><input type="number" id="editWorkerOTRate" step="0.5" min="1"></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <button class="btn btn-ghost" onclick="openReCaptureFace()" style="width:100%;padding:9px;font-size:0.78rem;">&#128247; Re-capture Face Photo</button>
     </div>
     <div class="modal-btns">
-      <button class="btn btn-ghost" id="modalCancelBtn" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" id="mainActionBtn" onclick="handleMainAction()">Capture</button>
+      <button class="btn btn-ghost" onclick="closeEditWorkerModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditWorker()">&#128190; Save</button>
     </div>
   </div>
 </div>
@@ -477,8 +518,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 <!-- EDIT LOG MODAL -->
 <div class="modal-backdrop" id="editLogModal">
   <div class="modal">
-    <h2>✏️ Edit Time Record</h2>
-    <p class="sub" id="editLogSub"></p>
+    <h2>Edit Record</h2>
     <input type="hidden" id="editLogId">
     <div class="form-row">
       <div class="form-field"><label>Clock In</label><input type="datetime-local" id="editClockIn" oninput="previewEditLog()"></div>
@@ -487,735 +527,1004 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <div class="calc-preview" id="editLogPreview"></div>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeEditLogModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEditedLog()">Save Changes</button>
+      <button class="btn btn-primary" onclick="saveEditLog()">&#128190; Save</button>
     </div>
   </div>
 </div>
 
-<!-- EDIT WORKER MODAL -->
-<div class="modal-backdrop" id="editWorkerModal">
+<!-- EDIT LS MODAL -->
+<div class="modal-backdrop" id="editLSModal">
   <div class="modal">
-    <h2>✏️ Edit Worker</h2>
-    <p class="sub" id="editWorkerSub"></p>
-    <input type="hidden" id="editWorkerId">
+    <h2>Edit Entry</h2>
+    <input type="hidden" id="editLSId">
     <div class="form-row">
-      <div class="form-field"><label>Full Name</label><input type="text" id="editWorkerName"></div>
-      <div class="form-field"><label>Job Title</label><input type="text" id="editWorkerTitle"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-field"><label>Normal Rate (R/hr)</label><input type="number" id="editWorkerRate" step="0.01" min="0.01"></div>
-      <div class="form-field"><label>Overtime Rate (R/hr)</label><input type="number" id="editWorkerOT" step="0.01" min="0.01"></div>
+      <div class="form-field"><label>Description</label><input type="text" id="editLSDesc"></div>
+      <div class="form-field"><label>Amount (R)</label><input type="number" id="editLSAmount" min="1"></div>
     </div>
     <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="document.getElementById('editWorkerModal').classList.remove('open')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEditedWorker()">Save Changes</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('editLSModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditLS()">&#128190; Save</button>
     </div>
   </div>
 </div>
 
-<!-- ADD LOAN/SAVING MODAL -->
-<div class="modal-backdrop" id="lsModal">
-  <div class="modal">
-    <h2 id="lsModalTitle">Add Loan</h2>
-    <p class="sub" id="lsModalSub"></p>
-    <input type="hidden" id="lsType">
-    <input type="hidden" id="lsWorkerId">
-    <div class="form-row">
-      <div class="form-field"><label>Description</label><input type="text" id="lsDesc" placeholder="e.g. Advance payment"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-field"><label>Amount (R)</label><input type="number" id="lsAmount" placeholder="500.00" min="0.01" step="0.01"></div>
-      <div class="form-field"><label>Date</label><input type="datetime-local" id="lsDate"></div>
-    </div>
-    <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="document.getElementById('lsModal').classList.remove('open')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveLoanSaving()">Add</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
+<div id="toastEl" class="toast"></div>
 
 <script>
-// ════════════════════════════════════════════
-// STATE
-// ════════════════════════════════════════════
-let workers = JSON.parse(localStorage.getItem('eev_workers') || '[]');
-let logs    = JSON.parse(localStorage.getItem('eev_logs')    || '[]');
-let lsData  = JSON.parse(localStorage.getItem('eev_ls')      || '{}');
-let settings = JSON.parse(localStorage.getItem('eev_settings') || '{"companyName":"","adminPassword":"admin123"}');
-if(!settings.adminPassword) settings.adminPassword = 'admin123';
-let saSettings = JSON.parse(localStorage.getItem('eev_sa_settings') || '{}');
-if(!saSettings.price)        saSettings.price = 199;
-if(!saSettings.trialDays)    saSettings.trialDays = 30;
-if(!saSettings.shapId)       saSettings.shapId = '';
-if(!saSettings.shapName)     saSettings.shapName = '';
-if(!saSettings.pfMid)        saSettings.pfMid = '16936284';
-if(!saSettings.pfKey)        saSettings.pfKey = 'hn1r1ick5zokt';
-let subData = JSON.parse(localStorage.getItem('eev_sub') || '{}');
-if(!subData.trialStart){ subData.trialStart=new Date().toISOString(); localStorage.setItem('eev_sub',JSON.stringify(subData)); }
+// ═══════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════
+const SA_PASSWORD = 'Eagle2026!';
+const SA_SETTINGS_KEY = 'eev_sa_settings';
+const COMPANIES_KEY = 'eev_companies';
 
-const SUPER_PW = 'Eagle2026!';
+// ═══════════════════════════════════════
+// GLOBAL STATE
+// ═══════════════════════════════════════
+let currentCompanyId = null;
+let isSuperAdmin = false;
 let adminIn = false;
-let superIn = false;
+let workers = [], logs = [], lsData = {};
+let saSettings = {};
+let companies = [];
 
-// Sanitise old bad rates
-workers.forEach(w=>{
-  if(w.rate>5000) w.rate=Math.round((w.rate/100)*100)/100;
-  if(w.overtimeRate>5000) w.overtimeRate=Math.round((w.overtimeRate/100)*100)/100;
-});
-logs.forEach(l=>{
-  if(l.rate>5000) l.rate=Math.round((l.rate/100)*100)/100;
-  if(l.overtimeRate>5000) l.overtimeRate=Math.round((l.overtimeRate/100)*100)/100;
-  if(l.clockIn&&l.clockOut&&l.status==='complete'){const c=calcWage(l.clockIn,l.clockOut,l.rate,l.overtimeRate);l.hoursWorked=c.hours;l.wage=c.wage;}
-});
-function save(){
-  localStorage.setItem('eev_workers',JSON.stringify(workers));
-  localStorage.setItem('eev_logs',JSON.stringify(logs));
-  localStorage.setItem('eev_ls',JSON.stringify(lsData));
-  localStorage.setItem('eev_settings',JSON.stringify(settings));
-  localStorage.setItem('eev_sa_settings',JSON.stringify(saSettings));
+// ═══════════════════════════════════════
+// STORAGE HELPERS (per-company prefixed)
+// ═══════════════════════════════════════
+function cKey(k){ return 'eev_'+currentCompanyId+'_'+k; }
+function loadCompanyData(){
+  workers = JSON.parse(localStorage.getItem(cKey('workers')) || '[]');
+  logs    = JSON.parse(localStorage.getItem(cKey('logs'))    || '[]');
+  lsData  = JSON.parse(localStorage.getItem(cKey('ls'))      || '{}');
 }
-save();
+function saveCompanyData(){
+  localStorage.setItem(cKey('workers'), JSON.stringify(workers));
+  localStorage.setItem(cKey('logs'),    JSON.stringify(logs));
+  localStorage.setItem(cKey('ls'),      JSON.stringify(lsData));
+}
+function loadSASettings(){
+  saSettings = JSON.parse(localStorage.getItem(SA_SETTINGS_KEY)||'{}');
+  if(!saSettings.shapId)  saSettings.shapId  = '';
+  if(!saSettings.shapName)saSettings.shapName = '';
+  if(!saSettings.pfMid)   saSettings.pfMid    = '16936284';
+  if(!saSettings.pfKey)   saSettings.pfKey    = 'hn1r1ick5zokt';
+}
+function saveSASettings(){ localStorage.setItem(SA_SETTINGS_KEY, JSON.stringify(saSettings)); }
+function loadCompanies(){
+  companies = JSON.parse(localStorage.getItem(COMPANIES_KEY)||'[]');
+}
+function saveCompanies(){ localStorage.setItem(COMPANIES_KEY, JSON.stringify(companies)); }
+function getCompany(id){ return companies.find(c=>c.id===id); }
+function getSubData(id){
+  const raw = localStorage.getItem('eev_sub_'+id);
+  if(raw) return JSON.parse(raw);
+  return null;
+}
+function saveSubData(id, d){ localStorage.setItem('eev_sub_'+id, JSON.stringify(d)); }
 
-// ════════════════════════════════════════════
-// TRIAL
-// ════════════════════════════════════════════
-function getTrialStatus(){
-  if(subData.subscribed && subData.subExpiry){
-    const exp=new Date(subData.subExpiry);
-    if(new Date()<exp) return {status:'subscribed',daysLeft:Math.ceil((exp-new Date())/86400000)};
-    return {status:'expired',daysLeft:0};
+// ═══════════════════════════════════════
+// COMPANY CODE SCREEN
+// ═══════════════════════════════════════
+function submitCompanyCode(){
+  const code = document.getElementById('companyCodeInput').value.trim().toUpperCase();
+  if(!code){ showToast('Enter your company code','error'); return; }
+  loadCompanies();
+  const co = companies.find(c=>c.id===code);
+  if(!co){ showToast('Company code not found','error'); return; }
+  currentCompanyId = code;
+  // Check first login
+  if(co.mustChangePw){
+    document.getElementById('companyScreen').classList.add('hidden');
+    document.getElementById('setPwScreen').classList.add('open');
+  } else {
+    enterCompanyApp(co);
   }
-  const end=new Date(new Date(subData.trialStart).getTime()+saSettings.trialDays*86400000);
-  const days=Math.ceil((end-new Date())/86400000);
-  if(days>0) return {status:'trial',daysLeft:days};
+}
+function submitSACode(){
+  const pw = document.getElementById('saCodeInput').value;
+  if(pw !== SA_PASSWORD){ showToast('Incorrect Super Admin password','error'); return; }
+  isSuperAdmin = true;
+  adminIn = true;
+  currentCompanyId = '__SA__';
+  document.getElementById('companyScreen').classList.add('hidden');
+  loadSASettings();
+  loadCompanies();
+  initSuperAdminUI();
+}
+function saveNewPassword(){
+  const np = document.getElementById('newPwInput').value;
+  const cp = document.getElementById('confirmPwInput').value;
+  if(!np || np.length < 4){ showToast('Password must be at least 4 characters','error'); return; }
+  if(np !== cp){ showToast('Passwords do not match','error'); return; }
+  loadCompanies();
+  const co = companies.find(c=>c.id===currentCompanyId);
+  if(!co) return;
+  co.password = np;
+  co.mustChangePw = false;
+  saveCompanies();
+  document.getElementById('setPwScreen').classList.remove('open');
+  showToast('Password saved \u2713','success');
+  enterCompanyApp(co);
+}
+function enterCompanyApp(co){
+  // Init sub data if needed
+  let sub = getSubData(co.id);
+  if(!sub){ sub={trialStart:new Date().toISOString()}; saveSubData(co.id,sub); }
+  loadSASettings();
+  loadCompanyData();
+  document.getElementById('publicTabs').style.display='flex';
+  document.getElementById('page-clock').style.display='block';
+  document.getElementById('page-clock').classList.add('active');
+  updateHeaderLogo();
+  updateTrialBanner();
+  checkExpired();
+  startClock();
+  loadFaceModels();
+  renderWorkerGrid();
+}
+function initSuperAdminUI(){
+  // Hide public tabs, show super admin tab directly
+  document.getElementById('publicTabs').style.display='none';
+  document.getElementById('adminTabs').style.display='flex';
+  // Add super tab
+  const at = document.getElementById('adminTabs');
+  if(!document.getElementById('superAdminTab')){
+    const t=document.createElement('div');t.className='tab';t.id='superAdminTab';t.textContent='\u26A1 Super';t.onclick=()=>switchAdminTab('superadmin');at.appendChild(t);
+  }
+  document.getElementById('logoutBtn').style.display='block';
+  document.getElementById('logoutBtn').textContent='\u26A1 Super Admin \u2014 Logout';
+  document.getElementById('headerLogo').innerHTML='TimeClock<span>Super Admin</span>';
+  startClock();
+  switchAdminTab('superadmin');
+}
+
+// ═══════════════════════════════════════
+// TRIAL / SUBSCRIPTION (per company)
+// ═══════════════════════════════════════
+function getTrialStatus(){
+  if(!currentCompanyId||currentCompanyId==='__SA__') return {status:'ok',daysLeft:999};
+  const co = getCompany(currentCompanyId);
+  if(!co) return {status:'expired',daysLeft:0};
+  const sub = getSubData(currentCompanyId);
+  if(!sub) return {status:'expired',daysLeft:0};
+  if(sub.subscribed && sub.subExpiry){
+    const left = Math.ceil((new Date(sub.subExpiry)-new Date())/86400000);
+    if(left>0) return {status:'subscribed',daysLeft:left};
+  }
+  const trialDays = co.trialDays||30;
+  const elapsed = (new Date()-new Date(sub.trialStart))/86400000;
+  const left = Math.ceil(trialDays - elapsed);
+  if(left>0) return {status:'trial',daysLeft:left};
   return {status:'expired',daysLeft:0};
 }
 function updateTrialBanner(){
+  if(isSuperAdmin||!currentCompanyId||currentCompanyId==='__SA__'){
+    document.getElementById('trialBanner').style.display='none'; return;
+  }
   const ts=getTrialStatus();
   const b=document.getElementById('trialBanner');
-  if(ts.status==='subscribed'){b.style.display='none';}
-  else if(ts.status==='trial'){
+  if(ts.status==='subscribed'){
+    b.style.display='block';b.className='';b.classList.add('ok');
+    b.textContent='\u2713 Subscription active \u2014 '+ts.daysLeft+' days remaining';
+  } else if(ts.status==='trial'){
     b.style.display='block';
-    if(ts.daysLeft<=5){b.className='warn';b.textContent='WARNING: Free trial expires in '+ts.daysLeft+' day'+(ts.daysLeft===1?'':'s')+' — subscribe to keep access';}
-    else{b.className='ok';b.textContent='Free trial active — '+ts.daysLeft+' days remaining';}
+    if(ts.daysLeft<=5){b.className='';b.classList.add('warn');b.textContent='\u26A0 Trial expires in '+ts.daysLeft+' day'+(ts.daysLeft===1?'':'s')+' \u2014 Contact your supplier to subscribe';}
+    else{b.className='';b.classList.add('ok');b.textContent='\u23F3 Free trial \u2014 '+ts.daysLeft+' days remaining';}
   } else {
     b.style.display='none';
-    if(!superIn) showExpiredOverlay();
   }
 }
-function showExpiredOverlay(){
-  document.getElementById('expShapId').textContent=saSettings.shapId||'Contact your supplier';
-  document.getElementById('expShapName').textContent=saSettings.shapName||'';
-  document.getElementById('expAmount').textContent='R'+saSettings.price+'/month';
-  document.getElementById('expiredOverlay').classList.add('open');
+function checkExpired(){
+  if(isSuperAdmin) return;
+  const ts=getTrialStatus();
+  if(ts.status==='expired'){
+    const ov=document.getElementById('expiredOverlay');
+    document.getElementById('expShapId').textContent=saSettings.shapId||'Contact your supplier';
+    document.getElementById('expShapName').textContent=saSettings.shapName||'';
+    document.getElementById('expAmount').textContent='R'+(saSettings.price||199)+'/month';
+    ov.classList.add('open');
+  }
 }
 function showExpiredLogin(){
   document.getElementById('expiredOverlay').classList.remove('open');
-  showAdminLogin();
+  showPage('adminlogin');
 }
 
-// ════════════════════════════════════════════
-// NAV / LOGIN
-// ════════════════════════════════════════════
-function goHome(){
-  document.querySelectorAll('#publicTabs .tab').forEach((t,i)=>t.classList.toggle('active',i===0));
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('page-clock').classList.add('active');
-}
+// ═══════════════════════════════════════
+// ADMIN LOGIN (company level)
+// ═══════════════════════════════════════
 function handleAdminTabClick(){
-  if(adminIn||superIn){ doLogout(); }
-  else { showAdminLogin(); }
-}
-function showAdminLogin(){
-  document.querySelectorAll('#publicTabs .tab').forEach((t,i)=>t.classList.toggle('active',i===1));
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('page-adminlogin').classList.add('active');
-  document.getElementById('adminTabs').style.display='none';
-  document.getElementById('adminPwInput').value='';
-  document.getElementById('superPwInput').value='';
+  if(adminIn) switchAdminTab('logs');
+  else showPage('adminlogin');
 }
 function doAdminLogin(){
+  loadCompanies();
+  const co=getCompany(currentCompanyId);
+  if(!co){showToast('Company not found','error');return;}
   const pw=document.getElementById('adminPwInput').value;
-  if(pw===settings.adminPassword){ adminIn=true; enterAdminMode(false); }
-  else showToast('Incorrect password','error');
-}
-function doSuperLogin(){
-  const pw=document.getElementById('superPwInput').value;
-  if(pw===SUPER_PW){ superIn=true; adminIn=true; document.getElementById('expiredOverlay').classList.remove('open'); enterAdminMode(true); }
-  else showToast('Incorrect Super Admin password','error');
-}
-function enterAdminMode(isSuperAdmin){
-  document.getElementById('publicTabs').style.display='none';
-  document.getElementById('adminTabs').style.display='flex';
-  document.getElementById('logoutBtn').style.display='block';
-  document.getElementById('logoutBtn').textContent=isSuperAdmin?'⚡ Super Admin — Logout':'🔒 Logout';
-  const at=document.getElementById('adminTabs');
-  let saTab=document.getElementById('superAdminTab');
-  if(isSuperAdmin&&!saTab){const t=document.createElement('div');t.className='tab';t.id='superAdminTab';t.textContent='⚡ Super';t.onclick=()=>switchAdminTab('superadmin');at.appendChild(t);}
-  if(!isSuperAdmin&&saTab) saTab.remove();
-  updateTrialBanner();
-  switchAdminTab('logs');
-  renderAdmin();
-}
-let _backPressTime=0;
-function closeApp(){
-  try{ window.open('','_self'); window.close(); } catch(e){}
-  setTimeout(function(){ try{ window.close(); }catch(e){} },200);
-}
-document.addEventListener('keydown',function(e){
-  if(e.key==='Escape'||e.key==='BrowserBack'||e.key==='GoBack'){
-    e.preventDefault();
-    const now=Date.now();
-    if(now-_backPressTime<2200){window.close();}
-    else{_backPressTime=now;showToast('Press back again to close the app','');}
+  if(pw===co.password){
+    adminIn=true;
+    document.getElementById('adminPwInput').value='';
+    document.getElementById('publicTabs').style.display='none';
+    document.getElementById('adminTabs').style.display='flex';
+    document.getElementById('logoutBtn').style.display='block';
+    switchAdminTab('logs');
+    renderWorkerSelects();
+    renderLSList();
+  } else {
+    showToast('Incorrect password','error');
   }
-});
-function doLogout(){  adminIn=false; superIn=false;
-  document.getElementById('publicTabs').style.display='flex';
-  document.getElementById('adminTabs').style.display='none';
-  document.getElementById('logoutBtn').style.display='none';
-  const saTab=document.getElementById('superAdminTab'); if(saTab) saTab.remove();
-  document.querySelectorAll('#publicTabs .tab').forEach((t,i)=>t.classList.toggle('active',i===0));
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('page-clock').classList.add('active');
-  showToast('Logged out','success');
 }
-function switchAdminTab(name){
-  document.querySelectorAll('#adminTabs .tab').forEach(t=>t.classList.remove('active'));
-  const tabs=Array.from(document.querySelectorAll('#adminTabs .tab'));
-  const map={logs:0,workers:1,admin:2,export:3,superadmin:4};
-  if(tabs[map[name]]) tabs[map[name]].classList.add('active');
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('page-'+name).classList.add('active');
-  if(name==='logs') renderLogs();
-  if(name==='export') renderSummary();
-  if(name==='admin') renderAdmin();
-  if(name==='superadmin') renderSuperAdmin();
+function doLogout(){
+  adminIn=false; isSuperAdmin=false;
+  document.getElementById('adminTabs').style.display='none';
+  document.getElementById('publicTabs').style.display='flex';
+  document.getElementById('logoutBtn').style.display='none';
+  const st=document.getElementById('superAdminTab');if(st)st.remove();
+  if(currentCompanyId==='__SA__'){
+    // Return to company screen
+    currentCompanyId=null;
+    document.getElementById('companyScreen').classList.remove('hidden');
+    document.getElementById('companyCodeInput').value='';
+    document.getElementById('saCodeInput').value='';
+    document.getElementById('headerLogo').innerHTML='Time Clock<span>System</span>';
+    document.getElementById('trialBanner').style.display='none';
+    document.getElementById('publicTabs').style.display='none';
+    document.getElementById('adminTabs').style.display='none';
+    hideAllPages();
+    return;
+  }
+  goHome();
 }
 
-// ════════════════════════════════════════════
-// HEADER
-// ════════════════════════════════════════════
-function updateHeader(){
-  const n=settings.companyName||'';
-  document.getElementById('headerLogo').childNodes[0].textContent=n||'Time Clock';
-  document.getElementById('companySubtitle').textContent=n?'Time Clock System':'System';
-  document.title=n?n+' — Time Clock':'Time Clock System';
+// ═══════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════
+function hideAllPages(){
+  document.querySelectorAll('.page').forEach(p=>{p.style.display='none';p.classList.remove('active');});
+}
+function showPage(id){
+  hideAllPages();
+  const p=document.getElementById('page-'+id);
+  if(p){p.style.display='block';p.classList.add('active');}
+}
+function goHome(){
+  document.getElementById('adminTabs').style.display='none';
+  document.getElementById('publicTabs').style.display='flex';
+  adminIn=false;
+  setActiveTab(document.getElementById('publicTabs').children[0]);
+  showPage('clock');
+}
+function switchAdminTab(tab){
+  showPage(tab);
+  document.querySelectorAll('#adminTabs .tab').forEach(t=>t.classList.remove('active'));
+  const tabMap={logs:0,workers:1,admin:2,export:3,superadmin:4};
+  const tabs=document.getElementById('adminTabs').children;
+  if(tabMap[tab]!==undefined && tabs[tabMap[tab]]) tabs[tabMap[tab]].classList.add('active');
+  if(tab==='logs'){renderLogs();renderWorkerSelects();}
+  if(tab==='workers'){renderWorkersList();}
+  if(tab==='admin'){loadAdminPanel();}
+  if(tab==='export'){renderExport();}
+  if(tab==='superadmin'){renderSuperAdmin();}
+}
+function setActiveTab(el){
+  document.querySelectorAll('#publicTabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+}
+
+// ═══════════════════════════════════════
+// HEADER / LOGO
+// ═══════════════════════════════════════
+function updateHeaderLogo(){
+  if(!currentCompanyId||currentCompanyId==='__SA__') return;
+  const co=getCompany(currentCompanyId);
+  const name=co?co.name:'';
+  if(name){
+    document.getElementById('headerLogo').innerHTML=name.replace(/ /g,'&nbsp;')+'<span>Time Clock</span>';
+  } else {
+    document.getElementById('headerLogo').innerHTML='Time Clock<span>System</span>';
+  }
 }
 function previewCompanyName(){
   const v=document.getElementById('companyNameInput').value;
-  document.getElementById('headerLogo').childNodes[0].textContent=v||'Time Clock';
+  document.getElementById('headerLogo').innerHTML=(v||'Time Clock').replace(/ /g,'&nbsp;')+'<span>'+(v?'Time Clock':'System')+'</span>';
 }
 
-// ════════════════════════════════════════════
-// COMPANY SETTINGS
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════
+// COMPANY ADMIN SETTINGS
+// ═══════════════════════════════════════
+function loadAdminPanel(){
+  const co=getCompany(currentCompanyId);
+  if(!co) return;
+  document.getElementById('companyNameInput').value=co.name||'';
+  document.getElementById('newAdminPw').value='';
+  renderWorkerSelects();
+  renderLSList();
+}
 function saveCompanySettings(){
+  loadCompanies();
+  const co=getCompany(currentCompanyId);
+  if(!co) return;
   const name=document.getElementById('companyNameInput').value.trim();
-  const pw=document.getElementById('adminPwChange').value.trim();
-  settings.companyName=name;
-  if(pw) settings.adminPassword=pw;
-  save(); updateHeader();
-  document.getElementById('adminPwChange').value='';
+  const pw=document.getElementById('newAdminPw').value.trim();
+  if(name) co.name=name;
+  if(pw && pw.length>=4) co.password=pw;
+  else if(pw && pw.length<4){ showToast('Password must be at least 4 characters','error'); return; }
+  document.getElementById('newAdminPw').value='';
+  saveCompanies();
+  updateHeaderLogo();
   showToast('Settings saved \u2713','success');
 }
 
-// ════════════════════════════════════════════
-// SUPER ADMIN
-// ════════════════════════════════════════════
-function activateSubscription(months){
-  const now=new Date();
-  const base=(subData.subExpiry&&new Date(subData.subExpiry)>now)?new Date(subData.subExpiry):now;
-  subData.subscribed=true;
-  subData.subExpiry=new Date(base.getTime()+months*30*86400000).toISOString();
-  localStorage.setItem('eev_sub',JSON.stringify(subData));
-  updateTrialBanner(); renderSuperAdmin();
-  showToast('Subscription activated — '+months+' month'+(months>1?'s':'')+' added \u2713','success');
+// ═══════════════════════════════════════
+// SUPER ADMIN — COMPANY MANAGEMENT
+// ═══════════════════════════════════════
+function registerNewCompany(){
+  const name=document.getElementById('newCoName').value.trim();
+  const code=document.getElementById('newCoCode').value.trim().toUpperCase();
+  const pw=document.getElementById('newCoPw').value.trim();
+  const trial=parseInt(document.getElementById('newCoTrial').value)||30;
+  if(!name||!code||!pw){ showToast('Fill in all fields','error'); return; }
+  if(!/^[A-Z0-9]+$/.test(code)){ showToast('Code must be letters and numbers only','error'); return; }
+  loadCompanies();
+  if(companies.find(c=>c.id===code)){ showToast('Code already exists — choose another','error'); return; }
+  const co={id:code,name:name,password:pw,mustChangePw:true,trialDays:trial,createdAt:new Date().toISOString()};
+  companies.push(co);
+  saveCompanies();
+  // Init sub data
+  saveSubData(code,{trialStart:new Date().toISOString()});
+  document.getElementById('newCoName').value='';
+  document.getElementById('newCoCode').value='';
+  document.getElementById('newCoPw').value='';
+  document.getElementById('newCoTrial').value='30';
+  renderSuperAdmin();
+  showToast('Company registered: '+code+' \u2713','success');
 }
-function resetTrial(){
-  if(!confirm('Reset trial? This restarts the countdown.')) return;
-  subData={trialStart:new Date().toISOString()};
-  localStorage.setItem('eev_sub',JSON.stringify(subData));
-  updateTrialBanner(); renderSuperAdmin();
-  showToast('Trial reset \u2713','success');
+function renderSuperAdmin(){
+  loadCompanies();
+  // Global settings
+  document.getElementById('saShapId').value=saSettings.shapId||'';
+  document.getElementById('saShapName').value=saSettings.shapName||'';
+  document.getElementById('saPfMid').value=saSettings.pfMid||'16936284';
+  document.getElementById('saPfKey').value=saSettings.pfKey||'hn1r1ick5zokt';
+  // Companies list
+  const el=document.getElementById('saCompaniesList');
+  if(!companies.length){
+    el.innerHTML='<div class="empty-state"><div class="icon">&#127970;</div><p>No companies registered yet.</p></div>';
+    return;
+  }
+  el.innerHTML=companies.map(co=>{
+    const sub=getSubData(co.id);
+    const trialStart=sub?new Date(sub.trialStart).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'—';
+    const trialDays=co.trialDays||30;
+    let status,tag;
+    if(sub&&sub.subscribed&&sub.subExpiry){
+      const left=Math.ceil((new Date(sub.subExpiry)-new Date())/86400000);
+      if(left>0){status='subscribed';tag='<span class="tag-active">Active &mdash; '+left+'d left</span>';}
+      else{status='expired';tag='<span class="tag-expired">Expired</span>';}
+    } else if(sub){
+      const elapsed=(new Date()-new Date(sub.trialStart))/86400000;
+      const left=Math.ceil(trialDays-elapsed);
+      if(left>0){status='trial';tag='<span class="tag-trial">Trial &mdash; '+left+'d left</span>';}
+      else{status='expired';tag='<span class="tag-expired">Expired</span>';}
+    } else {tag='<span class="tag-expired">No data</span>';}
+    return '<div class="alr" style="flex-direction:column;align-items:flex-start;">'
+      +'<div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap;">'
+      +'<div class="alr-info">'
+      +'<div class="alr-name">'+co.name+' &nbsp;<code style="font-size:0.72rem;color:var(--orange);">'+co.id+'</code> '+tag+(co.mustChangePw?' <span style="font-size:0.64rem;color:#FDBA74;background:rgba(245,130,10,0.1);padding:2px 6px;border-radius:4px;">Temp PW</span>':'')+'</div>'
+      +'<div class="alr-meta">Trial started: '+trialStart+' &nbsp;&#183;&nbsp; Trial days: '+trialDays+'&nbsp;&#183;&nbsp; Password: <code>'+co.password+'</code>'+(sub&&sub.subExpiry?'&nbsp;&#183;&nbsp; Sub expires: '+new Date(sub.subExpiry).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'')+'</div>'
+      +'</div>'
+      +'</div>'
+      +'<div class="alr-btns" style="margin-top:8px;">'
+      +'<button class="btn-sm edit" onclick="saEditCompany(\''+co.id+'\')">&#9998; Edit</button>'
+      +'<button class="btn-sm edit" onclick="saActivateSub(\''+co.id+'\',1)">+1 Month</button>'
+      +'<button class="btn-sm edit" onclick="saActivateSub(\''+co.id+'\',3)">+3 Months</button>'
+      +'<button class="btn-sm edit" onclick="saActivateSub(\''+co.id+'\',12)">+1 Year</button>'
+      +'<button class="btn-sm edit" onclick="saResetTrial(\''+co.id+'\')">Reset Trial</button>'
+      +'<button class="btn-danger" onclick="saDeleteCompany(\''+co.id+'\')">Delete</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
 }
-function saveSASettings(){
-  const co=document.getElementById('saCompanyName').value.trim();
-  const pw=document.getElementById('saAdminPw').value.trim();
-  if(co) settings.companyName=co;
-  if(pw) settings.adminPassword=pw;
-  document.getElementById('saAdminPw').value='';
-  saSettings.price=parseFloat(document.getElementById('saPrice').value)||199;
-  saSettings.trialDays=parseInt(document.getElementById('saTrialDays').value)||30;
+function saActivateSub(id,months){
+  const sub=getSubData(id)||{trialStart:new Date().toISOString()};
+  sub.subscribed=true;
+  const base=sub.subExpiry&&new Date(sub.subExpiry)>new Date()?new Date(sub.subExpiry):new Date();
+  sub.subExpiry=new Date(base.getTime()+months*30*86400000).toISOString();
+  saveSubData(id,sub);
+  renderSuperAdmin();
+  showToast(id+': +'+months+' month'+(months>1?'s':'')+' activated \u2713','success');
+}
+function saResetTrial(id){
+  if(!confirm('Reset trial for '+id+'?')) return;
+  saveSubData(id,{trialStart:new Date().toISOString()});
+  renderSuperAdmin();
+  showToast(id+': trial reset \u2713','success');
+}
+function saDeleteCompany(id){
+  if(!confirm('Permanently delete company '+id+' and ALL their data?')) return;
+  loadCompanies();
+  companies=companies.filter(c=>c.id!==id);
+  saveCompanies();
+  // Clean up their data
+  ['workers','logs','ls'].forEach(k=>localStorage.removeItem('eev_'+id+'_'+k));
+  localStorage.removeItem('eev_sub_'+id);
+  renderSuperAdmin();
+  showToast('Company '+id+' deleted','success');
+}
+function saEditCompany(id){
+  loadCompanies();
+  const co=getCompany(id);
+  if(!co) return;
+  const name=prompt('Company Name:',co.name);
+  if(name===null) return;
+  const pw=prompt('Password (current: '+co.password+'):',co.password);
+  if(pw===null) return;
+  const trial=prompt('Trial days:',co.trialDays||30);
+  if(trial===null) return;
+  if(name) co.name=name;
+  if(pw && pw.length>=4){ co.password=pw; co.mustChangePw=false; }
+  co.trialDays=parseInt(trial)||30;
+  saveCompanies();
+  renderSuperAdmin();
+  showToast(id+' updated \u2713','success');
+}
+function saveGlobalSettings(){
   saSettings.shapId=document.getElementById('saShapId').value.trim();
   saSettings.shapName=document.getElementById('saShapName').value.trim();
   saSettings.pfMid=document.getElementById('saPfMid').value.trim();
   saSettings.pfKey=document.getElementById('saPfKey').value.trim();
-  save(); updateTrialBanner(); updateHeaderLogo(); renderSuperAdmin();
-  showToast('Settings saved \u2713','success');
-}
-function saDeleteWorker(id){
-  if(!confirm('Permanently delete this worker and all their records?')) return;
-  workers=workers.filter(w=>w.id!==id);
-  logs=logs.filter(l=>l.workerId!==id);
-  delete lsData[id];
-  save(); renderSuperAdmin(); renderWorkerGrid(); renderWorkersList();
-  showToast('Worker deleted \u2713','success');
-}
-function renderSuperAdmin(){
-  document.getElementById('saCompanyName').value=settings.companyName||'';
-  document.getElementById('saAdminPw').value='';
-  document.getElementById('saPrice').value=saSettings.price;
-  document.getElementById('saTrialDays').value=saSettings.trialDays;
-  document.getElementById('saShapId').value=saSettings.shapId;
-  document.getElementById('saShapName').value=saSettings.shapName;
-  document.getElementById('saPfMid').value=saSettings.pfMid;
-  document.getElementById('saPfKey').value=saSettings.pfKey;
-  const ts=getTrialStatus();
-  const tag=ts.status==='subscribed'?'<span class="tag-active">Active \u2014 '+ts.daysLeft+'d left</span>':ts.status==='trial'?'<span class="tag-trial">Trial \u2014 '+ts.daysLeft+'d left</span>':'<span class="tag-expired">Expired</span>';
-  document.getElementById('saCompanyCard').innerHTML='<div class="alr"><div class="alr-info"><div class="alr-name">'+(settings.companyName||'(No company name set)')+' '+tag+'</div><div class="alr-meta">Trial started: '+new Date(subData.trialStart).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+(subData.subExpiry?'<br>Subscription expires: '+new Date(subData.subExpiry).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'')+' <br>Admin password: <code>'+settings.adminPassword+'</code></div></div><div class="alr-btns" style="flex-wrap:wrap;gap:5px;"><button class="btn-sm edit" onclick="activateSubscription(1)">+1 Month</button><button class="btn-sm edit" onclick="activateSubscription(3)">+3 Months</button><button class="btn-sm edit" onclick="activateSubscription(12)">+1 Year</button><button class="btn-danger" style="font-size:0.66rem;padding:5px 9px;" onclick="resetTrial()">Reset Trial</button></div></div>';
-  const wEl=document.getElementById('saWorkersList');
-  if(!workers.length){wEl.innerHTML='<div class="empty-state"><p>No workers</p></div>';}
-  else wEl.innerHTML=workers.map(w=>'<div class="alr">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--green);flex-shrink:0;">':`<div class="w-avatar-ph" style="width:36px;height:36px;font-size:0.85rem;flex-shrink:0;">${initials(w.name)}</div>`)+'<div class="alr-info"><div class="alr-name">'+w.name+'</div><div class="alr-meta">'+w.title+' \u00b7 '+fmtMoney(w.rate)+'/hr</div></div><div class="alr-btns"><button class="btn-sm edit" onclick="openEditWorker(\''+w.id+'\')">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:5px 9px;" onclick="saDeleteWorker(\''+w.id+'\')">Delete</button></div></div>').join('');
-  const lEl=document.getElementById('saLogsList');
-  const recent=[...logs].reverse().slice(0,50);
-  if(!recent.length){lEl.innerHTML='<div class="empty-state"><p>No records</p></div>';}
-  else lEl.innerHTML=recent.map(l=>{const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return'<div class="alr"><div class="alr-info"><div class="alr-name">'+l.workerName+'</div><div class="alr-meta">'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+' \u00b7 In:'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+' \u00b7 Out:'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'&mdash;')+' \u00b7 '+(l.hoursWorked!==null?fmtHours(l.hoursWorked)+' \u00b7 ':''+(l.wage!==null?fmtMoney(l.wage):''))+'</div></div><div class="alr-btns"><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:5px 9px;" onclick="deleteLog(\''+l.id+'\')">Del</button></div></div>';}).join('');
+  saveSASettings();
+  showToast('Global settings saved \u2713','success');
 }
 
-// ════════════════════════════════════════════
-// CALC
-// ════════════════════════════════════════════
-function calcWage(inISO,outISO,rate,otRate){
-  const ms=new Date(outISO)-new Date(inISO);
-  if(ms<=0) return{hours:0,wage:0};
-  const h=ms/(1000*60*60);
-  const norm=Math.min(h,8),ot=Math.max(h-8,0);
-  return{hours:Math.round(h*100)/100,wage:Math.round(((norm*rate)+(ot*otRate))*100)/100};
-}
-function fmtMoney(v){return 'R'+Number(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
-function fmtHours(h){if(h===null||h===undefined)return '\u2014';const hrs=Math.floor(h),mins=Math.round((h-hrs)*60);if(hrs===0)return mins+'min';if(mins===0)return hrs+'h';return hrs+'h '+mins+'min';}
-function toDatetimeLocal(iso){const d=new Date(iso),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}
-function initials(n){return n.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);}
-
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════
 // CLOCK
-// ════════════════════════════════════════════
-function updateClock(){const n=new Date();document.getElementById('clockTime').textContent=n.toLocaleTimeString('en-ZA');document.getElementById('clockDate').textContent=n.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}
-updateClock();setInterval(updateClock,1000);
+// ═══════════════════════════════════════
+function startClock(){
+  function tick(){
+    const n=new Date();
+    document.getElementById('clockTime').textContent=n.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    document.getElementById('clockDate').textContent=n.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  }
+  tick(); setInterval(tick,1000);
+}
 
-// ════════════════════════════════════════════
-// FACE-API
-// ════════════════════════════════════════════
-const MODEL_URL='https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
-let modelsLoaded=false;
-async function loadModels(){
+// ═══════════════════════════════════════
+// FACE RECOGNITION
+// ═══════════════════════════════════════
+let faceModelsLoaded=false,faceMode='register',clockWorkerTarget=null,clockAction='in';
+let detectInterval=null,capturedDescriptor=null,capturedPhoto=null,reCapturing=false;
+async function loadFaceModels(){
+  if(faceModelsLoaded) return;
+  const MODEL_URL='https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
   try{
-    document.getElementById('modelStatus').textContent='Downloading face models (first load ~5MB)...';
     await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-    document.getElementById('modelStatus').textContent='Loading landmark model...';
     await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
-    document.getElementById('modelStatus').textContent='Loading recognition model...';
     await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-    modelsLoaded=true;
+    faceModelsLoaded=true;
     const b=document.getElementById('modelBanner');
-    b.style.cssText='background:rgba(45,198,83,0.1);border:1px solid rgba(45,198,83,0.35);border-radius:10px;padding:10px 12px;font-size:0.76rem;color:#6EE7A0;margin-bottom:14px;max-width:500px;';
-    b.innerHTML='\u2705 Face recognition ready';
-    setTimeout(()=>b.style.display='none',3000);
-  }catch(e){document.getElementById('modelStatus').textContent='\u26a0 Could not load face models. Check internet and refresh.';}
+    if(b){b.style.background='rgba(45,198,83,0.1)';b.style.borderColor='rgba(45,198,83,0.3)';b.style.color='#6EE7A0';b.querySelector('span').textContent='Face recognition ready \u2713';b.querySelector('.spinner').style.display='none';setTimeout(()=>{b.style.display='none';},3000);}
+  }catch(e){
+    const b=document.getElementById('modelBanner');
+    if(b){b.querySelector('span').textContent='Face recognition unavailable \u2014 check internet connection';}
+  }
 }
-loadModels();
-
-// ════════════════════════════════════════════
-// WORKERS
-// ════════════════════════════════════════════
-function addWorker(){
-  if(!modelsLoaded) return showToast('Face models still loading...','error');
+function openRegisterFace(){
+  const name=document.getElementById('workerName').value.trim();
+  const title=document.getElementById('workerTitle').value.trim();
+  const rate=parseFloat(document.getElementById('workerRate').value);
+  const ot=parseFloat(document.getElementById('workerOTRate').value)||rate*1.5;
+  if(!name||!title||!rate){showToast('Fill in name, title, and rate first','error');return;}
+  faceMode='register'; reCapturing=false;
+  document.getElementById('faceTitle').textContent='Register Face: '+name;
+  document.getElementById('faceSub').textContent='Position face in oval, tap Capture';
+  resetFaceModal(); openFaceModal();
+}
+function openReCaptureFace(){
+  faceMode='register'; reCapturing=true;
+  document.getElementById('faceTitle').textContent='Re-capture Face Photo';
+  document.getElementById('faceSub').textContent='Position face in oval, tap Capture';
+  resetFaceModal();
+  document.getElementById('editWorkerModal').classList.remove('open');
+  openFaceModal();
+}
+function initClockAction(workerId, action){
   const ts=getTrialStatus();
-  if(ts.status==='expired'&&!superIn) return showToast('Subscription expired','error');
-  const name=document.getElementById('wName').value.trim();
-  const title=document.getElementById('wTitle').value.trim();
-  const rate=parseFloat(document.getElementById('wRate').value);
-  const ot=parseFloat(document.getElementById('wOT').value);
-  if(!name) return showToast('Enter worker name','error');
-  if(!rate||rate<=0) return showToast('Enter valid hourly rate','error');
-  const otRate=(!ot||ot<=0)?Math.round(rate*1.5*100)/100:ot;
-  pendingWorker={id:Date.now().toString(),name,title:title||'Worker',rate,overtimeRate:otRate,faceDescriptor:null,photoURL:null,clockedIn:false,clockInTime:null};
-  pendingAction='register';
-  openCameraModal('register',pendingWorker);
+  if(ts.status==='expired'){checkExpired();return;}
+  const w=workers.find(x=>x.id===workerId);
+  if(!w){showToast('Worker not found','error');return;}
+  clockWorkerTarget=w; clockAction=action; faceMode='clock';
+  document.getElementById('faceTitle').textContent=(action==='in'?'Clock In':'Clock Out')+': '+w.name;
+  document.getElementById('faceSub').textContent='Look at camera to verify identity';
+  resetFaceModal(); openFaceModal();
 }
-function removeWorker(id){
-  if(!confirm('Remove this worker? Their logs will be kept.')) return;
-  workers=workers.filter(w=>w.id!==id);
-  save();renderWorkersList();renderWorkerGrid();updateDropdowns();renderAdmin();
+function openFaceModal(){
+  document.getElementById('faceModal').classList.add('open');
+  startCamera();
 }
-function renderWorkersList(){
-  const el=document.getElementById('workersList');
-  if(!workers.length){el.innerHTML='<div class="empty-state"><div class="icon">\uD83D\uDC77</div><p>No workers yet</p></div>';return;}
-  el.innerHTML=workers.map(w=>'<div class="wlc">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid var(--green);flex-shrink:0;">':`<div class="w-avatar-ph" style="flex-shrink:0;">${initials(w.name)}</div>`)+'<div class="info"><div class="nm">'+w.name+' '+(w.faceDescriptor?'\u2705':'\u26a0 No face')+'</div><div class="mt">'+w.title+' \u00b7 '+fmtMoney(w.rate)+'/hr \u00b7 OT: '+fmtMoney(w.overtimeRate)+'/hr</div></div><button class="btn-danger" onclick="removeWorker(\''+w.id+'\')">Remove</button></div>').join('');
+function closeFaceModal(){
+  stopCamera();
+  document.getElementById('faceModal').classList.remove('open');
+  capturedDescriptor=null; capturedPhoto=null;
+  document.getElementById('snapPreview').style.display='none';
+  document.getElementById('faceResult').innerHTML='';
+  document.getElementById('capBtn').style.display='block';
+}
+function resetFaceModal(){
+  document.getElementById('snapPreview').style.display='none';
+  document.getElementById('faceResult').innerHTML='';
+  document.getElementById('capBtn').style.display='block';
+  document.getElementById('faceBtns').innerHTML='<button class="btn btn-ghost" onclick="closeFaceModal()">Cancel</button><button class="btn btn-primary" id="capBtn" onclick="captureFace()">&#128247; Capture</button>';
+  document.getElementById('faceOval').style.display='block';
+  capturedDescriptor=null; capturedPhoto=null;
+}
+let stream=null;
+function startCamera(){
+  const video=document.getElementById('camVideo');
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false}).then(s=>{
+    stream=s; video.srcObject=s; video.play();
+    video.onloadedmetadata=()=>{ startDetectLoop(); };
+  }).catch(()=>showToast('Camera access denied','error'));
+}
+function stopCamera(){
+  if(detectInterval){clearInterval(detectInterval);detectInterval=null;}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  const v=document.getElementById('camVideo'); v.srcObject=null;
+}
+function startDetectLoop(){
+  const video=document.getElementById('camVideo');
+  const canvas=document.getElementById('camCanvas');
+  const oval=document.getElementById('faceOval');
+  const statusTxt=document.getElementById('faceStatusTxt');
+  if(detectInterval) clearInterval(detectInterval);
+  detectInterval=setInterval(async()=>{
+    if(!faceModelsLoaded||!stream) return;
+    const opts=new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4});
+    const det=await faceapi.detectSingleFace(video,opts);
+    canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+    const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(det){
+      oval.style.borderColor='rgba(45,198,83,0.9)';
+      statusTxt.textContent='Face detected \u2014 tap Capture';
+    } else {
+      oval.style.borderColor='rgba(245,130,10,0.7)';
+      statusTxt.textContent='Detecting face...';
+    }
+  },300);
+}
+async function captureFace(){
+  const video=document.getElementById('camVideo');
+  if(!faceModelsLoaded){showToast('Face models still loading...','error');return;}
+  const opts=new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4});
+  const det=await faceapi.detectSingleFace(video,opts).withFaceLandmarks(true).withFaceDescriptor();
+  if(!det){showToast('No face detected \u2014 try again','error');return;}
+  capturedDescriptor=Array.from(det.descriptor);
+  const canvas=document.createElement('canvas');
+  canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+  canvas.getContext('2d').drawImage(video,0,0);
+  capturedPhoto=canvas.toDataURL('image/jpeg',0.5);
+  document.getElementById('snapPreview').src=capturedPhoto;
+  document.getElementById('snapPreview').style.display='block';
+  document.getElementById('faceOval').style.display='none';
+  document.getElementById('faceStatusTxt').textContent='';
+  stopCamera();
+  if(faceMode==='register'){ processRegister(det.descriptor); }
+  else if(faceMode==='clock'){ processClockAction(det.descriptor); }
+}
+function processRegister(descriptor){
+  capturedDescriptor=Array.from(descriptor);
+  document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128247;</div><div class="rm">Face captured!</div><div class="rd">Tap Register to save this worker.</div></div>';
+  document.getElementById('faceBtns').innerHTML='<button class="btn btn-ghost" onclick="closeFaceModal()">Cancel</button><button class="btn btn-green" onclick="completeRegister()">&#128119; Register Worker</button>';
+}
+function completeRegister(){
+  if(reCapturing){
+    const id=document.getElementById('editWorkerId').value;
+    const w=workers.find(x=>x.id===id);
+    if(w){w.descriptor=capturedDescriptor;w.photoURL=capturedPhoto;saveCompanyData();}
+    closeFaceModal();
+    document.getElementById('editWorkerModal').classList.add('open');
+    showToast('Face updated \u2713','success');
+    return;
+  }
+  const name=document.getElementById('workerName').value.trim();
+  const title=document.getElementById('workerTitle').value.trim();
+  const rate=parseFloat(document.getElementById('workerRate').value);
+  const ot=parseFloat(document.getElementById('workerOTRate').value)||Math.round(rate*1.5*100)/100;
+  const w={id:Date.now().toString(),name,title,rate,overtimeRate:ot,descriptor:capturedDescriptor,photoURL:capturedPhoto,clockedIn:false,clockInTime:null};
+  workers.push(w);
+  saveCompanyData();
+  document.getElementById('workerName').value='';
+  document.getElementById('workerTitle').value='';
+  document.getElementById('workerRate').value='';
+  document.getElementById('workerOTRate').value='';
+  closeFaceModal();
+  renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
+  showToast(name+' registered \u2713','success');
+}
+function processClockAction(descriptor){
+  const threshold=0.52;
+  let best=null,bestDist=999;
+  workers.forEach(w=>{
+    if(!w.descriptor) return;
+    const dist=faceapi.euclideanDistance(descriptor,w.descriptor);
+    if(dist<bestDist){bestDist=dist;best=w;}
+  });
+  if(!best||bestDist>threshold){
+    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Face not recognised</div><div class="rd">Score: '+(bestDist<999?bestDist.toFixed(3):'—')+'</div></div>';
+    document.getElementById('faceBtns').innerHTML='<button class="btn btn-ghost" onclick="closeFaceModal()">Close</button><button class="btn btn-primary" onclick="resetFaceModal();startCamera()">Try Again</button>';
+    return;
+  }
+  if(best.id!==clockWorkerTarget.id){
+    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Detected: '+best.name+'</div></div>';
+    document.getElementById('faceBtns').innerHTML='<button class="btn btn-ghost" onclick="closeFaceModal()">Close</button><button class="btn btn-primary" onclick="resetFaceModal();startCamera()">Try Again</button>';
+    return;
+  }
+  completeClockAction(best);
+}
+function completeClockAction(w){
+  const now=new Date();
+  if(clockAction==='in'){
+    w.clockedIn=true; w.clockInTime=now.toISOString();
+    document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128994;</div><div class="rm">Clocked In: '+w.name+'</div><div class="rd">'+now.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</div></div>';
+  } else {
+    const inTime=new Date(w.clockInTime);
+    const ms=now-inTime;
+    const hrs=ms/3600000;
+    const normalHrs=Math.min(hrs,8);
+    const otHrs=Math.max(hrs-8,0);
+    const wage=Math.round((normalHrs*w.rate+otHrs*(w.overtimeRate||w.rate*1.5))*100)/100;
+    const log={id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,clockIn:w.clockInTime,clockOut:now.toISOString(),hoursWorked:Math.round(hrs*100)/100,rate:w.rate,overtimeRate:w.overtimeRate||w.rate*1.5,wage,manual:false};
+    logs.push(log); w.clockedIn=false; w.clockInTime=null;
+    document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128308;</div><div class="rm">Clocked Out: '+w.name+'</div><div class="rd">'+fmtHours(hrs)+' &nbsp;&#183;&nbsp; '+fmtMoney(wage)+'</div></div>';
+  }
+  saveCompanyData();
+  renderWorkerGrid();
+  document.getElementById('faceBtns').innerHTML='<button class="btn btn-primary" onclick="closeFaceModal()" style="flex:1;">Done</button>';
+}
+
+// ═══════════════════════════════════════
+// WORKERS
+// ═══════════════════════════════════════
+function initials(n){ return n.split(' ').map(p=>p[0]||'').join('').toUpperCase().slice(0,2); }
+function timeSince(iso){
+  const m=Math.floor((new Date()-new Date(iso))/60000);
+  if(m<60) return m+'m ago';
+  const h=Math.floor(m/60); return h+'h '+(m%60)+'m ago';
 }
 function renderWorkerGrid(){
   const el=document.getElementById('workerGrid');
-  if(!workers.length){el.innerHTML='<div class="empty-state"><div class="icon">\uD83D\uDC77</div><p>No workers added yet.<br>Contact your admin to add workers.</p></div>';return;}
+  if(!workers.length){ el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers added yet.<br>Contact your admin to add workers.</p></div>'; return; }
+  const ts=getTrialStatus();
+  const expired=ts.status==='expired';
   el.innerHTML=workers.map(w=>{
-    const since=w.clockedIn&&w.clockInTime?'Since '+new Date(w.clockInTime).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'Not clocked in';
-    return '<div class="worker-card '+(w.clockedIn?'clocked-in':'')+'">'+(w.photoURL?'<img class="w-avatar-img" src="'+w.photoURL+'" style="'+(w.clockedIn?'border-color:var(--green)':'')+'">':`<div class="w-avatar-ph" style="${w.clockedIn?'border-color:var(--green);':''}">${initials(w.name)}</div>`)+'<div class="wi"><div class="wn">'+w.name+'</div><div class="wr">'+w.title+' \u00b7 '+fmtMoney(w.rate)+'/hr</div><div class="ws '+(w.clockedIn?'in':'out')+'">'+(w.clockedIn?'\uD83D\uDFE2 '+since:'\u26AA '+since)+'</div></div><button class="cbtn '+(w.clockedIn?'out':'in')+'" onclick="initClockAction(\''+w.id+'\',\''+(w.clockedIn?'out':'in')+'\')">'+(w.clockedIn?'Clock Out':'Clock In')+'</button></div>';
+    const since=w.clockedIn&&w.clockInTime?timeSince(w.clockInTime):'Not clocked in';
+    return '<div class="worker-card '+(w.clockedIn?'clocked-in':'')+'">'+(w.photoURL?'<img src="'+w.photoURL+'" class="w-avatar-img" style="'+(w.clockedIn?'border-color:var(--green)':'')+'">':'<div class="w-avatar-ph" style="'+(w.clockedIn?'border-color:var(--green);':'')+'">'+initials(w.name)+'</div>')+'<div class="wi"><div class="wn">'+w.name+'</div><div class="wr">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr</div><div class="ws '+(w.clockedIn?'in':'out')+'">'+(w.clockedIn?'&#128994; '+since:'&#9898; '+since)+'</div></div><button class="cbtn '+(w.clockedIn?'out':'in')+'" onclick="initClockAction(\''+w.id+'\',\''+(w.clockedIn?'out':'in')+'\')" '+(expired?'disabled':'')+'>'+  (w.clockedIn?'Clock Out':'Clock In')+'</button></div>';
   }).join('');
 }
-
-// ════════════════════════════════════════════
-// CLOCK ACTION / FACE
-// ════════════════════════════════════════════
-let modalMode=null,pendingWorker=null,pendingAction=null,stream=null,detectionLoop=null,capturedDescriptor=null,snapshotDataURL=null,faceDetected=false;
-function initClockAction(wid,action){
-  const ts=getTrialStatus();
-  if(ts.status==='expired'&&!superIn) return showExpiredOverlay();
-  if(!modelsLoaded) return showToast('Face models still loading...','error');
-  const w=workers.find(x=>x.id===wid);if(!w)return;
-  if(!w.faceDescriptor) return showToast(w.name+' has no registered face. Re-add them.','error');
-  pendingWorker=w;pendingAction=action;
-  openCameraModal('verify',w,action);
+function renderWorkersList(){
+  const el=document.getElementById('workersList');
+  if(!workers.length){ el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers registered yet.</p></div>'; return; }
+  el.innerHTML=workers.map(w=>'<div class="wlc">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--green);">':'<div class="w-avatar-ph" style="width:40px;height:40px;font-size:0.9rem;">'+initials(w.name)+'</div>')+'<div class="info"><div class="nm">'+w.name+'</div><div class="mt">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr &middot; OT: '+fmtMoney(w.overtimeRate||w.rate*1.5)+'/hr</div></div><div style="display:flex;gap:6px;"><button class="btn-sm edit" onclick="openEditWorker(\''+w.id+'\')">Edit</button><button class="btn-danger" onclick="deleteWorker(\''+w.id+'\')">Delete</button></div></div>').join('');
 }
-async function openCameraModal(mode,worker,action){
-  modalMode=mode;
-  const btn=document.getElementById('mainActionBtn');
-  const cb=document.getElementById('modalCancelBtn');
-  document.getElementById('snapPreview').style.display='none';
-  document.getElementById('resultBox').style.display='none';
-  document.getElementById('camWrap').style.display='block';
-  btn.textContent='Capture';btn.className='btn btn-primary';btn.onclick=handleMainAction;btn.disabled=false;
-  cb.textContent='Cancel';cb.onclick=closeModal;
-  capturedDescriptor=null;snapshotDataURL=null;faceDetected=false;
-  document.getElementById('faceStatusTxt').textContent='Detecting face...';
-  document.getElementById('faceOval').style.borderColor='rgba(245,130,10,0.7)';
-  if(mode==='register'){document.getElementById('faceTitle').textContent='Register: '+worker.name;document.getElementById('faceSub').textContent='Position face in oval, then tap Capture';}
-  else{const v=action==='in'?'Clock In':'Clock Out';document.getElementById('faceTitle').textContent=v+': '+worker.name;document.getElementById('faceSub').textContent='Look at camera to verify identity';}
-  document.getElementById('faceModal').classList.add('open');
-  await startCamera();startDetectionLoop();
+function renderWorkerSelects(){
+  const selects=['filterWorker','manWorker','lsWorker'];
+  selects.forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel) return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">'+( id==='filterWorker'?'All Workers':'Select worker')+'</option>'+workers.map(w=>'<option value="'+w.id+'">'+w.name+'</option>').join('');
+    sel.value=cur;
+  });
 }
-async function startCamera(){
-  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:480},audio:false});const v=document.getElementById('camVideo');v.srcObject=stream;await new Promise(r=>v.onloadedmetadata=r);v.play();}
-  catch(e){showResult(false,'Camera access denied','Please allow camera access in your browser settings.');}
+function openEditWorker(id){
+  const w=workers.find(x=>x.id===id);
+  if(!w) return;
+  document.getElementById('editWorkerId').value=id;
+  document.getElementById('editWorkerName').value=w.name;
+  document.getElementById('editWorkerTitle').value=w.title;
+  document.getElementById('editWorkerRate').value=w.rate;
+  document.getElementById('editWorkerOTRate').value=w.overtimeRate||w.rate*1.5;
+  document.getElementById('editWorkerModal').classList.add('open');
 }
-function stopCamera(){if(detectionLoop){clearInterval(detectionLoop);detectionLoop=null;}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
-function startDetectionLoop(){
-  detectionLoop=setInterval(async()=>{
-    const v=document.getElementById('camVideo');if(!v||!stream)return;
-    try{const d=await faceapi.detectSingleFace(v,new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:0.5})).withFaceLandmarks(true);
-    const st=document.getElementById('faceStatusTxt');const ov=document.getElementById('faceOval');
-    if(d){faceDetected=true;st.textContent='\u2705 Face detected \u2014 tap Capture';ov.style.borderColor='rgba(45,198,83,0.9)';drawBox(d);}
-    else{faceDetected=false;st.textContent='No face detected \u2014 look at camera';ov.style.borderColor='rgba(245,130,10,0.6)';clearCanvas();}}catch(_){}
-  },400);
+function closeEditWorkerModal(){ document.getElementById('editWorkerModal').classList.remove('open'); }
+function saveEditWorker(){
+  const id=document.getElementById('editWorkerId').value;
+  const w=workers.find(x=>x.id===id);
+  if(!w) return;
+  const newName=document.getElementById('editWorkerName').value.trim();
+  const newRate=parseFloat(document.getElementById('editWorkerRate').value);
+  const newOT=parseFloat(document.getElementById('editWorkerOTRate').value);
+  if(!newName||!newRate){showToast('Name and rate are required','error');return;}
+  const oldName=w.name;
+  w.name=newName; w.title=document.getElementById('editWorkerTitle').value.trim(); w.rate=newRate; w.overtimeRate=newOT||newRate*1.5;
+  if(newName!==oldName) logs.forEach(l=>{ if(l.workerId===id) l.workerName=newName; });
+  saveCompanyData();
+  closeEditWorkerModal(); renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
+  showToast('Worker updated \u2713','success');
 }
-function drawBox(d){const c=document.getElementById('camCanvas'),v=document.getElementById('camVideo');c.width=v.videoWidth;c.height=v.videoHeight;const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const b=d.detection.box;ctx.strokeStyle='#2DC653';ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.width,b.height);}
-function clearCanvas(){document.getElementById('camCanvas').getContext('2d').clearRect(0,0,999,999);}
-async function handleMainAction(){
-  if(modalMode==='register') await doCapture();
-  else if(modalMode==='verify') await doVerify();
-  else if(modalMode==='confirmRegister') doConfirmRegister();
-}
-async function doCapture(){
-  if(!faceDetected) return showToast('No face detected','error');
-  const v=document.getElementById('camVideo');const btn=document.getElementById('mainActionBtn');
-  btn.disabled=true;btn.textContent='Processing...';
-  try{const d=await faceapi.detectSingleFace(v,new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:0.5})).withFaceLandmarks(true).withFaceDescriptor();
-  if(!d){btn.disabled=false;btn.textContent='Capture';return showToast('Face not clear \u2014 try again','error');}
-  capturedDescriptor=d.descriptor;
-  const sc=document.createElement('canvas');sc.width=v.videoWidth;sc.height=v.videoHeight;sc.getContext('2d').drawImage(v,0,0);snapshotDataURL=sc.toDataURL('image/jpeg',0.8);
-  stopCamera();document.getElementById('camWrap').style.display='none';
-  const sp=document.getElementById('snapPreview');sp.src=snapshotDataURL;sp.style.display='block';
-  document.getElementById('faceSub').textContent='Does this photo look good?';
-  btn.disabled=false;btn.textContent='\u2705 Save & Register';btn.className='btn btn-green';
-  modalMode='confirmRegister';
-  const cb=document.getElementById('modalCancelBtn');cb.textContent='\uD83D\uDD04 Retake';cb.onclick=retakePhoto;
-  }catch(e){btn.disabled=false;btn.textContent='Capture';showToast('Error \u2014 try again','error');}
-}
-function retakePhoto(){
-  document.getElementById('snapPreview').style.display='none';document.getElementById('camWrap').style.display='block';
-  document.getElementById('faceSub').textContent='Position face in oval, then tap Capture';
-  const btn=document.getElementById('mainActionBtn');btn.textContent='Capture';btn.className='btn btn-primary';btn.onclick=handleMainAction;
-  const cb=document.getElementById('modalCancelBtn');cb.textContent='Cancel';cb.onclick=closeModal;
-  modalMode='register';capturedDescriptor=null;snapshotDataURL=null;
-  startCamera().then(()=>startDetectionLoop());
-}
-function doConfirmRegister(){
-  const w=pendingWorker;w.faceDescriptor=Array.from(capturedDescriptor);w.photoURL=snapshotDataURL;
-  workers.push(w);save();
-  ['wName','wTitle','wRate','wOT'].forEach(id=>document.getElementById(id).value='');
-  renderWorkersList();renderWorkerGrid();updateDropdowns();renderAdmin();
-  closeModal();showToast(w.name+' registered \u2713','success');
-}
-async function doVerify(){
-  if(!faceDetected) return showToast('No face detected','error');
-  const v=document.getElementById('camVideo');const btn=document.getElementById('mainActionBtn');
-  btn.disabled=true;btn.textContent='Verifying...';
-  try{const d=await faceapi.detectSingleFace(v,new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:0.5})).withFaceLandmarks(true).withFaceDescriptor();
-  if(!d){btn.disabled=false;btn.textContent='Capture';return showToast('Face not clear','error');}
-  const dist=faceapi.euclideanDistance(d.descriptor,new Float32Array(pendingWorker.faceDescriptor));
-  const TH=0.52;
-  stopCamera();document.getElementById('camWrap').style.display='none';document.getElementById('resultBox').style.display='block';
-  if(dist<=TH){showResult(true,'Identity Verified \u2705','Confidence: '+Math.round((1-dist)*100)+'%');setTimeout(()=>completeClockAction(),1400);}
-  else{showResult(false,'Face Not Recognised \u274C','Try again in better lighting.');btn.disabled=false;btn.textContent='Try Again';btn.className='btn btn-primary';btn.onclick=()=>{document.getElementById('resultBox').style.display='none';document.getElementById('camWrap').style.display='block';document.getElementById('faceSub').textContent='Try again \u2014 look directly at camera';startCamera().then(()=>startDetectionLoop());};}
-  }catch(e){btn.disabled=false;btn.textContent='Capture';showToast('Verification error','error');}
-}
-function showResult(ok,msg,detail){
-  const b=document.getElementById('resultBox');b.style.display='block';b.className='result-box '+(ok?'success':'error');
-  document.getElementById('resultIcon').textContent=ok?'\u2705':'\u274C';
-  document.getElementById('resultMsg').textContent=msg;
-  document.getElementById('resultDetail').textContent=detail;
-}
-function completeClockAction(){
-  const w=pendingWorker;const now=new Date();
-  if(pendingAction==='in'){
-    w.clockedIn=true;w.clockInTime=now.toISOString();
-    logs.push({id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,rate:w.rate,overtimeRate:w.overtimeRate,clockIn:now.toISOString(),clockOut:null,hoursWorked:null,wage:null,status:'in',manual:false});
-    showToast(w.name+' clocked in at '+now.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+' \u2713','success');
-  }else{
-    w.clockedIn=false;
-    const openLog=[...logs].reverse().find(l=>l.workerId===w.id&&l.status==='in');
-    if(openLog){openLog.clockOut=now.toISOString();const c=calcWage(openLog.clockIn,openLog.clockOut,w.rate,w.overtimeRate);openLog.hoursWorked=c.hours;openLog.wage=c.wage;openLog.status='complete';}
-    w.clockInTime=null;
-    showToast(w.name+' clocked out \u2014 '+(openLog?fmtHours(openLog.hoursWorked)+' worked':'')+' \u2713','success');
-  }
-  save();closeModal();renderWorkerGrid();
-}
-function closeModal(){
-  stopCamera();document.getElementById('faceModal').classList.remove('open');
-  const btn=document.getElementById('mainActionBtn');btn.disabled=false;btn.textContent='Capture';btn.className='btn btn-primary';btn.onclick=handleMainAction;
-  const cb=document.getElementById('modalCancelBtn');cb.textContent='Cancel';cb.onclick=closeModal;
-  document.getElementById('snapPreview').style.display='none';document.getElementById('resultBox').style.display='none';document.getElementById('camWrap').style.display='block';
-  pendingWorker=null;pendingAction=null;modalMode=null;capturedDescriptor=null;snapshotDataURL=null;
+function deleteWorker(id){
+  if(!confirm('Delete worker and all their records?')) return;
+  workers=workers.filter(w=>w.id!==id);
+  logs=logs.filter(l=>l.workerId!==id);
+  delete lsData[id];
+  saveCompanyData(); renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
+  showToast('Worker deleted','success');
 }
 
-// ════════════════════════════════════════════
-// LOGS WITH TOTALS
-// ════════════════════════════════════════════
-function renderLogs(){
+// ═══════════════════════════════════════
+// LOGS
+// ═══════════════════════════════════════
+function fmtMoney(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtHours(h){ const hr=Math.floor(h),mn=Math.round((h-hr)*60); return hr+'h '+(mn<10?'0':'')+mn+'m'; }
+function getFilteredLogs(){
+  let data=[...logs];
   const fw=document.getElementById('filterWorker').value;
   const ff=document.getElementById('filterFrom').value;
   const ft=document.getElementById('filterTo').value;
-  let data=[...logs].reverse();
   if(fw) data=data.filter(l=>l.workerId===fw);
-  if(ff) data=data.filter(l=>l.clockIn>=ff);
-  if(ft) data=data.filter(l=>l.clockIn<=ft+'T23:59:59');
-  const done=data.filter(l=>l.status==='complete');
-  const totEl=document.getElementById('logTotals');
-  if(done.length){
-    const wmap={};
-    done.forEach(l=>{if(!wmap[l.workerId])wmap[l.workerId]={name:l.workerName,hours:0,wage:0,shifts:0};wmap[l.workerId].hours+=l.hoursWorked||0;wmap[l.workerId].wage+=l.wage||0;wmap[l.workerId].shifts++;});
-    const gH=done.reduce((a,l)=>a+(l.hoursWorked||0),0);
-    const gW=done.reduce((a,l)=>a+(l.wage||0),0);
-    const wkeys=Object.keys(wmap);
-    const perWorker=wkeys.map(wid=>'<div class="tc-row"><span>'+wmap[wid].name+' ('+wmap[wid].shifts+' shift'+(wmap[wid].shifts===1?'':'s')+')</span><span class="mono">'+fmtHours(wmap[wid].hours)+' \u00b7 <span class="green">'+fmtMoney(wmap[wid].wage)+'</span></span></div>').join('');
-    const grandRow=wkeys.length>1?'<div class="tc-row grand"><span>Grand Total ('+done.length+' records)</span><span class="mono">'+fmtHours(gH)+' \u00b7 '+fmtMoney(gW)+'</span></div>':'';
-    totEl.innerHTML='<div class="totals-card"><div class="tc-title">Totals'+(fw?' \u2014 '+(workers.find(w=>w.id===fw)||{name:''}).name:'')+'</div>'+perWorker+grandRow+'</div>';
-  } else { totEl.innerHTML=''; }
-  const tb=document.getElementById('logsBody');
-  if(!data.length){tb.innerHTML='<tr><td colspan="9" class="no-records">No records</td></tr>';return;}
-  tb.innerHTML=data.map(l=>{
+  if(ff) data=data.filter(l=>new Date(l.clockIn)>=new Date(ff));
+  if(ft) data=data.filter(l=>new Date(l.clockIn)<=new Date(ft+' 23:59:59'));
+  return data;
+}
+function renderLogs(){
+  const data=getFilteredLogs().slice().reverse();
+  const body=document.getElementById('logBody');
+  if(!data.length){body.innerHTML='<tr><td colspan="8" class="no-records">No records found</td></tr>';document.getElementById('logTotals').innerHTML='';return;}
+  body.innerHTML=data.map(l=>{
     const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;
-    return '<tr><td><strong>'+l.workerName+'</strong><br><span style="color:var(--muted);font-size:0.63rem">'+l.workerTitle+'</span>'+(l.manual?'<br><span style="color:var(--orange);font-size:0.6rem">manual</span>':'')+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono">'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'<span style="color:var(--muted)">\u2014</span>')+'</td><td class="mono">'+(l.hoursWorked!==null?fmtHours(l.hoursWorked):'<span style="color:var(--muted)">\u2014</span>')+'</td><td class="mono">'+fmtMoney(l.rate)+'</td><td class="mono green">'+(l.wage!==null?fmtMoney(l.wage):'<span style="color:var(--muted)">\u2014</span>')+'</td><td><span class="badge '+l.status+'">'+(l.status==='in'?'Active':'Complete')+'</span></td><td><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')">Edit</button></td></tr>';
+    const complete=!!l.clockOut;
+    return '<tr>'
+      +'<td>'+l.workerName+'</td>'
+      +'<td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td>'
+      +'<td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td>'
+      +'<td class="mono">'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'—')+'</td>'
+      +'<td class="mono">'+(complete?fmtHours(l.hoursWorked):'—')+'</td>'
+      +'<td class="mono green">'+(complete?fmtMoney(l.wage):'—')+'</td>'
+      +'<td><span class="badge '+(complete?'complete':'in')+'">'+(complete?'Done':'Active')+'</span></td>'
+      +'<td><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')">Edit</button></td>'
+      +'</tr>';
   }).join('');
+  renderLogTotals(data);
 }
-
-// ════════════════════════════════════════════
-// ADMIN PANEL
-// ════════════════════════════════════════════
-function renderAdmin(){
-  document.getElementById('companyNameInput').value=settings.companyName||'';
-  const wEl=document.getElementById('adminWorkersList');
-  if(!workers.length){wEl.innerHTML='<div class="empty-state"><div class="icon">\uD83D\uDC77</div><p>No workers yet</p></div>';}
-  else wEl.innerHTML=workers.map(w=>'<div class="alr">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--green);flex-shrink:0;">':`<div class="w-avatar-ph" style="width:38px;height:38px;font-size:0.9rem;flex-shrink:0;">${initials(w.name)}</div>`)+'<div class="alr-info"><div class="alr-name">'+w.name+'</div><div class="alr-meta">'+w.title+' \u00b7 '+fmtMoney(w.rate)+'/hr \u00b7 OT: '+fmtMoney(w.overtimeRate)+'/hr</div></div><div class="alr-btns"><button class="btn-sm edit" onclick="openEditWorker(\''+w.id+'\')">Edit</button></div></div>').join('');
-  document.getElementById('manWorker').innerHTML=workers.map(w=>'<option value="'+w.id+'">'+w.name+'</option>').join('');
-  document.getElementById('lsWorkerSelect').innerHTML=workers.map(w=>'<option value="'+w.id+'">'+w.name+'</option>').join('');
-  if(workers.length) renderLoansSection();
-  const lEl=document.getElementById('adminLogsList');
-  const recent=[...logs].reverse().slice(0,40);
-  if(!recent.length){lEl.innerHTML='<div class="empty-state"><div class="icon">\uD83D\uDCCB</div><p>No records yet</p></div>';}
-  else lEl.innerHTML=recent.map(l=>{const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return'<div class="alr"><div class="alr-info"><div class="alr-name">'+l.workerName+(l.manual?' <span style="color:var(--orange);font-size:0.66rem">(manual)</span>':'')+'</div><div class="alr-meta">'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+' \u00b7 In:'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+' \u00b7 Out:'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'&mdash;')+' \u00b7 '+(l.hoursWorked!==null?fmtHours(l.hoursWorked)+' \u00b7 ':''+(l.wage!==null?fmtMoney(l.wage):''))+'</div></div><div class="alr-btns"><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:5px 9px;" onclick="deleteLog(\''+l.id+'\')">Del</button></div></div>';}).join('');
+function renderLogTotals(data){
+  const completed=data.filter(l=>l.clockOut);
+  if(!completed.length){document.getElementById('logTotals').innerHTML='';return;}
+  const byWorker={};
+  completed.forEach(l=>{
+    if(!byWorker[l.workerId]) byWorker[l.workerId]={name:l.workerName,shifts:0,hours:0,wage:0};
+    byWorker[l.workerId].shifts++;
+    byWorker[l.workerId].hours+=l.hoursWorked;
+    byWorker[l.workerId].wage+=l.wage;
+  });
+  const rows=Object.values(byWorker);
+  const totalHrs=rows.reduce((s,r)=>s+r.hours,0);
+  const totalWage=rows.reduce((s,r)=>s+r.wage,0);
+  let html='<div class="totals-card"><div class="tc-title">&#128202; Period Totals</div>';
+  rows.forEach(r=>{ html+='<div class="tc-row"><span>'+r.name+' ('+r.shifts+' shift'+(r.shifts>1?'s':'')+')</span><span class="mono">'+fmtHours(r.hours)+' &nbsp;&middot;&nbsp; '+fmtMoney(r.wage)+'</span></div>'; });
+  if(rows.length>1) html+='<div class="tc-row grand"><span>Grand Total</span><span class="mono">'+fmtHours(totalHrs)+' &nbsp;&middot;&nbsp; '+fmtMoney(totalWage)+'</span></div>';
+  html+='</div>';
+  document.getElementById('logTotals').innerHTML=html;
 }
-function previewManual(){
-  const inV=document.getElementById('manIn').value,outV=document.getElementById('manOut').value;
-  const wid=document.getElementById('manWorker').value;const w=workers.find(x=>x.id===wid);const el=document.getElementById('manCalcPreview');
-  if(!inV||!outV||!w){el.textContent='';el.className='calc-preview';return;}
-  const c=calcWage(inV,outV,w.rate,w.overtimeRate);
-  if(c.hours<=0){el.textContent='\u26a0 Clock out must be after clock in';el.className='calc-preview err';return;}
-  el.className='calc-preview ok';el.textContent='\u2713 '+fmtHours(c.hours)+' worked \u00b7 Wage: '+fmtMoney(c.wage);
-}
-function addManualEntry(){
-  const wid=document.getElementById('manWorker').value,inV=document.getElementById('manIn').value,outV=document.getElementById('manOut').value;
-  const w=workers.find(x=>x.id===wid);
-  if(!w) return showToast('Select a worker','error');
-  if(!inV||!outV) return showToast('Enter both times','error');
-  const c=calcWage(inV,outV,w.rate,w.overtimeRate);
-  if(c.hours<=0) return showToast('Clock out must be after clock in','error');
-  logs.push({id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,rate:w.rate,overtimeRate:w.overtimeRate,clockIn:new Date(inV).toISOString(),clockOut:new Date(outV).toISOString(),hoursWorked:c.hours,wage:c.wage,status:'complete',manual:true});
-  save();document.getElementById('manIn').value='';document.getElementById('manOut').value='';document.getElementById('manCalcPreview').textContent='';
-  renderAdmin();showToast('Manual entry added for '+w.name+' \u2713','success');
-}
-function deleteLog(id){if(!confirm('Delete this record?'))return;logs=logs.filter(l=>l.id!==id);save();renderAdmin();renderLogs();showToast('Record deleted','success');}
 function openEditLog(id){
-  const l=logs.find(x=>x.id===id);if(!l)return;
+  const l=logs.find(x=>x.id===id);
+  if(!l) return;
   document.getElementById('editLogId').value=id;
-  document.getElementById('editLogSub').textContent=l.workerName+' \u2014 '+new Date(l.clockIn).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
-  document.getElementById('editClockIn').value=toDatetimeLocal(l.clockIn);
-  document.getElementById('editClockOut').value=l.clockOut?toDatetimeLocal(l.clockOut):'';
+  const fmt=d=>{ const dt=new Date(d);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+'T'+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0'); };
+  document.getElementById('editClockIn').value=fmt(l.clockIn);
+  document.getElementById('editClockOut').value=l.clockOut?fmt(l.clockOut):'';
   document.getElementById('editLogPreview').textContent='';
   document.getElementById('editLogModal').classList.add('open');
 }
 function previewEditLog(){
-  const id=document.getElementById('editLogId').value;const l=logs.find(x=>x.id===id);if(!l)return;
-  const inV=document.getElementById('editClockIn').value,outV=document.getElementById('editClockOut').value;const el=document.getElementById('editLogPreview');
-  if(!inV||!outV){el.textContent='';el.className='calc-preview';return;}
-  const c=calcWage(inV,outV,l.rate,l.overtimeRate);
-  if(c.hours<=0){el.textContent='\u26a0 Clock out must be after clock in';el.className='calc-preview err';return;}
-  el.className='calc-preview ok';el.textContent='\u2713 '+fmtHours(c.hours)+' worked \u00b7 Wage: '+fmtMoney(c.wage);
+  const i=document.getElementById('editClockIn').value;
+  const o=document.getElementById('editClockOut').value;
+  const el=document.getElementById('editLogPreview');
+  if(!i||!o){el.textContent='';el.className='calc-preview';return;}
+  const id=document.getElementById('editLogId').value;
+  const l=logs.find(x=>x.id===id);
+  if(!l){return;}
+  const hrs=(new Date(o)-new Date(i))/3600000;
+  if(hrs<=0){el.textContent='Clock out must be after clock in';el.className='calc-preview err';return;}
+  const w=workers.find(x=>x.id===l.workerId);
+  const rate=w?w.rate:l.rate;
+  const ot=w?w.overtimeRate:l.overtimeRate;
+  const normalHrs=Math.min(hrs,8),otHrs=Math.max(hrs-8,0);
+  const wage=normalHrs*rate+otHrs*ot;
+  el.textContent=fmtHours(hrs)+' \u2014 '+fmtMoney(wage);el.className='calc-preview ok';
 }
-function saveEditedLog(){
-  const id=document.getElementById('editLogId').value;const l=logs.find(x=>x.id===id);if(!l)return;
-  const inV=document.getElementById('editClockIn').value,outV=document.getElementById('editClockOut').value;
-  if(!inV) return showToast('Enter clock in time','error');
-  l.clockIn=new Date(inV).toISOString();
-  if(outV){const c=calcWage(inV,outV,l.rate,l.overtimeRate);if(c.hours<=0)return showToast('Clock out must be after clock in','error');l.clockOut=new Date(outV).toISOString();l.hoursWorked=c.hours;l.wage=c.wage;l.status='complete';const w=workers.find(x=>x.id===l.workerId);if(w){const hasOpen=logs.some(x=>x.workerId===w.id&&x.id!==l.id&&x.status==='in');if(!hasOpen){w.clockedIn=false;w.clockInTime=null;}}}
-  else{l.clockOut=null;l.hoursWorked=null;l.wage=null;l.status='in';const w=workers.find(x=>x.id===l.workerId);if(w){w.clockedIn=true;w.clockInTime=l.clockIn;}}
-  save();closeEditLogModal();renderAdmin();renderLogs();renderWorkerGrid();showToast('Record updated \u2713','success');
-}
-function closeEditLogModal(){document.getElementById('editLogModal').classList.remove('open');}
-function openEditWorker(id){
-  const w=workers.find(x=>x.id===id);if(!w)return;
-  document.getElementById('editWorkerId').value=id;
-  document.getElementById('editWorkerSub').textContent=w.name;
-  document.getElementById('editWorkerName').value=w.name;
-  document.getElementById('editWorkerTitle').value=w.title;
-  document.getElementById('editWorkerRate').value=w.rate;
-  document.getElementById('editWorkerOT').value=w.overtimeRate;
-  document.getElementById('editWorkerModal').classList.add('open');
-}
-function saveEditedWorker(){
-  const id=document.getElementById('editWorkerId').value;const w=workers.find(x=>x.id===id);if(!w)return;
-  const name=document.getElementById('editWorkerName').value.trim();
-  const title=document.getElementById('editWorkerTitle').value.trim();
-  const rate=parseFloat(document.getElementById('editWorkerRate').value);
-  const ot=parseFloat(document.getElementById('editWorkerOT').value);
-  if(!name) return showToast('Enter name','error');
-  if(!rate||rate<=0) return showToast('Enter valid rate','error');
-  const newOT=ot&&ot>0?ot:Math.round(rate*1.5*100)/100;
-  w.name=name;w.title=title||w.title;w.rate=rate;w.overtimeRate=newOT;
-  logs.forEach(l=>{if(l.workerId!==id)return;l.rate=rate;l.overtimeRate=newOT;l.workerName=name;l.workerTitle=title||w.title;if(l.status==='complete'&&l.clockIn&&l.clockOut){const c=calcWage(l.clockIn,l.clockOut,rate,newOT);l.hoursWorked=c.hours;l.wage=c.wage;}});
-  save();document.getElementById('editWorkerModal').classList.remove('open');
-  renderWorkersList();renderWorkerGrid();renderAdmin();updateDropdowns();renderLogs();
-  showToast(w.name+' updated \u2014 wages recalculated \u2713','success');
+function closeEditLogModal(){ document.getElementById('editLogModal').classList.remove('open'); }
+function saveEditLog(){
+  const id=document.getElementById('editLogId').value;
+  const l=logs.find(x=>x.id===id);
+  if(!l) return;
+  const i=document.getElementById('editClockIn').value;
+  const o=document.getElementById('editClockOut').value;
+  if(!i){showToast('Clock in required','error');return;}
+  const hrs=o?(new Date(o)-new Date(i))/3600000:0;
+  if(o&&hrs<=0){showToast('Clock out must be after clock in','error');return;}
+  const w=workers.find(x=>x.id===l.workerId);
+  const rate=w?w.rate:l.rate; const ot=w?w.overtimeRate:l.overtimeRate;
+  l.clockIn=new Date(i).toISOString();
+  l.clockOut=o?new Date(o).toISOString():null;
+  if(o){ l.hoursWorked=Math.round(hrs*100)/100; const n=Math.min(hrs,8),otH=Math.max(hrs-8,0); l.wage=Math.round((n*rate+otH*ot)*100)/100; l.rate=rate; l.overtimeRate=ot; }
+  saveCompanyData(); closeEditLogModal(); renderLogs();
+  showToast('Record updated \u2713','success');
 }
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════
+// MANUAL ENTRY
+// ═══════════════════════════════════════
+function previewManual(){
+  const i=document.getElementById('manIn').value;
+  const o=document.getElementById('manOut').value;
+  const el=document.getElementById('manPreview');
+  const wId=document.getElementById('manWorker').value;
+  if(!i||!o||!wId){el.textContent='';el.className='calc-preview';return;}
+  const hrs=(new Date(o)-new Date(i))/3600000;
+  if(hrs<=0){el.textContent='Clock out must be after clock in';el.className='calc-preview err';return;}
+  const w=workers.find(x=>x.id===wId);
+  if(!w) return;
+  const n=Math.min(hrs,8),otH=Math.max(hrs-8,0);
+  const wage=n*w.rate+otH*(w.overtimeRate||w.rate*1.5);
+  el.textContent=fmtHours(hrs)+' \u2014 '+fmtMoney(wage);el.className='calc-preview ok';
+}
+function saveManualEntry(){
+  const wId=document.getElementById('manWorker').value;
+  const i=document.getElementById('manIn').value;
+  const o=document.getElementById('manOut').value;
+  if(!wId||!i||!o){showToast('Fill in all fields','error');return;}
+  const w=workers.find(x=>x.id===wId);
+  if(!w) return;
+  const hrs=(new Date(o)-new Date(i))/3600000;
+  if(hrs<=0){showToast('Clock out must be after clock in','error');return;}
+  const n=Math.min(hrs,8),otH=Math.max(hrs-8,0);
+  const ot=w.overtimeRate||w.rate*1.5;
+  const wage=Math.round((n*w.rate+otH*ot)*100)/100;
+  logs.push({id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,clockIn:new Date(i).toISOString(),clockOut:new Date(o).toISOString(),hoursWorked:Math.round(hrs*100)/100,rate:w.rate,overtimeRate:ot,wage,manual:true});
+  saveCompanyData();
+  document.getElementById('manIn').value=''; document.getElementById('manOut').value=''; document.getElementById('manPreview').textContent='';
+  showToast('Manual entry added \u2713','success');
+}
+
+// ═══════════════════════════════════════
 // LOANS & SAVINGS
-// ════════════════════════════════════════════
-function getLS(wid){if(!lsData[wid])lsData[wid]={loans:[],savings:[]};return lsData[wid];}
-function renderLoansSection(){
-  const wid=document.getElementById('lsWorkerSelect').value;if(!wid){document.getElementById('lsSectionContent').innerHTML='';return;}
-  const ls=getLS(wid);
-  const tl=ls.loans.reduce((a,x)=>a+x.amount,0),ts=ls.savings.reduce((a,x)=>a+x.amount,0);
-  document.getElementById('lsSectionContent').innerHTML='<div style="display:flex;gap:9px;margin-bottom:10px;"><div class="sbox" style="flex:1;"><div class="lbl">Total Loans</div><div class="val" style="color:#FC8181;font-size:1rem;">'+fmtMoney(tl)+'</div></div><div class="sbox" style="flex:1;"><div class="lbl">Total Savings</div><div class="val" style="color:#5BA4F5;font-size:1rem;">'+fmtMoney(ts)+'</div></div></div><div style="display:flex;gap:8px;margin-bottom:10px;max-width:500px;"><button class="btn btn-primary" style="flex:1;padding:10px;" onclick="openLSModal(\'loan\',\''+wid+'\')">+ Add Loan</button><button class="btn" style="flex:1;padding:10px;background:rgba(26,111,212,0.2);color:#5BA4F5;border:1px solid rgba(26,111,212,0.3);" onclick="openLSModal(\'saving\',\''+wid+'\')">+ Add Saving</button></div><div id="lsItemsList">'+renderLSItems(wid)+'</div>';
+// ═══════════════════════════════════════
+function addLSEntry(){
+  const wId=document.getElementById('lsWorker').value;
+  const type=document.getElementById('lsType').value;
+  const desc=document.getElementById('lsDesc').value.trim();
+  const amount=parseFloat(document.getElementById('lsAmount').value);
+  if(!wId||!desc||!amount){showToast('Fill in all fields','error');return;}
+  if(!lsData[wId]) lsData[wId]=[];
+  lsData[wId].push({id:Date.now().toString(),type,desc,amount,date:new Date().toISOString()});
+  saveCompanyData();
+  document.getElementById('lsDesc').value=''; document.getElementById('lsAmount').value='';
+  renderLSList();
+  showToast('Entry added \u2713','success');
 }
-function renderLSItems(wid){
-  const ls=getLS(wid);
-  const all=[...ls.loans.map(x=>({...x,type:'loan'})),...ls.savings.map(x=>({...x,type:'saving'}))].sort((a,b)=>new Date(b.date)-new Date(a.date));
-  if(!all.length) return '<div class="empty-state" style="padding:20px;"><p>No loans or savings yet</p></div>';
-  return all.map(x=>'<div class="ls-item"><div class="lsi"><div class="lsn">'+x.desc+' <span class="ls-badge '+x.type+'">'+(x.type==='loan'?'Loan':'Saving')+'</span></div><div class="lsm">'+new Date(x.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+' \u00b7 '+fmtMoney(x.amount)+'</div></div><button class="btn-danger" style="font-size:0.68rem;padding:5px 9px;" onclick="deleteLS(\''+wid+'\',\''+x.type+'\',\''+x.id+'\')">Del</button></div>').join('');
+function renderLSList(){
+  const el=document.getElementById('lsList');
+  const all=[];
+  Object.entries(lsData).forEach(([wId,entries])=>{
+    const w=workers.find(x=>x.id===wId);
+    entries.forEach(e=>all.push({...e,workerName:w?w.name:'Unknown',workerId:wId}));
+  });
+  if(!all.length){el.innerHTML='<div class="empty-state"><p>No loans or savings recorded.</p></div>';return;}
+  el.innerHTML=all.map(e=>'<div class="ls-item"><div class="lsi"><div class="lsn">'+e.workerName+' &mdash; '+e.desc+'</div><div class="lsm">'+new Date(e.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+'</div></div><span class="ls-badge '+(e.type==='loan'?'loan':'saving')+'">'+(e.type==='loan'?'Loan':'Saving')+'</span><span class="mono" style="font-size:0.82rem;font-weight:600;">'+fmtMoney(e.amount)+'</span><button class="btn-sm edit" onclick="openEditLS(\''+e.workerId+'\',\''+e.id+'\')">Edit</button><button class="btn-danger" onclick="deleteLS(\''+e.workerId+'\',\''+e.id+'\')">Del</button></div>').join('');
 }
-function openLSModal(type,wid){
-  const w=workers.find(x=>x.id===wid);
-  document.getElementById('lsType').value=type;document.getElementById('lsWorkerId').value=wid;
-  document.getElementById('lsModalTitle').textContent=type==='loan'?'\uD83D\uDCB8 Add Loan':'\uD83C\uDFE6 Add Saving';
-  document.getElementById('lsModalSub').textContent=w?w.name:'';
-  document.getElementById('lsDesc').value='';document.getElementById('lsAmount').value='';
-  document.getElementById('lsDate').value=toDatetimeLocal(new Date().toISOString());
-  document.getElementById('lsModal').classList.add('open');
+function openEditLS(wId,id){
+  const entry=lsData[wId]?.find(e=>e.id===id);
+  if(!entry) return;
+  document.getElementById('editLSId').value=wId+'|'+id;
+  document.getElementById('editLSDesc').value=entry.desc;
+  document.getElementById('editLSAmount').value=entry.amount;
+  document.getElementById('editLSModal').classList.add('open');
 }
-function saveLoanSaving(){
-  const type=document.getElementById('lsType').value,wid=document.getElementById('lsWorkerId').value;
-  const desc=document.getElementById('lsDesc').value.trim(),amount=parseFloat(document.getElementById('lsAmount').value),date=document.getElementById('lsDate').value;
-  if(!desc) return showToast('Enter description','error');
-  if(!amount||amount<=0) return showToast('Enter valid amount','error');
-  if(!date) return showToast('Select date','error');
-  const ls=getLS(wid);const entry={id:Date.now().toString(),desc,amount,date:new Date(date).toISOString()};
-  if(type==='loan') ls.loans.push(entry); else ls.savings.push(entry);
-  save();document.getElementById('lsModal').classList.remove('open');renderLoansSection();
-  showToast((type==='loan'?'Loan':'Saving')+' added \u2713','success');
+function saveEditLS(){
+  const [wId,id]=document.getElementById('editLSId').value.split('|');
+  const entry=lsData[wId]?.find(e=>e.id===id);
+  if(!entry) return;
+  entry.desc=document.getElementById('editLSDesc').value.trim();
+  entry.amount=parseFloat(document.getElementById('editLSAmount').value);
+  saveCompanyData(); document.getElementById('editLSModal').classList.remove('open'); renderLSList();
+  showToast('Entry updated \u2713','success');
 }
-function deleteLS(wid,type,id){
-  if(!confirm('Delete this entry?'))return;
-  const ls=getLS(wid);
-  if(type==='loan') ls.loans=ls.loans.filter(x=>x.id!==id); else ls.savings=ls.savings.filter(x=>x.id!==id);
-  save();renderLoansSection();showToast('Deleted','success');
+function deleteLS(wId,id){
+  if(!confirm('Delete this entry?')) return;
+  lsData[wId]=lsData[wId].filter(e=>e.id!==id);
+  saveCompanyData(); renderLSList();
+  showToast('Entry deleted','success');
 }
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════
 // EXPORT
-// ════════════════════════════════════════════
-function renderSummary(){
-  document.getElementById('sumWorkers').textContent=workers.length;
-  const done=logs.filter(l=>l.status==='complete');
-  document.getElementById('sumRecords').textContent=done.length;
-  document.getElementById('sumHours').textContent=fmtHours(done.reduce((a,l)=>a+(l.hoursWorked||0),0));
-  document.getElementById('sumWages').textContent=fmtMoney(done.reduce((a,l)=>a+(l.wage||0),0));
-  updateDropdowns();
-  let html='';
-  workers.forEach(w=>{
-    const wl=done.filter(l=>l.workerId===w.id);if(!wl.length)return;
-    const wg=wl.reduce((a,l)=>a+(l.wage||0),0);const ls=getLS(w.id);
-    const loans=ls.loans.reduce((a,x)=>a+x.amount,0),savings=ls.savings.reduce((a,x)=>a+x.amount,0);
-    html+='<div class="deduction-card"><div class="dc-title">'+w.name+'</div><div class="dc-row"><span>Gross Wages</span><span class="mono green">'+fmtMoney(wg)+'</span></div>'+(loans>0?'<div class="dc-row"><span>Loans Deduction</span><span class="mono" style="color:#FC8181;">\u2212 '+fmtMoney(loans)+'</span></div>':'')+(savings>0?'<div class="dc-row"><span>Savings Deduction</span><span class="mono" style="color:#5BA4F5;">\u2212 '+fmtMoney(savings)+'</span></div>':'')+'<div class="dc-row total"><span>Net Pay</span><span class="mono">'+fmtMoney(wg-loans-savings)+'</span></div></div>';
+// ═══════════════════════════════════════
+function renderExport(){
+  const total=logs.filter(l=>l.clockOut).reduce((s,l)=>s+l.wage,0);
+  const hrs=logs.filter(l=>l.clockOut).reduce((s,l)=>s+l.hoursWorked,0);
+  document.getElementById('summaryGrid').innerHTML='<div class="sbox"><div class="lbl">Total Workers</div><div class="val">'+workers.length+'</div></div><div class="sbox"><div class="lbl">Total Records</div><div class="val">'+logs.length+'</div></div><div class="sbox"><div class="lbl">Total Hours</div><div class="val">'+fmtHours(hrs)+'</div></div><div class="sbox"><div class="lbl">Total Wages</div><div class="val orange">'+fmtMoney(total)+'</div></div>';
+  renderWorkerSummary();
+}
+function getExpFiltered(){
+  let data=logs.filter(l=>l.clockOut);
+  const ff=document.getElementById('expFrom').value;
+  const ft=document.getElementById('expTo').value;
+  if(ff) data=data.filter(l=>new Date(l.clockIn)>=new Date(ff));
+  if(ft) data=data.filter(l=>new Date(l.clockIn)<=new Date(ft+' 23:59:59'));
+  return data;
+}
+function renderWorkerSummary(){
+  const data=getExpFiltered();
+  const el=document.getElementById('workerSummary');
+  if(!data.length){el.innerHTML='<div class="empty-state"><p>No records in selected range.</p></div>';return;}
+  const byWorker={};
+  data.forEach(l=>{
+    if(!byWorker[l.workerId]) byWorker[l.workerId]={name:l.workerName,shifts:0,hours:0,wage:0,deductions:0};
+    byWorker[l.workerId].shifts++; byWorker[l.workerId].hours+=l.hoursWorked; byWorker[l.workerId].wage+=l.wage;
   });
-  document.getElementById('deductionSummary').innerHTML=html;
+  Object.keys(byWorker).forEach(wId=>{
+    const entries=lsData[wId]||[];
+    const ded=entries.reduce((s,e)=>s+(e.type==='loan'?e.amount:-e.amount),0);
+    byWorker[wId].deductions=ded;
+  });
+  el.innerHTML=Object.values(byWorker).map(r=>'<div class="deduction-card"><div class="dc-title">'+r.name+'</div><div class="dc-row"><span>Shifts</span><span>'+r.shifts+'</span></div><div class="dc-row"><span>Total Hours</span><span class="mono">'+fmtHours(r.hours)+'</span></div><div class="dc-row"><span>Gross Wage</span><span class="mono green">'+fmtMoney(r.wage)+'</span></div>'+(r.deductions?'<div class="dc-row"><span>Deductions (Loans)</span><span class="mono" style="color:#FC8181;">'+fmtMoney(r.deductions)+'</span></div>':'')+'<div class="dc-row total"><span>Net Payable</span><span class="mono">'+fmtMoney(r.wage-r.deductions)+'</span></div></div>').join('');
 }
 function exportExcel(){
-  const fw=document.getElementById('exFilterWorker').value,ff=document.getElementById('exFrom').value,ft=document.getElementById('exTo').value;
-  let data=logs.filter(l=>l.status==='complete');
-  if(fw) data=data.filter(l=>l.workerId===fw);
-  if(ff) data=data.filter(l=>l.clockIn>=ff);
-  if(ft) data=data.filter(l=>l.clockIn<=ft+'T23:59:59');
-  if(!data.length) return showToast('No completed records to export','error');
+  const data=getExpFiltered();
+  if(!data.length){showToast('No records to export','error');return;}
+  const co=getCompany(currentCompanyId);
   const wb=XLSX.utils.book_new();
-  const rows=data.map(l=>{const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return{'Worker':l.workerName,'Title':l.workerTitle,'Date':din.toLocaleDateString('en-ZA'),'Day':din.toLocaleDateString('en-ZA',{weekday:'long'}),'Clock In':din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),'Clock Out':dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'',' Hours':l.hoursWorked,'Normal Hrs':parseFloat(Math.min(l.hoursWorked,8).toFixed(2)),'OT Hrs':parseFloat(Math.max(l.hoursWorked-8,0).toFixed(2)),'Rate (R)':l.rate,'OT Rate (R)':l.overtimeRate,'Wage (R)':l.wage,'Manual':l.manual?'Yes':'No'};});
-  const ws1=XLSX.utils.json_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws1,'Attendance Detail');
-  const wmap={};
-  data.forEach(l=>{if(!wmap[l.workerId])wmap[l.workerId]={name:l.workerName,title:l.workerTitle,days:0,hours:0,gross:0,rate:l.rate};wmap[l.workerId].days++;wmap[l.workerId].hours+=l.hoursWorked;wmap[l.workerId].gross+=l.wage;});
-  const sum=Object.entries(wmap).map(([wid,w])=>{const ls=getLS(wid);const lo=ls.loans.reduce((a,x)=>a+x.amount,0),sa=ls.savings.reduce((a,x)=>a+x.amount,0);return{'Worker':w.name,'Title':w.title,'Rate (R)':w.rate,'Days':w.days,'Total Hours':parseFloat(w.hours.toFixed(2)),'Gross Wage (R)':parseFloat(w.gross.toFixed(2)),'Loans (R)':parseFloat(lo.toFixed(2)),'Savings (R)':parseFloat(sa.toFixed(2)),'Net Pay (R)':parseFloat((w.gross-lo-sa).toFixed(2))};});
-  const ws2=XLSX.utils.json_to_sheet(sum);XLSX.utils.book_append_sheet(wb,ws2,'Worker Summary');
-  const lsRows=[];workers.forEach(w=>{const ls=getLS(w.id);ls.loans.forEach(x=>lsRows.push({'Worker':w.name,'Type':'Loan','Description':x.desc,'Amount (R)':x.amount,'Date':new Date(x.date).toLocaleDateString('en-ZA')}));ls.savings.forEach(x=>lsRows.push({'Worker':w.name,'Type':'Saving','Description':x.desc,'Amount (R)':x.amount,'Date':new Date(x.date).toLocaleDateString('en-ZA')}));});
-  if(lsRows.length){const ws3=XLSX.utils.json_to_sheet(lsRows);XLSX.utils.book_append_sheet(wb,ws3,'Loans & Savings');}
-  const co=settings.companyName||'TimeClock';
-  XLSX.writeFile(wb,co+'_Attendance_'+new Date().toLocaleDateString('en-ZA').replace(/\//g,'-')+'.xlsx');
-  showToast('Excel downloaded \u2713','success');
+  const detail=data.map(l=>{const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return{'Worker':l.workerName,'Title':l.workerTitle,'Date':din.toLocaleDateString('en-ZA'),'Day':din.toLocaleDateString('en-ZA',{weekday:'long'}),'Clock In':din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),'Clock Out':dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'',' Hours':l.hoursWorked,'Normal Hrs':Math.min(l.hoursWorked,8),'OT Hrs':Math.max(l.hoursWorked-8,0),'Rate (R)':l.rate,'OT Rate (R)':l.overtimeRate,'Wage (R)':l.wage,'Manual':l.manual?'Yes':'No'};});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(detail),'Attendance Detail');
+  const byWorker={};
+  data.forEach(l=>{if(!byWorker[l.workerId]) byWorker[l.workerId]={Worker:l.workerName,Title:l.workerTitle,Shifts:0,'Total Hours':0,'Gross Wage (R)':0,'Deductions (R)':0,'Net Pay (R)':0};byWorker[l.workerId].Shifts++;byWorker[l.workerId]['Total Hours']+=l.hoursWorked;byWorker[l.workerId]['Gross Wage (R)']+=l.wage;});
+  Object.keys(byWorker).forEach(wId=>{const ded=(lsData[wId]||[]).reduce((s,e)=>s+(e.type==='loan'?e.amount:-e.amount),0);byWorker[wId]['Deductions (R)']=ded;byWorker[wId]['Net Pay (R)']=byWorker[wId]['Gross Wage (R)']-ded;});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(Object.values(byWorker)),'Worker Summary');
+  const lsRows=[];
+  Object.entries(lsData).forEach(([wId,entries])=>{const w=workers.find(x=>x.id===wId);entries.forEach(e=>lsRows.push({'Worker':w?w.name:'Unknown','Type':e.type,'Description':e.desc,'Amount (R)':e.amount,'Date':new Date(e.date).toLocaleDateString('en-ZA')}));});
+  if(lsRows.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(lsRows),'Loans & Savings');
+  const fname=((co?co.name:'TimeClock').replace(/\s+/g,'_'))+'_Attendance_'+new Date().toLocaleDateString('en-ZA').replace(/\//g,'-')+'.xlsx';
+  XLSX.writeFile(wb,fname);
+  showToast('Excel exported \u2713','success');
 }
 function emailReport(){
-  const email=document.getElementById('emailAddr').value.trim();
-  if(!email) return showToast('Enter your email','error');
-  const data=logs.filter(l=>l.status==='complete');
-  if(!data.length) return showToast('No records to email','error');
-  const totalHrs=data.reduce((a,l)=>a+(l.hoursWorked||0),0);
-  const gross=data.reduce((a,l)=>a+(l.wage||0),0);
-  let body=(settings.companyName||'TIME CLOCK SYSTEM')+' \u2014 ATTENDANCE REPORT\nGenerated: '+new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})+'\n\nSUMMARY\n'+'\u2500'.repeat(40)+'\nTotal Workers: '+workers.length+'\nTotal Records: '+data.length+'\nTotal Hours: '+fmtHours(totalHrs)+'\nGross Wages: '+fmtMoney(gross)+'\n\nDEDUCTIONS PER WORKER\n'+'\u2500'.repeat(40)+'\n';
-  workers.forEach(w=>{const wl=data.filter(l=>l.workerId===w.id);if(!wl.length)return;const wg=wl.reduce((a,l)=>a+(l.wage||0),0);const ls=getLS(w.id);const lo=ls.loans.reduce((a,x)=>a+x.amount,0),sa=ls.savings.reduce((a,x)=>a+x.amount,0);body+='\n'+w.name+' ('+w.title+')\n  Gross: '+fmtMoney(wg)+'  Loans: '+fmtMoney(lo)+'  Savings: '+fmtMoney(sa)+'  NET PAY: '+fmtMoney(wg-lo-sa)+'\n';});
-  const sub=encodeURIComponent((settings.companyName||'Time Clock')+' \u2014 Attendance '+new Date().toLocaleDateString('en-ZA'));
-  window.location.href='mailto:'+email+'?subject='+sub+'&body='+encodeURIComponent(body);
+  const co=getCompany(currentCompanyId);
+  const data=getExpFiltered();
+  const gross=data.reduce((s,l)=>s+l.wage,0);
+  const totalHrs=data.reduce((s,l)=>s+l.hoursWorked,0);
+  const sub=encodeURIComponent((co?co.name:'Time Clock')+' \u2014 Attendance '+new Date().toLocaleDateString('en-ZA'));
+  let body=(co?co.name:'TIME CLOCK SYSTEM')+' \u2014 ATTENDANCE REPORT\nGenerated: '+new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})+'\n\nSUMMARY\n'+'\u2500'.repeat(40)+'\nTotal Workers: '+workers.length+'\nTotal Records: '+data.length+'\nTotal Hours: '+fmtHours(totalHrs)+'\nGross Wages: '+fmtMoney(gross)+'\n';
+  body=encodeURIComponent(body);
+  window.location.href='mailto:?subject='+sub+'&body='+body;
 }
 
-// ════════════════════════════════════════════
-// HELPERS
-// ════════════════════════════════════════════
-function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.className='toast',3200);}
-function updateDropdowns(){['filterWorker','exFilterWorker'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const v=el.value;el.innerHTML='<option value="">All Workers</option>'+workers.map(w=>'<option value="'+w.id+'">'+w.name+'</option>').join('');el.value=v;});}
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+let _toastTimer=null;
+function showToast(msg,type=''){
+  const t=document.getElementById('toastEl');
+  t.textContent=msg; t.className='toast'+(type?' '+type:'');
+  requestAnimationFrame(()=>{ t.classList.add('show'); });
+  if(_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+function closeApp(){
+  try{ window.open('','_self'); window.close(); } catch(e){}
+  setTimeout(function(){ try{ window.close(); }catch(e){} },200);
+}
 
-// ─── INIT ──────────────────────────────────
-updateHeader();
-updateTrialBanner();
-renderWorkerGrid();
-renderWorkersList();
-updateDropdowns();
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+window.addEventListener('load',function(){
+  loadSASettings();
+  loadCompanies();
+  startClock();
+  // Show company screen
+  document.getElementById('companyScreen').classList.remove('hidden');
+});
 </script>
 </body>
 </html>
