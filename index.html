@@ -261,8 +261,8 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 <div id="workerPinScreen" style="position:fixed;inset:0;background:var(--dark);z-index:810;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
   <div class="cs-logo">&#128336; TimeClock</div>
   <div class="cs-sub">Worker Login</div>
-  <div class="spw-card" style="border-color:rgba(45,198,83,0.4);">
-    <div class="spw-icon">&#128119;</div>
+  <div id="workerStep1" class="spw-card" style="border-color:rgba(45,198,83,0.4);">
+    <div class="spw-icon">&#128274;</div>
     <h3 style="color:var(--green);">Worker PIN</h3>
     <p>Enter the worker PIN provided by your admin.</p>
     <div style="margin-bottom:16px;text-align:left;">
@@ -271,6 +271,17 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     </div>
     <button class="btn btn-green" onclick="submitWorkerPin()" style="width:100%;padding:13px;">Enter</button>
     <button class="btn btn-ghost" onclick="backToCompanyScreen()" style="width:100%;padding:10px;margin-top:8px;font-size:0.78rem;">&#8592; Back</button>
+  </div>
+  <div id="workerStep2" class="spw-card" style="border-color:rgba(45,198,83,0.4);display:none;">
+    <div class="spw-icon">&#128119;</div>
+    <h3 style="color:var(--green);">Your Name</h3>
+    <p>Type your full name exactly as registered.</p>
+    <div style="margin-bottom:16px;text-align:left;">
+      <label>Full Name</label>
+      <input type="text" id="workerNameInput" placeholder="e.g. John Smith" style="text-align:center;font-size:1rem;" onkeydown="if(event.key==='Enter')submitWorkerName()">
+    </div>
+    <button class="btn btn-green" onclick="submitWorkerName()" style="width:100%;padding:13px;">&#128247; Clock In / Out</button>
+    <button class="btn btn-ghost" onclick="showWorkerStep1()" style="width:100%;padding:10px;margin-top:8px;font-size:0.78rem;">&#8592; Back</button>
   </div>
 </div>
 
@@ -680,6 +691,9 @@ function adminLoginFlow(){
 function backToCompanyScreen(){
   document.getElementById('workerPinScreen').style.display='none';
   document.getElementById('adminPwScreen').style.display='none';
+  document.getElementById('workerStep1').style.display='block';
+  document.getElementById('workerStep2').style.display='none';
+  document.getElementById('workerPinInput').value='';
   currentCompanyId=null;
 }
 function submitWorkerPin(){
@@ -690,8 +704,39 @@ function submitWorkerPin(){
   if(!co){showToast('Company not found','error');return;}
   const correctPin=co.workerPin||'1234';
   if(pin!==correctPin){showToast('Incorrect PIN','error');return;}
+  let sub=getSubData(co.id);
+  if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
+  loadSASettings(); loadCompanyData();
+  showWorkerStep2();
+}
+function showWorkerStep1(){
+  document.getElementById('workerStep1').style.display='block';
+  document.getElementById('workerStep2').style.display='none';
+  document.getElementById('workerPinInput').value='';
+}
+function showWorkerStep2(){
+  document.getElementById('workerStep1').style.display='none';
+  document.getElementById('workerStep2').style.display='block';
+  document.getElementById('workerNameInput').value='';
+  setTimeout(function(){document.getElementById('workerNameInput').focus();},100);
+}
+function submitWorkerName(){
+  const name=document.getElementById('workerNameInput').value.trim();
+  if(!name){showToast('Enter your name','error');return;}
+  const w=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
+  if(!w){showToast('Name not found — check spelling','error');return;}
   document.getElementById('workerPinScreen').style.display='none';
-  enterWorkerMode(co);
+  document.getElementById('companyScreen').classList.add('hidden');
+  updateHeaderLogo(); updateTrialBanner();
+  const ts=getTrialStatus();
+  if(ts.status==='expired'){checkExpired();return;}
+  startClock(); loadFaceModels();
+  document.getElementById('publicTabs').style.display='flex';
+  document.getElementById('logoutBtn').style.display='block';
+  document.getElementById('logoutBtn').textContent='🔓 Exit';
+  showPage('clock'); renderWorkerGrid();
+  const action=w.clockedIn?'out':'in';
+  initClockAction(w.id,action);
 }
 function submitAdminPwScreen(){
   const pw=document.getElementById('adminPwScreenInput').value;
@@ -1238,6 +1283,10 @@ function closeFaceModal(){
   document.getElementById('faceResult').innerHTML='';
   document.getElementById('capBtn').style.display='block';
 }
+function workerDone(){
+  closeFaceModal();
+  doLogout();
+}
 function resetFaceModal(){
   document.getElementById('snapPreview').style.display='none';
   document.getElementById('faceResult').innerHTML='';
@@ -1389,7 +1438,7 @@ function completeClockAction(w){
   }
   saveCompanyData();
   renderWorkerGrid();
-  document.getElementById('faceBtns').innerHTML='<button class="btn btn-primary" onclick="closeFaceModal()" style="flex:1;">Done</button>';
+  const _da=adminIn?'closeFaceModal()':'workerDone()';document.getElementById('faceBtns').innerHTML='<button class="btn btn-primary" onclick="'+_da+'" style="flex:1;">Done</button>';
 }
 
 // ═══════════════════════════════════════
