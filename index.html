@@ -197,6 +197,22 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .toast.show{transform:translateX(-50%) translateY(0);}
 .toast.success{border-color:var(--green);}
 .toast.error{border-color:var(--red);}
+/* Work Schedule */
+.sched-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.sched-row:last-child{border-bottom:none;}
+.sched-day{font-weight:700;font-size:0.78rem;width:38px;flex-shrink:0;color:var(--text);}
+.sched-toggle{position:relative;width:38px;height:22px;flex-shrink:0;}
+.sched-toggle input{opacity:0;width:0;height:0;position:absolute;}
+.sched-slider{position:absolute;inset:0;background:var(--surface2);border:1px solid var(--border);border-radius:22px;cursor:pointer;transition:0.2s;}
+.sched-slider:before{content:'';position:absolute;width:16px;height:16px;left:2px;top:2px;background:var(--muted);border-radius:50%;transition:0.2s;}
+.sched-toggle input:checked+.sched-slider{background:rgba(45,198,83,0.2);border-color:var(--green);}
+.sched-toggle input:checked+.sched-slider:before{background:var(--green);transform:translateX(16px);}
+.sched-times{display:flex;align-items:center;gap:6px;flex:1;}
+.sched-times input[type="time"]{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:6px 8px;font-family:'JetBrains Mono',monospace;font-size:0.82rem;width:90px;}
+.sched-times input[type="time"]:focus{outline:none;border-color:var(--orange);}
+.sched-times input:disabled{opacity:0.3;cursor:not-allowed;}
+.sched-sep{font-size:0.72rem;color:var(--muted);}
+.sched-off{font-size:0.75rem;color:var(--muted);font-style:italic;}
 /* Company entry screen */
 #companyScreen{position:fixed;inset:0;background:var(--dark);z-index:800;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
 #companyScreen.hidden{display:none;}
@@ -321,7 +337,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <div id="logTotals"></div>
   <div class="log-table-wrap">
     <table>
-      <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>Wage</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>OT</th><th>Wage</th><th>Status</th><th></th></tr></thead>
       <tbody id="logBody"></tbody>
     </table>
   </div>
@@ -356,6 +372,14 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <div class="form-field" style="margin-bottom:10px;"><label>Company Name</label><input type="text" id="companyNameInput" placeholder="e.g. Smith Builders" oninput="previewCompanyName()"></div>
     <div class="form-field" style="margin-bottom:12px;"><label>New Admin Password</label><input type="password" id="newAdminPw" placeholder="Leave blank to keep current"></div>
     <button class="btn btn-primary" onclick="saveCompanySettings()" style="width:100%;padding:11px;">&#128190; Save Settings</button>
+  </div>
+  <div class="divider"></div>
+  <div class="section-title">Work Schedule</div>
+  <div class="card">
+    <h3>&#128197; Daily Start &amp; End Times</h3>
+    <p>Set working hours per day. Clock-in within 15 min before start rounds up. Clock-out within 15 min before end rounds up to end time.</p>
+    <div id="schedGrid"></div>
+    <button class="btn btn-primary" onclick="saveSchedule()" style="width:100%;padding:11px;margin-top:12px;">&#128190; Save Schedule</button>
   </div>
   <div class="divider"></div>
   <div class="section-title">Manual Time Entry</div>
@@ -835,6 +859,7 @@ function loadAdminPanel(){
   if(!co) return;
   document.getElementById('companyNameInput').value=co.name||'';
   document.getElementById('newAdminPw').value='';
+  renderScheduleGrid();
   renderWorkerSelects();
   renderLSList();
 }
@@ -854,8 +879,91 @@ function saveCompanySettings(){
 }
 
 // ═══════════════════════════════════════
-// SUPER ADMIN — COMPANY MANAGEMENT
+// WORK SCHEDULE
 // ═══════════════════════════════════════
+const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+let schedule=[];
+function defaultSchedule(){
+  return DAYS.map(d=>({day:d,enabled:d!=='Sat'&&d!=='Sun',start:'07:00',end:'16:00'}));
+}
+function loadSchedule(){
+  const raw=localStorage.getItem(cKey('schedule'));
+  schedule=raw?JSON.parse(raw):defaultSchedule();
+  // ensure all 7 days present
+  DAYS.forEach((d,i)=>{ if(!schedule[i]||schedule[i].day!==d) schedule[i]={day:d,enabled:false,start:'07:00',end:'16:00'}; });
+}
+function saveSchedule(){
+  // read from UI
+  DAYS.forEach((d,i)=>{
+    schedule[i].enabled=document.getElementById('sched_en_'+i).checked;
+    schedule[i].start=document.getElementById('sched_start_'+i).value||'07:00';
+    schedule[i].end=document.getElementById('sched_end_'+i).value||'16:00';
+  });
+  localStorage.setItem(cKey('schedule'),JSON.stringify(schedule));
+  showToast('Schedule saved \u2713','success');
+}
+function renderScheduleGrid(){
+  loadSchedule();
+  const el=document.getElementById('schedGrid');
+  el.innerHTML=DAYS.map((d,i)=>{
+    const s=schedule[i];
+    return '<div class="sched-row">'
+      +'<div class="sched-day">'+d+'</div>'
+      +'<label class="sched-toggle"><input type="checkbox" id="sched_en_'+i+'" '+(s.enabled?'checked':'')+' onchange="toggleSchedDay('+i+')"><span class="sched-slider"></span></label>'
+      +'<div class="sched-times" id="sched_times_'+i+'" style="'+(s.enabled?'':'opacity:0.35;pointer-events:none;')+'">'
+      +'<input type="time" id="sched_start_'+i+'" value="'+s.start+'" '+(s.enabled?'':'disabled')+'>'
+      +'<span class="sched-sep">to</span>'
+      +'<input type="time" id="sched_end_'+i+'" value="'+s.end+'" '+(s.enabled?'':'disabled')+'>'
+      +'</div>'
+      +(s.enabled?'':'<span class="sched-off">Day off</span>')
+      +'</div>';
+  }).join('');
+}
+function toggleSchedDay(i){
+  const enabled=document.getElementById('sched_en_'+i).checked;
+  const times=document.getElementById('sched_times_'+i);
+  times.style.opacity=enabled?'1':'0.35';
+  times.style.pointerEvents=enabled?'':'none';
+  document.getElementById('sched_start_'+i).disabled=!enabled;
+  document.getElementById('sched_end_'+i).disabled=!enabled;
+  // show/hide day off label — re-render the off label span
+  const row=times.parentElement;
+  let offSpan=row.querySelector('.sched-off');
+  if(enabled){ if(offSpan) offSpan.remove(); }
+  else { if(!offSpan){ const s=document.createElement('span');s.className='sched-off';s.textContent='Day off';row.appendChild(s); } }
+}
+// Get schedule entry for a given Date object (0=Sun,1=Mon...6=Sat in JS)
+function getScheduleForDate(dt){
+  const jsDow=dt.getDay(); // 0=Sun
+  const idx=[6,0,1,2,3,4,5][jsDow]; // convert to Mon=0..Sun=6
+  loadSchedule();
+  return schedule[idx];
+}
+// Apply rounding to clock-in time
+function applyClockInRounding(rawDate){
+  const sched=getScheduleForDate(rawDate);
+  if(!sched||!sched.enabled) return rawDate;
+  const [sh,sm]=sched.start.split(':').map(Number);
+  const startMs=sh*3600000+sm*60000;
+  const dayStart=new Date(rawDate);
+  dayStart.setHours(sh,sm,0,0);
+  const diff=dayStart-rawDate; // positive = raw is before start
+  // if worker clocked in between 0 and 15 min BEFORE start → round UP to start
+  if(diff>=0 && diff<=15*60000) return new Date(dayStart);
+  return rawDate;
+}
+// Apply rounding to clock-out time
+function applyClockOutRounding(rawDate){
+  const sched=getScheduleForDate(rawDate);
+  if(!sched||!sched.enabled) return rawDate;
+  const [eh,em]=sched.end.split(':').map(Number);
+  const dayEnd=new Date(rawDate);
+  dayEnd.setHours(eh,em,0,0);
+  const diff=dayEnd-rawDate; // positive = raw is before end
+  // if worker clocked out between 0 and 15 min BEFORE end → round UP to end
+  if(diff>=0 && diff<=15*60000) return new Date(dayEnd);
+  return rawDate;
+}
 function registerNewCompany(){
   const name=document.getElementById('newCoName').value.trim();
   const code=document.getElementById('newCoCode').value.trim().toUpperCase();
@@ -1162,18 +1270,40 @@ function processClockAction(descriptor){
 function completeClockAction(w){
   const now=new Date();
   if(clockAction==='in'){
-    w.clockedIn=true; w.clockInTime=now.toISOString();
-    document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128994;</div><div class="rm">Clocked In: '+w.name+'</div><div class="rd">'+now.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</div></div>';
+    const rounded=applyClockInRounding(now);
+    const wasRounded=rounded.getTime()!==now.getTime();
+    w.clockedIn=true; w.clockInTime=rounded.toISOString();
+    const timeStr=rounded.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
+    const note=wasRounded?' <span style="font-size:0.65rem;color:#FDBA74;">(rounded from '+now.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+')</span>':'';
+    document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128994;</div><div class="rm">Clocked In: '+w.name+'</div><div class="rd">'+timeStr+note+'</div></div>';
   } else {
+    const rawOut=now;
+    const rounded=applyClockOutRounding(rawOut);
+    const wasRounded=rounded.getTime()!==rawOut.getTime();
     const inTime=new Date(w.clockInTime);
-    const ms=now-inTime;
+    const ms=rounded-inTime;
     const hrs=ms/3600000;
-    const normalHrs=Math.min(hrs,8);
-    const otHrs=Math.max(hrs-8,0);
+    // overtime is anything beyond end-of-shift; calculate based on schedule
+    const sched=getScheduleForDate(inTime);
+    let normalHrs=hrs, otHrs=0;
+    if(sched&&sched.enabled){
+      const [eh,em]=sched.end.split(':').map(Number);
+      const shiftEnd=new Date(inTime); shiftEnd.setHours(eh,em,0,0);
+      const shiftMs=shiftEnd-inTime;
+      const shiftHrs=Math.max(shiftMs/3600000,0);
+      normalHrs=Math.min(hrs,shiftHrs);
+      otHrs=Math.max(hrs-shiftHrs,0);
+    } else {
+      normalHrs=Math.min(hrs,8); otHrs=Math.max(hrs-8,0);
+    }
+    normalHrs=Math.max(normalHrs,0);
     const wage=Math.round((normalHrs*w.rate+otHrs*(w.overtimeRate||w.rate*1.5))*100)/100;
-    const log={id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,clockIn:w.clockInTime,clockOut:now.toISOString(),hoursWorked:Math.round(hrs*100)/100,rate:w.rate,overtimeRate:w.overtimeRate||w.rate*1.5,wage,manual:false};
+    const timeStr=rounded.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
+    const note=wasRounded?' <span style="font-size:0.65rem;color:#FDBA74;">(rounded from '+rawOut.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+')</span>':'';
+    const log={id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,clockIn:w.clockInTime,clockOut:rounded.toISOString(),hoursWorked:Math.round(hrs*100)/100,normalHours:Math.round(normalHrs*100)/100,overtimeHours:Math.round(otHrs*100)/100,rate:w.rate,overtimeRate:w.overtimeRate||w.rate*1.5,wage,manual:false};
     logs.push(log); w.clockedIn=false; w.clockInTime=null;
-    document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128308;</div><div class="rm">Clocked Out: '+w.name+'</div><div class="rd">'+fmtHours(hrs)+' &nbsp;&#183;&nbsp; '+fmtMoney(wage)+'</div></div>';
+    const otNote=otHrs>0?' &nbsp;&#183;&nbsp; OT: '+fmtHours(otHrs):'';
+    document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128308;</div><div class="rm">Clocked Out: '+w.name+'</div><div class="rd">'+timeStr+note+'<br>'+fmtHours(hrs)+otNote+' &nbsp;&#183;&nbsp; '+fmtMoney(wage)+'</div></div>';
   }
   saveCompanyData();
   renderWorkerGrid();
@@ -1267,16 +1397,18 @@ function getFilteredLogs(){
 function renderLogs(){
   const data=getFilteredLogs().slice().reverse();
   const body=document.getElementById('logBody');
-  if(!data.length){body.innerHTML='<tr><td colspan="8" class="no-records">No records found</td></tr>';document.getElementById('logTotals').innerHTML='';return;}
+  if(!data.length){body.innerHTML='<tr><td colspan="9" class="no-records">No records found</td></tr>';document.getElementById('logTotals').innerHTML='';return;}
   body.innerHTML=data.map(l=>{
     const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;
     const complete=!!l.clockOut;
+    const otHrs=l.overtimeHours||0;
     return '<tr>'
       +'<td>'+l.workerName+'</td>'
       +'<td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td>'
       +'<td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td>'
       +'<td class="mono">'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'—')+'</td>'
       +'<td class="mono">'+(complete?fmtHours(l.hoursWorked):'—')+'</td>'
+      +'<td class="mono" style="color:'+(otHrs>0?'var(--orange)':'var(--muted)')+'">'+(complete?(otHrs>0?fmtHours(otHrs):'—'):'—')+'</td>'
       +'<td class="mono green">'+(complete?fmtMoney(l.wage):'—')+'</td>'
       +'<td><span class="badge '+(complete?'complete':'in')+'">'+(complete?'Done':'Active')+'</span></td>'
       +'<td><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')">Edit</button></td>'
@@ -1289,17 +1421,25 @@ function renderLogTotals(data){
   if(!completed.length){document.getElementById('logTotals').innerHTML='';return;}
   const byWorker={};
   completed.forEach(l=>{
-    if(!byWorker[l.workerId]) byWorker[l.workerId]={name:l.workerName,shifts:0,hours:0,wage:0};
+    if(!byWorker[l.workerId]) byWorker[l.workerId]={name:l.workerName,shifts:0,hours:0,ot:0,wage:0};
     byWorker[l.workerId].shifts++;
     byWorker[l.workerId].hours+=l.hoursWorked;
+    byWorker[l.workerId].ot+=(l.overtimeHours||0);
     byWorker[l.workerId].wage+=l.wage;
   });
   const rows=Object.values(byWorker);
   const totalHrs=rows.reduce((s,r)=>s+r.hours,0);
+  const totalOT=rows.reduce((s,r)=>s+r.ot,0);
   const totalWage=rows.reduce((s,r)=>s+r.wage,0);
   let html='<div class="totals-card"><div class="tc-title">&#128202; Period Totals</div>';
-  rows.forEach(r=>{ html+='<div class="tc-row"><span>'+r.name+' ('+r.shifts+' shift'+(r.shifts>1?'s':'')+')</span><span class="mono">'+fmtHours(r.hours)+' &nbsp;&middot;&nbsp; '+fmtMoney(r.wage)+'</span></div>'; });
-  if(rows.length>1) html+='<div class="tc-row grand"><span>Grand Total</span><span class="mono">'+fmtHours(totalHrs)+' &nbsp;&middot;&nbsp; '+fmtMoney(totalWage)+'</span></div>';
+  rows.forEach(r=>{
+    const otNote=r.ot>0?' &nbsp;<span style="color:var(--orange);font-size:0.72rem;">OT: '+fmtHours(r.ot)+'</span>':'';
+    html+='<div class="tc-row"><span>'+r.name+' ('+r.shifts+' shift'+(r.shifts>1?'s':'')+')</span><span class="mono">'+fmtHours(r.hours)+otNote+' &nbsp;&middot;&nbsp; '+fmtMoney(r.wage)+'</span></div>';
+  });
+  if(rows.length>1){
+    const otNote=totalOT>0?' &nbsp;<span style="color:var(--orange);font-size:0.72rem;">OT: '+fmtHours(totalOT)+'</span>':'';
+    html+='<div class="tc-row grand"><span>Grand Total</span><span class="mono">'+fmtHours(totalHrs)+otNote+' &nbsp;&middot;&nbsp; '+fmtMoney(totalWage)+'</span></div>';
+  }
   html+='</div>';
   document.getElementById('logTotals').innerHTML=html;
 }
