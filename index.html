@@ -606,6 +606,36 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   </div>
 </div>
 
+<!-- EDIT COMPANY MODAL (Super Admin) -->
+<div class="modal-backdrop" id="editCompanyModal">
+  <div class="modal">
+    <h2>&#9998; Edit Company</h2>
+    <p class="sub">All changes are visible to Super Admin at all times.</p>
+    <input type="hidden" id="editCoOriginalId">
+    <div class="form-row">
+      <div class="form-field"><label>Company Name</label><input type="text" id="editCoName" placeholder="e.g. Smith Builders"></div>
+      <div class="form-field"><label>Company Code</label><input type="text" id="editCoCode" placeholder="e.g. SMITH01" style="text-transform:uppercase;letter-spacing:1px;font-family:'JetBrains Mono',monospace;"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Admin Password</label><input type="text" id="editCoPw" placeholder="Current password shown"></div>
+      <div class="form-field"><label>Worker PIN</label><input type="text" id="editCoPin" placeholder="Default: 1234" inputmode="numeric" maxlength="8"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Trial Days</label><input type="number" id="editCoTrial" min="1" max="365"></div>
+      <div class="form-field" style="display:flex;align-items:flex-end;padding-bottom:2px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:0.78rem;font-weight:500;color:var(--text);">
+          <input type="checkbox" id="editCoMustChange" style="width:16px;height:16px;accent-color:var(--orange);">
+          Force password change on next login
+        </label>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('editCompanyModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditCompany()">&#128190; Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <div id="toastEl" class="toast"></div>
 
 <script>
@@ -1149,18 +1179,55 @@ function saEditCompany(id){
   loadCompanies();
   const co=getCompany(id);
   if(!co) return;
-  const name=prompt('Company Name:',co.name);
-  if(name===null) return;
-  const pw=prompt('Password (current: '+co.password+'):',co.password);
-  if(pw===null) return;
-  const trial=prompt('Trial days:',co.trialDays||30);
-  if(trial===null) return;
-  if(name) co.name=name;
-  if(pw && pw.length>=4){ co.password=pw; co.mustChangePw=false; }
-  co.trialDays=parseInt(trial)||30;
+  document.getElementById('editCoOriginalId').value=id;
+  document.getElementById('editCoName').value=co.name||'';
+  document.getElementById('editCoCode').value=co.id||'';
+  document.getElementById('editCoPw').value=co.password||'';
+  document.getElementById('editCoPin').value=co.workerPin||'';
+  document.getElementById('editCoTrial').value=co.trialDays||30;
+  document.getElementById('editCoMustChange').checked=co.mustChangePw||false;
+  document.getElementById('editCompanyModal').classList.add('open');
+}
+function saveEditCompany(){
+  const origId=document.getElementById('editCoOriginalId').value;
+  const newCode=document.getElementById('editCoCode').value.trim().toUpperCase();
+  const name=document.getElementById('editCoName').value.trim();
+  const pw=document.getElementById('editCoPw').value.trim();
+  const pin=document.getElementById('editCoPin').value.trim();
+  const trial=parseInt(document.getElementById('editCoTrial').value)||30;
+  const mustChange=document.getElementById('editCoMustChange').checked;
+  if(!name){showToast('Company name is required','error');return;}
+  if(!newCode){showToast('Company code is required','error');return;}
+  if(!/^[A-Z0-9]+$/.test(newCode)){showToast('Code must be letters and numbers only','error');return;}
+  if(!pw||pw.length<4){showToast('Password must be at least 4 characters','error');return;}
+  loadCompanies();
+  // Check if new code conflicts with another company
+  if(newCode!==origId && companies.find(c=>c.id===newCode)){
+    showToast('Company code already exists','error');return;
+  }
+  const co=getCompany(origId);
+  if(!co) return;
+  // If code changed, migrate all data keys
+  if(newCode!==origId){
+    ['workers','logs','ls','schedule'].forEach(k=>{
+      const val=localStorage.getItem('eev_'+origId+'_'+k);
+      if(val) localStorage.setItem('eev_'+newCode+'_'+k,val);
+      localStorage.removeItem('eev_'+origId+'_'+k);
+    });
+    const sub=localStorage.getItem('eev_sub_'+origId);
+    if(sub) localStorage.setItem('eev_sub_'+newCode,sub);
+    localStorage.removeItem('eev_sub_'+origId);
+    co.id=newCode;
+  }
+  co.name=name;
+  co.password=pw;
+  if(pin) co.workerPin=pin;
+  co.trialDays=trial;
+  co.mustChangePw=mustChange;
   saveCompanies();
+  document.getElementById('editCompanyModal').classList.remove('open');
   renderSuperAdmin();
-  showToast(id+' updated \u2713','success');
+  showToast((name)+' updated \u2713','success');
 }
 function saveGlobalSettings(){
   saSettings.shapId=document.getElementById('saShapId').value.trim();
