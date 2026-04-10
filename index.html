@@ -240,17 +240,54 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <div class="cs-sub">Eagle Electrical Ventures</div>
   <div class="cs-card">
     <h3>Welcome</h3>
-    <p>Enter your company code to access your Time Clock system.</p>
-    <div style="margin-bottom:14px;">
+    <p>Enter your company code to continue.</p>
+    <div style="margin-bottom:16px;">
       <label>Company Code</label>
-      <input type="text" id="companyCodeInput" placeholder="e.g. SMITH01" style="text-transform:uppercase;letter-spacing:2px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:1.1rem;" onkeydown="if(event.key==='Enter')submitCompanyCode()">
+      <input type="text" id="companyCodeInput" placeholder="e.g. SMITH01" style="text-transform:uppercase;letter-spacing:2px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:1.1rem;">
     </div>
-    <button class="btn btn-primary" onclick="submitCompanyCode()" style="width:100%;padding:13px;">Enter</button>
+    <div style="display:flex;gap:8px;margin-bottom:4px;">
+      <button class="btn btn-green" onclick="workerLoginFlow()" style="flex:1;padding:13px;">&#128119; Worker Login</button>
+      <button class="btn btn-primary" onclick="adminLoginFlow()" style="flex:1;padding:13px;">&#128272; Admin Login</button>
+    </div>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
       <p style="font-size:0.7rem;color:var(--muted);margin-bottom:10px;">System Administrator?</p>
       <input type="password" id="saCodeInput" placeholder="Super Admin password" style="margin-bottom:8px;" onkeydown="if(event.key==='Enter')submitSACode()">
       <button class="btn btn-ghost" onclick="submitSACode()" style="width:100%;padding:10px;font-size:0.78rem;">Super Admin Login</button>
     </div>
+  </div>
+</div>
+
+<!-- WORKER PIN SCREEN -->
+<div id="workerPinScreen" style="position:fixed;inset:0;background:var(--dark);z-index:810;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
+  <div class="cs-logo">&#128336; TimeClock</div>
+  <div class="cs-sub">Worker Login</div>
+  <div class="spw-card" style="border-color:rgba(45,198,83,0.4);">
+    <div class="spw-icon">&#128119;</div>
+    <h3 style="color:var(--green);">Worker PIN</h3>
+    <p>Enter the worker PIN provided by your admin.</p>
+    <div style="margin-bottom:16px;text-align:left;">
+      <label>PIN</label>
+      <input type="password" id="workerPinInput" placeholder="Enter PIN" inputmode="numeric" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:1.4rem;letter-spacing:4px;" onkeydown="if(event.key==='Enter')submitWorkerPin()">
+    </div>
+    <button class="btn btn-green" onclick="submitWorkerPin()" style="width:100%;padding:13px;">Enter</button>
+    <button class="btn btn-ghost" onclick="backToCompanyScreen()" style="width:100%;padding:10px;margin-top:8px;font-size:0.78rem;">&#8592; Back</button>
+  </div>
+</div>
+
+<!-- ADMIN PASSWORD SCREEN -->
+<div id="adminPwScreen" style="position:fixed;inset:0;background:var(--dark);z-index:810;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
+  <div class="cs-logo">&#128336; TimeClock</div>
+  <div class="cs-sub">Admin Login</div>
+  <div class="spw-card" style="border-color:rgba(245,130,10,0.4);">
+    <div class="spw-icon">&#128272;</div>
+    <h3 style="color:var(--orange);">Admin Password</h3>
+    <p>Enter the admin password to access the management panel.</p>
+    <div style="margin-bottom:16px;text-align:left;">
+      <label>Password</label>
+      <input type="password" id="adminPwScreenInput" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')submitAdminPwScreen()">
+    </div>
+    <button class="btn btn-primary" onclick="submitAdminPwScreen()" style="width:100%;padding:13px;">Login</button>
+    <button class="btn btn-ghost" onclick="backToCompanyScreen()" style="width:100%;padding:10px;margin-top:8px;font-size:0.78rem;">&#8592; Back</button>
   </div>
 </div>
 
@@ -286,7 +323,6 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 
 <div class="tabs" id="publicTabs" style="display:none;">
   <div class="tab active" onclick="goHome()">&#9201; Clock</div>
-  <div class="tab" id="adminTabBtn" onclick="handleAdminTabClick()">&#128272; Admin</div>
 </div>
 
 <div class="tabs" id="adminTabs" style="display:none;">
@@ -306,22 +342,6 @@ tr:hover td{background:rgba(255,255,255,0.02);}
       <button onclick="closeApp()" style="width:100%;padding:13px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:0.8rem;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
         <span style="font-size:1rem;">&#10005;</span> Close App
       </button>
-    </div>
-  </div>
-</div>
-
-<!-- ADMIN LOGIN PAGE -->
-<div class="page" id="page-adminlogin" style="display:none;">
-  <div class="login-wrap">
-    <div class="login-card">
-      <div class="lc-icon">&#128272;</div>
-      <h2>Admin Login</h2>
-      <p>Enter your admin password to access the management panel.</p>
-      <div style="margin-bottom:12px;text-align:left;">
-        <label>Admin Password</label>
-        <input type="password" id="adminPwInput" placeholder="Enter password" onkeydown="if(event.key==='Enter')doAdminLogin()">
-      </div>
-      <button class="btn btn-primary" onclick="doAdminLogin()" style="width:100%;padding:12px;">Login</button>
     </div>
   </div>
 </div>
@@ -370,7 +390,10 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <h3>&#127970; Company Settings</h3>
     <p>Update your company name and admin password.</p>
     <div class="form-field" style="margin-bottom:10px;"><label>Company Name</label><input type="text" id="companyNameInput" placeholder="e.g. Smith Builders" oninput="previewCompanyName()"></div>
-    <div class="form-field" style="margin-bottom:12px;"><label>New Admin Password</label><input type="password" id="newAdminPw" placeholder="Leave blank to keep current"></div>
+    <div class="form-row">
+      <div class="form-field"><label>New Admin Password</label><input type="password" id="newAdminPw" placeholder="Leave blank to keep current"></div>
+      <div class="form-field"><label>Worker PIN</label><input type="text" id="workerPinField" placeholder="Default: 1234" inputmode="numeric" maxlength="8"></div>
+    </div>
     <button class="btn btn-primary" onclick="saveCompanySettings()" style="width:100%;padding:11px;">&#128190; Save Settings</button>
   </div>
   <div class="divider"></div>
@@ -629,75 +652,122 @@ function saveSubData(id, d){ localStorage.setItem('eev_sub_'+id, JSON.stringify(
 // ═══════════════════════════════════════
 // COMPANY CODE SCREEN
 // ═══════════════════════════════════════
-function submitCompanyCode(){
-  const code = document.getElementById('companyCodeInput').value.trim().toUpperCase();
-  if(!code){ showToast('Enter your company code','error'); return; }
+function workerLoginFlow(){
+  const code=document.getElementById('companyCodeInput').value.trim().toUpperCase();
+  if(!code){showToast('Enter your company code first','error');return;}
   loadCompanies();
-  const co = companies.find(c=>c.id===code);
-  if(!co){ showToast('Company code not found','error'); return; }
-  currentCompanyId = code;
-  // Check first login
+  const co=companies.find(c=>c.id===code);
+  if(!co){showToast('Company code not found','error');return;}
+  currentCompanyId=code;
+  document.getElementById('workerPinInput').value='';
+  document.getElementById('workerPinScreen').style.display='flex';
+}
+function adminLoginFlow(){
+  const code=document.getElementById('companyCodeInput').value.trim().toUpperCase();
+  if(!code){showToast('Enter your company code first','error');return;}
+  loadCompanies();
+  const co=companies.find(c=>c.id===code);
+  if(!co){showToast('Company code not found','error');return;}
+  currentCompanyId=code;
   if(co.mustChangePw){
     document.getElementById('companyScreen').classList.add('hidden');
     document.getElementById('setPwScreen').classList.add('open');
-  } else {
-    enterCompanyApp(co);
+    return;
   }
+  document.getElementById('adminPwScreenInput').value='';
+  document.getElementById('adminPwScreen').style.display='flex';
+}
+function backToCompanyScreen(){
+  document.getElementById('workerPinScreen').style.display='none';
+  document.getElementById('adminPwScreen').style.display='none';
+  currentCompanyId=null;
+}
+function submitWorkerPin(){
+  const pin=document.getElementById('workerPinInput').value.trim();
+  if(!pin){showToast('Enter the PIN','error');return;}
+  loadCompanies();
+  const co=getCompany(currentCompanyId);
+  if(!co){showToast('Company not found','error');return;}
+  const correctPin=co.workerPin||'1234';
+  if(pin!==correctPin){showToast('Incorrect PIN','error');return;}
+  document.getElementById('workerPinScreen').style.display='none';
+  enterWorkerMode(co);
+}
+function submitAdminPwScreen(){
+  const pw=document.getElementById('adminPwScreenInput').value;
+  if(!pw){showToast('Enter your password','error');return;}
+  loadCompanies();
+  const co=getCompany(currentCompanyId);
+  if(!co){showToast('Company not found','error');return;}
+  if(pw!==co.password){showToast('Incorrect password','error');return;}
+  adminIn=true;
+  document.getElementById('adminPwScreen').style.display='none';
+  document.getElementById('adminPwScreenInput').value='';
+  enterAdminMode(co);
 }
 function submitSACode(){
-  const pw = document.getElementById('saCodeInput').value;
-  if(pw !== SA_PASSWORD){ showToast('Incorrect Super Admin password','error'); return; }
-  isSuperAdmin = true;
-  adminIn = true;
-  currentCompanyId = '__SA__';
+  const pw=document.getElementById('saCodeInput').value;
+  if(pw!==SA_PASSWORD){showToast('Incorrect Super Admin password','error');return;}
+  isSuperAdmin=true; adminIn=true;
+  currentCompanyId='__SA__';
   document.getElementById('companyScreen').classList.add('hidden');
-  loadSASettings();
-  loadCompanies();
+  loadSASettings(); loadCompanies();
   initSuperAdminUI();
 }
 function saveNewPassword(){
-  const np = document.getElementById('newPwInput').value;
-  const cp = document.getElementById('confirmPwInput').value;
-  if(!np || np.length < 4){ showToast('Password must be at least 4 characters','error'); return; }
-  if(np !== cp){ showToast('Passwords do not match','error'); return; }
+  const np=document.getElementById('newPwInput').value;
+  const cp=document.getElementById('confirmPwInput').value;
+  if(!np||np.length<4){showToast('Password must be at least 4 characters','error');return;}
+  if(np!==cp){showToast('Passwords do not match','error');return;}
   loadCompanies();
-  const co = companies.find(c=>c.id===currentCompanyId);
+  const co=companies.find(c=>c.id===currentCompanyId);
   if(!co) return;
-  co.password = np;
-  co.mustChangePw = false;
+  co.password=np; co.mustChangePw=false;
   saveCompanies();
   document.getElementById('setPwScreen').classList.remove('open');
   showToast('Password saved \u2713','success');
-  enterCompanyApp(co);
+  adminIn=true;
+  enterAdminMode(co);
 }
-function enterCompanyApp(co){
+function enterWorkerMode(co){
+  let sub=getSubData(co.id);
+  if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
+  loadSASettings(); loadCompanyData();
+  document.getElementById('companyScreen').classList.add('hidden');
+  updateHeaderLogo(); updateTrialBanner(); checkExpired();
+  startClock(); loadFaceModels();
+  document.getElementById('publicTabs').style.display='flex';
+  document.getElementById('logoutBtn').style.display='block';
+  document.getElementById('logoutBtn').textContent='\uD83D\uDD13 Exit';
+  showPage('clock'); renderWorkerGrid();
+}
+function enterAdminMode(co){
+  let sub=getSubData(co.id);
+  if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
+  loadSASettings(); loadCompanyData();
   document.getElementById('companyScreen').classList.add('hidden');
   document.getElementById('setPwScreen').classList.remove('open');
-  let sub = getSubData(co.id);
-  if(!sub){ sub={trialStart:new Date().toISOString()}; saveSubData(co.id,sub); }
-  loadSASettings();
-  loadCompanyData();
-  updateHeaderLogo();
-  updateTrialBanner();
-  checkExpired();
-  startClock();
-  loadFaceModels();
-  goHome();
-}
-function initSuperAdminUI(){
-  // Hide public tabs, show super admin tab directly
+  updateHeaderLogo(); updateTrialBanner(); checkExpired();
+  startClock(); loadFaceModels();
   document.getElementById('publicTabs').style.display='none';
   document.getElementById('adminTabs').style.display='flex';
-  // Add super tab
-  const at = document.getElementById('adminTabs');
+  document.getElementById('logoutBtn').style.display='block';
+  document.getElementById('logoutBtn').textContent='\uD83D\uDD12 Admin \u2014 Logout';
+  switchAdminTab('logs');
+  renderWorkerSelects(); renderLSList();
+}
+function enterCompanyApp(co){ enterWorkerMode(co); }
+function initSuperAdminUI(){
+  document.getElementById('publicTabs').style.display='none';
+  document.getElementById('adminTabs').style.display='flex';
+  const at=document.getElementById('adminTabs');
   if(!document.getElementById('superAdminTab')){
     const t=document.createElement('div');t.className='tab';t.id='superAdminTab';t.textContent='\u26A1 Super';t.onclick=()=>switchAdminTab('superadmin');at.appendChild(t);
   }
   document.getElementById('logoutBtn').style.display='block';
   document.getElementById('logoutBtn').textContent='\u26A1 Super Admin \u2014 Logout';
   document.getElementById('headerLogo').innerHTML='TimeClock<span>Super Admin</span>';
-  startClock();
-  switchAdminTab('superadmin');
+  startClock(); switchAdminTab('superadmin');
 }
 
 // ═══════════════════════════════════════
@@ -749,35 +819,7 @@ function checkExpired(){
 }
 function showExpiredLogin(){
   document.getElementById('expiredOverlay').classList.remove('open');
-  setActiveTab(document.getElementById('adminTabBtn'));
-  showPage('adminlogin');
-}
-
-// ═══════════════════════════════════════
-// ADMIN LOGIN (company level)
-// ═══════════════════════════════════════
-function handleAdminTabClick(){
-  if(adminIn){ switchAdminTab('logs'); return; }
-  setActiveTab(document.getElementById('adminTabBtn'));
-  showPage('adminlogin');
-}
-function doAdminLogin(){
-  loadCompanies();
-  const co=getCompany(currentCompanyId);
-  if(!co){showToast('Company not found','error');return;}
-  const pw=document.getElementById('adminPwInput').value;
-  if(pw===co.password){
-    adminIn=true;
-    document.getElementById('adminPwInput').value='';
-    document.getElementById('publicTabs').style.display='none';
-    document.getElementById('adminTabs').style.display='flex';
-    document.getElementById('logoutBtn').style.display='block';
-    switchAdminTab('logs');
-    renderWorkerSelects();
-    renderLSList();
-  } else {
-    showToast('Incorrect password','error');
-  }
+  doLogout();
 }
 function doLogout(){
   adminIn=false; isSuperAdmin=false;
@@ -787,12 +829,10 @@ function doLogout(){
   document.getElementById('trialBanner').style.display='none';
   const st=document.getElementById('superAdminTab'); if(st) st.remove();
   hideAllPages();
-  currentCompanyId=null;
-  workers=[]; logs=[]; lsData={};
+  currentCompanyId=null; workers=[]; logs=[]; lsData={};
   document.getElementById('companyScreen').classList.remove('hidden');
   document.getElementById('companyCodeInput').value='';
   document.getElementById('saCodeInput').value='';
-  document.getElementById('adminPwInput').value='';
   document.getElementById('headerLogo').innerHTML='Time Clock<span>System</span>';
 }
 
@@ -859,6 +899,7 @@ function loadAdminPanel(){
   if(!co) return;
   document.getElementById('companyNameInput').value=co.name||'';
   document.getElementById('newAdminPw').value='';
+  document.getElementById('workerPinField').value=co.workerPin||'';
   renderScheduleGrid();
   renderWorkerSelects();
   renderLSList();
@@ -869,9 +910,11 @@ function saveCompanySettings(){
   if(!co) return;
   const name=document.getElementById('companyNameInput').value.trim();
   const pw=document.getElementById('newAdminPw').value.trim();
+  const pin=document.getElementById('workerPinField').value.trim();
   if(name) co.name=name;
   if(pw && pw.length>=4) co.password=pw;
   else if(pw && pw.length<4){ showToast('Password must be at least 4 characters','error'); return; }
+  if(pin) co.workerPin=pin;
   document.getElementById('newAdminPw').value='';
   saveCompanies();
   updateHeaderLogo();
