@@ -1143,19 +1143,42 @@ function startClock(){
 // ═══════════════════════════════════════
 let faceModelsLoaded=false,faceMode='register',clockWorkerTarget=null,clockAction='in';
 let detectInterval=null,capturedDescriptor=null,capturedPhoto=null,reCapturing=false;
+let faceModelsLoading=false;
 async function loadFaceModels(){
-  if(faceModelsLoaded) return;
+  if(faceModelsLoaded||faceModelsLoading) return;
+  faceModelsLoading=true;
   const MODEL_URL='https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+  const b=document.getElementById('modelBanner');
+  if(b){
+    b.style.display='flex';
+    b.style.background='rgba(26,111,212,0.12)';
+    b.style.borderColor='rgba(26,111,212,0.35)';
+    b.style.color='#7DB8F7';
+    b.innerHTML='<div class="spinner"></div><span id="modelStatus">Loading face recognition models...</span>';
+  }
   try{
     await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
     await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
     await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-    faceModelsLoaded=true;
-    const b=document.getElementById('modelBanner');
-    if(b){b.style.background='rgba(45,198,83,0.1)';b.style.borderColor='rgba(45,198,83,0.3)';b.style.color='#6EE7A0';b.querySelector('span').textContent='Face recognition ready \u2713';b.querySelector('.spinner').style.display='none';setTimeout(()=>{b.style.display='none';},3000);}
+    faceModelsLoaded=true; faceModelsLoading=false;
+    const b2=document.getElementById('modelBanner');
+    if(b2){
+      b2.style.background='rgba(45,198,83,0.1)';
+      b2.style.borderColor='rgba(45,198,83,0.3)';
+      b2.style.color='#6EE7A0';
+      b2.innerHTML='<span>\u2713 Face recognition ready</span>';
+      setTimeout(()=>{b2.style.display='none';},3000);
+    }
   }catch(e){
-    const b=document.getElementById('modelBanner');
-    if(b){b.querySelector('span').textContent='Face recognition unavailable \u2014 check internet connection';}
+    faceModelsLoading=false;
+    const b2=document.getElementById('modelBanner');
+    if(b2){
+      b2.style.background='rgba(229,62,62,0.12)';
+      b2.style.borderColor='rgba(229,62,62,0.3)';
+      b2.style.color='#FC8181';
+      b2.innerHTML='<span>\u26A0 Face models failed to load \u2014 '+e.message+'. <button onclick="faceModelsLoaded=false;faceModelsLoading=false;loadFaceModels()" style="background:none;border:1px solid #FC8181;color:#FC8181;padding:2px 8px;border-radius:5px;cursor:pointer;font-size:0.72rem;margin-left:6px;">Retry</button></span>';
+    }
+    console.error('Face model load error:',e);
   }
 }
 function openRegisterFace(){
@@ -1243,7 +1266,7 @@ function startDetectLoop(){
 }
 async function captureFace(){
   const video=document.getElementById('camVideo');
-  if(!faceModelsLoaded){showToast('Face models still loading...','error');return;}
+  if(!faceModelsLoaded){if(faceModelsLoading){showToast('Models still loading \u2014 wait a moment','error');}else{showToast('Face models failed \u2014 tap Retry in the banner','error');loadFaceModels();}return;}
   const opts=new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4});
   const det=await faceapi.detectSingleFace(video,opts).withFaceLandmarks(true).withFaceDescriptor();
   if(!det){showToast('No face detected \u2014 try again','error');return;}
@@ -1702,8 +1725,9 @@ window.addEventListener('load',function(){
   loadSASettings();
   loadCompanies();
   startClock();
-  // Show company screen
   document.getElementById('companyScreen').classList.remove('hidden');
+  // Start loading face models immediately in background
+  loadFaceModels();
 });
 </script>
 </body>
