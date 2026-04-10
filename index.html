@@ -1147,7 +1147,13 @@ let faceModelsLoading=false;
 async function loadFaceModels(){
   if(faceModelsLoaded||faceModelsLoading) return;
   faceModelsLoading=true;
-  const MODEL_URL='https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+  // Try multiple CDN sources for model weights
+  const MODEL_URLS=[
+    'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights',
+    'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights',
+    'https://justadudewhohacks.github.io/face-api.js/weights'
+  ];
+  let MODEL_URL=MODEL_URLS[0];
   const b=document.getElementById('modelBanner');
   if(b){
     b.style.display='flex';
@@ -1156,10 +1162,19 @@ async function loadFaceModels(){
     b.style.color='#7DB8F7';
     b.innerHTML='<div class="spinner"></div><span id="modelStatus">Loading face recognition models...</span>';
   }
-  try{
-    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-    await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
-    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+  let loaded=false;
+  for(let i=0;i<MODEL_URLS.length;i++){
+    MODEL_URL=MODEL_URLS[i];
+    try{
+      const ms=document.getElementById('modelStatus');
+      if(ms) ms.textContent='Loading models (source '+(i+1)+' of '+MODEL_URLS.length+')...';
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+      loaded=true; break;
+    }catch(err){ console.warn('Model source '+(i+1)+' failed:',err.message); }
+  }
+  if(loaded){
     faceModelsLoaded=true; faceModelsLoading=false;
     const b2=document.getElementById('modelBanner');
     if(b2){
@@ -1169,7 +1184,8 @@ async function loadFaceModels(){
       b2.innerHTML='<span>\u2713 Face recognition ready</span>';
       setTimeout(()=>{b2.style.display='none';},3000);
     }
-  }catch(e){
+  } else {
+    const e={message:'All model sources failed. Check your internet connection.'};
     faceModelsLoading=false;
     const b2=document.getElementById('modelBanner');
     if(b2){
