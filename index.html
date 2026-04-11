@@ -492,6 +492,17 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 
   <div class="divider"></div>
 
+  <div class="admin-section" id="saCompanyViewer" style="display:none;">
+    <div class="admin-section-title" id="saViewerTitle">&#128065; Company Data</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <select class="fs" id="saViewFilter" onchange="renderSAViewer()" style="flex:1;min-width:140px;"><option value="workers">Workers</option><option value="logs">Logs</option><option value="loans">Loans &amp; Savings</option></select>
+      <button class="btn btn-ghost" onclick="document.getElementById('saCompanyViewer').style.display='none'" style="flex:0;padding:9px 14px;font-size:0.78rem;">&#10005; Close</button>
+    </div>
+    <div id="saViewerContent"></div>
+  </div>
+
+  <div class="divider"></div>
+
   <div class="admin-section">
     <div class="admin-section-title">&#9881; Global System Settings</div>
     <div class="card">
@@ -632,6 +643,24 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="document.getElementById('editCompanyModal').classList.remove('open')">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditCompany()">&#128190; Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- REPAYMENT MODAL -->
+<div class="modal-backdrop" id="repayModal">
+  <div class="modal">
+    <h2>&#128179; Record Repayment</h2>
+    <p class="sub" id="repayDesc" style="text-align:left;color:var(--orange);font-weight:600;margin-bottom:14px;"></p>
+    <input type="hidden" id="repayWId">
+    <input type="hidden" id="repayId">
+    <div class="form-field" style="margin-bottom:14px;">
+      <label>Repayment Amount (R)</label>
+      <input type="number" id="repayAmount" placeholder="e.g. 200" min="1" step="0.01">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('repayModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-green" onclick="saveRepayment()">&#10003; Save Repayment</button>
     </div>
   </div>
 </div>
@@ -1140,6 +1169,7 @@ function renderSuperAdmin(){
       +'</div>'
       +'<div class="alr-btns" style="margin-top:8px;">'
       +'<button class="btn-sm edit" onclick="saEditCompany(\''+co.id+'\')">&#9998; Edit</button>'
+      +'<button class="btn-sm edit" onclick="saViewCompany(\''+co.id+'\')">&#128065; View</button>'
       +'<button class="btn-sm edit" onclick="saActivateSub(\''+co.id+'\',1)">+1 Month</button>'
       +'<button class="btn-sm edit" onclick="saActivateSub(\''+co.id+'\',3)">+3 Months</button>'
       +'<button class="btn-sm edit" onclick="saActivateSub(\''+co.id+'\',12)">+1 Year</button>'
@@ -1148,6 +1178,38 @@ function renderSuperAdmin(){
       +'</div>'
       +'</div>';
   }).join('');
+}
+function saViewCompany(id){
+  var co=getCompany(id);
+  if(!co) return;
+  document.getElementById('saViewerTitle').textContent='🏢 '+co.name+' ('+id+')';
+  document.getElementById('saCompanyViewer').style.display='block';
+  document.getElementById('saCompanyViewer')._viewId=id;
+  document.getElementById('saViewFilter').value='workers';
+  renderSAViewer();
+  document.getElementById('saCompanyViewer').scrollIntoView({behavior:'smooth'});
+}
+function renderSAViewer(){
+  var id=document.getElementById('saCompanyViewer')._viewId;
+  if(!id) return;
+  var filter=document.getElementById('saViewFilter').value;
+  var vW=JSON.parse(localStorage.getItem('eev_'+id+'_workers')||'[]');
+  var vL=JSON.parse(localStorage.getItem('eev_'+id+'_logs')||'[]');
+  var vLS=JSON.parse(localStorage.getItem('eev_'+id+'_ls')||'{}');
+  var el=document.getElementById('saViewerContent');
+  if(filter==='workers'){
+    if(!vW.length){el.innerHTML='<div class="empty-state"><p>No workers registered.</p></div>';return;}
+    el.innerHTML=vW.map(function(w){return '<div class="alr"><div class="alr-info"><div class="alr-name">'+w.name+(w.clockedIn?' <span class="tag-active">Clocked In</span>':'')+' </div><div class="alr-meta">'+w.title+' · '+fmtMoney(w.rate)+'/hr</div></div></div>';}).join('');
+  }else if(filter==='logs'){
+    var recent=[...vL].reverse().slice(0,50);
+    if(!recent.length){el.innerHTML='<div class="empty-state"><p>No records found.</p></div>';return;}
+    el.innerHTML='<div class="log-table-wrap"><table><thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>Wage</th></tr></thead><tbody>'+recent.map(function(l){var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return '<tr><td>'+l.workerName+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono">'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'Active')+'</td><td class="mono">'+(l.clockOut?fmtHours(l.hoursWorked):'—')+'</td><td class="mono green">'+(l.clockOut?fmtMoney(l.wage):'—')+'</td></tr>';}).join('')+'</tbody></table></div>';
+  }else{
+    var all=[];
+    Object.entries(vLS).forEach(function(pair){var wId=pair[0],ents=pair[1];var w=vW.find(function(x){return x.id===wId;});ents.forEach(function(e){all.push(Object.assign({},e,{workerName:w?w.name:'Unknown'}));});});
+    if(!all.length){el.innerHTML='<div class="empty-state"><p>No loans or savings.</p></div>';return;}
+    el.innerHTML=all.map(function(e){var paid=(e.repayments||[]).reduce(function(s,r){return s+r.amount;},0);var bal=e.type==='loan'?Math.max(e.amount-paid,0):e.amount;return '<div class="ls-item"><div class="lsi"><div class="lsn">'+e.workerName+' — '+e.desc+'</div><div class="lsm">'+new Date(e.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+(paid?' · Paid: '+fmtMoney(paid):'')+' </div></div><span class="ls-badge '+(e.type==='loan'?'loan':'saving')+'">'+(e.type==='loan'?'Loan':'Saving')+'</span><span class="mono">'+fmtMoney(bal)+(e.type==='loan'&&paid?' of '+fmtMoney(e.amount):'')+' </span></div>';}).join('');
+  }
 }
 function saActivateSub(id,months){
   const sub=getSubData(id)||{trialStart:new Date().toISOString()};
@@ -1746,7 +1808,7 @@ function renderLSList(){
     entries.forEach(e=>all.push({...e,workerName:w?w.name:'Unknown',workerId:wId}));
   });
   if(!all.length){el.innerHTML='<div class="empty-state"><p>No loans or savings recorded.</p></div>';return;}
-  el.innerHTML=all.map(e=>'<div class="ls-item"><div class="lsi"><div class="lsn">'+e.workerName+' &mdash; '+e.desc+'</div><div class="lsm">'+new Date(e.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+'</div></div><span class="ls-badge '+(e.type==='loan'?'loan':'saving')+'">'+(e.type==='loan'?'Loan':'Saving')+'</span><span class="mono" style="font-size:0.82rem;font-weight:600;">'+fmtMoney(e.amount)+'</span><button class="btn-sm edit" onclick="openEditLS(\''+e.workerId+'\',\''+e.id+'\')">Edit</button><button class="btn-danger" onclick="deleteLS(\''+e.workerId+'\',\''+e.id+'\')">Del</button></div>').join('');
+  el.innerHTML=all.map(function(e){var paid=(e.repayments||[]).reduce(function(s,r){return s+r.amount;},0);var bal=e.type==='loan'?Math.max(e.amount-paid,0):e.amount;var rb=e.type==='loan'?'<button class="btn-sm edit" style="background:rgba(45,198,83,0.15);color:var(--green);border:1px solid rgba(45,198,83,0.3);" onclick="openRepayment(\''+e.workerId+'\',\''+e.id+'\')">&#128179; Repay</button>':'';return '<div class="ls-item" style="flex-wrap:wrap;"><div class="lsi" style="width:100%;"><div class="lsn">'+e.workerName+' &mdash; '+e.desc+'</div><div class="lsm">'+new Date(e.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+(paid>0?' &nbsp;·&nbsp; <span style="color:var(--green);">Paid back: '+fmtMoney(paid)+'</span>':'')+'</div></div><span class="ls-badge '+(e.type==='loan'?'loan':'saving')+'">'+(e.type==='loan'?'Loan':'Saving')+'</span><span class="mono" style="font-size:0.9rem;font-weight:700;">'+fmtMoney(bal)+(e.type==='loan'&&paid>0?' <span style="color:var(--muted);font-size:0.68rem;">of '+fmtMoney(e.amount)+'</span>':'')+'</span>'+rb+'<button class="btn-sm edit" onclick="openEditLS(\''+e.workerId+'\',\''+e.id+'\')">✎</button><button class="btn-danger" onclick="deleteLS(\''+e.workerId+'\',\''+e.id+'\')">Del</button></div>';}).join('');
 }
 function openEditLS(wId,id){
   const entry=lsData[wId]?.find(e=>e.id===id);
@@ -1770,6 +1832,35 @@ function deleteLS(wId,id){
   lsData[wId]=lsData[wId].filter(e=>e.id!==id);
   saveCompanyData(); renderLSList();
   showToast('Entry deleted','success');
+}
+function openRepayment(wId,id){
+  document.getElementById('repayWId').value=wId;
+  document.getElementById('repayId').value=id;
+  var entry=lsData[wId]&&lsData[wId].find(function(e){return e.id===id;});
+  if(!entry) return;
+  var paid=(entry.repayments||[]).reduce(function(s,r){return s+r.amount;},0);
+  var balance=Math.max(entry.amount-paid,0);
+  document.getElementById('repayDesc').textContent=entry.desc+' — Outstanding: '+fmtMoney(balance);
+  document.getElementById('repayAmount').value='';
+  document.getElementById('repayAmount').max=balance;
+  document.getElementById('repayModal').classList.add('open');
+}
+function saveRepayment(){
+  var wId=document.getElementById('repayWId').value;
+  var id=document.getElementById('repayId').value;
+  var amount=parseFloat(document.getElementById('repayAmount').value);
+  if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
+  var entry=lsData[wId]&&lsData[wId].find(function(e){return e.id===id;});
+  if(!entry) return;
+  if(!entry.repayments) entry.repayments=[];
+  var paid=entry.repayments.reduce(function(s,r){return s+r.amount;},0);
+  var balance=Math.max(entry.amount-paid,0);
+  if(amount>balance){showToast('Cannot exceed outstanding balance of '+fmtMoney(balance),'error');return;}
+  entry.repayments.push({id:Date.now().toString(),amount:amount,date:new Date().toISOString()});
+  saveCompanyData();
+  document.getElementById('repayModal').classList.remove('open');
+  renderLSList();
+  showToast('Repayment of '+fmtMoney(amount)+' recorded ✓','success');
 }
 
 // ═══════════════════════════════════════
@@ -1800,7 +1891,7 @@ function renderWorkerSummary(){
   });
   Object.keys(byWorker).forEach(wId=>{
     const entries=lsData[wId]||[];
-    const ded=entries.reduce((s,e)=>s+(e.type==='loan'?e.amount:-e.amount),0);
+    const ded=entries.reduce(function(s,e){if(e.type==='loan'){var p=(e.repayments||[]).reduce(function(a,r){return a+r.amount;},0);return s+Math.max(e.amount-p,0);}return s-e.amount;},0);
     byWorker[wId].deductions=ded;
   });
   el.innerHTML=Object.values(byWorker).map(r=>'<div class="deduction-card"><div class="dc-title">'+r.name+'</div><div class="dc-row"><span>Shifts</span><span>'+r.shifts+'</span></div><div class="dc-row"><span>Total Hours</span><span class="mono">'+fmtHours(r.hours)+'</span></div><div class="dc-row"><span>Gross Wage</span><span class="mono green">'+fmtMoney(r.wage)+'</span></div>'+(r.deductions?'<div class="dc-row"><span>Deductions (Loans)</span><span class="mono" style="color:#FC8181;">'+fmtMoney(r.deductions)+'</span></div>':'')+'<div class="dc-row total"><span>Net Payable</span><span class="mono">'+fmtMoney(r.wage-r.deductions)+'</span></div></div>').join('');
