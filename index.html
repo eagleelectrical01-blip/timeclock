@@ -553,9 +553,12 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     </div>
     <img id="snapPreview" class="snap-preview">
     <div id="faceResult"></div>
-    <div class="modal-btns" id="faceBtns">
-      <button class="btn btn-ghost" onclick="closeFaceModal()">Cancel</button>
+    <div class="modal-btns" id="faceBtns" style="flex-wrap:wrap;gap:8px;">
+      <button class="btn btn-ghost" id="faceCancelBtn" onclick="closeFaceModal()">Cancel</button>
       <button class="btn btn-primary" id="capBtn" onclick="captureFace()">&#128247; Capture</button>
+      <button class="btn btn-green" id="faceRegisterBtn" onclick="completeRegister()" style="display:none;">&#128119; Register Worker</button>
+      <button class="btn btn-primary" id="faceTryAgainBtn" onclick="resetFaceModal();startCamera()" style="display:none;">Try Again</button>
+      <button class="btn btn-primary" id="faceDoneBtn" onclick="handleFaceDone()" style="flex:1;display:none;">Done</button>
     </div>
   </div>
 </div>
@@ -1410,17 +1413,25 @@ function closeFaceModal(){
   capturedDescriptor=null; capturedPhoto=null;
   document.getElementById('snapPreview').style.display='none';
   document.getElementById('faceResult').innerHTML='';
-  document.getElementById('capBtn').style.display='block';
 }
 function workerDone(){
   closeFaceModal();
   doLogout();
 }
+function showFaceBtns(v){
+  document.getElementById('faceCancelBtn').style.display=v.cancel?'block':'none';
+  document.getElementById('capBtn').style.display=v.capture?'block':'none';
+  document.getElementById('faceRegisterBtn').style.display=v.register?'block':'none';
+  document.getElementById('faceTryAgainBtn').style.display=v.tryAgain?'block':'none';
+  document.getElementById('faceDoneBtn').style.display=v.done?'flex':'none';
+}
+function handleFaceDone(){
+  if(adminIn){closeFaceModal();}else{workerDone();}
+}
 function resetFaceModal(){
   document.getElementById('snapPreview').style.display='none';
   document.getElementById('faceResult').innerHTML='';
-  document.getElementById('capBtn').style.display='block';
-  document.getElementById('faceBtns').innerHTML='<button class="btn btn-ghost" onclick="closeFaceModal()">Cancel</button><button class="btn btn-primary" id="capBtn" onclick="captureFace()">&#128247; Capture</button>';
+  showFaceBtns({cancel:true,capture:true,register:false,tryAgain:false,done:false});
   document.getElementById('faceOval').style.display='block';
   capturedDescriptor=null; capturedPhoto=null;
 }
@@ -1480,7 +1491,7 @@ async function captureFace(){
 function processRegister(descriptor){
   capturedDescriptor=Array.from(descriptor);
   document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128247;</div><div class="rm">Face captured!</div><div class="rd">Tap Register to save this worker.</div></div>';
-  document.getElementById('faceBtns').innerHTML='<button class="btn btn-ghost" onclick="closeFaceModal()">Cancel</button><button class="btn btn-green" onclick="completeRegister()">&#128119; Register Worker</button>';
+  showFaceBtns({cancel:true,capture:false,register:true,tryAgain:false,done:false});
 }
 function completeRegister(){
   if(reCapturing){
@@ -1517,12 +1528,12 @@ function processClockAction(descriptor){
   });
   if(!best||bestDist>threshold){
     document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Face not recognised</div><div class="rd">Score: '+(bestDist<999?bestDist.toFixed(3):'—')+'</div></div>';
-    document.getElementById('faceBtns').innerHTML='<button class="btn btn-ghost" onclick="closeFaceModal()">Close</button><button class="btn btn-primary" onclick="resetFaceModal();startCamera()">Try Again</button>';
+    showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
   if(best.id!==clockWorkerTarget.id){
     document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Detected: '+best.name+'</div></div>';
-    document.getElementById('faceBtns').innerHTML='<button class="btn btn-ghost" onclick="closeFaceModal()">Close</button><button class="btn btn-primary" onclick="resetFaceModal();startCamera()">Try Again</button>';
+    showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
   completeClockAction(best);
@@ -1567,7 +1578,7 @@ function completeClockAction(w){
   }
   saveCompanyData();
   renderWorkerGrid();
-  const _da=adminIn?'closeFaceModal()':'workerDone()';document.getElementById('faceBtns').innerHTML='<button class="btn btn-primary" onclick="'+_da+'" style="flex:1;">Done</button>';
+  showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
 }
 
 // ═══════════════════════════════════════
