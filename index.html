@@ -1188,6 +1188,7 @@ function renderSuperAdmin(){
 function saViewCompany(id){
   var co=getCompany(id);
   if(!co) return;
+  console.log('SA View company:',id,'workers key:','eev_'+id+'_workers','data:',localStorage.getItem('eev_'+id+'_workers'));
   document.getElementById('saViewerTitle').textContent='🏢 '+co.name+' ('+id+')';
   document.getElementById('saCompanyViewer').style.display='block';
   document.getElementById('saCompanyViewer')._viewId=id;
@@ -1204,12 +1205,17 @@ function renderSAViewer(){
   var vLS=JSON.parse(localStorage.getItem('eev_'+id+'_ls')||'{}');
   var el=document.getElementById('saViewerContent');
   if(filter==='workers'){
-    if(!vW.length){el.innerHTML='<div class="empty-state"><p>No workers registered.</p></div>';return;}
-    el.innerHTML=vW.map(function(w){return '<div class="alr"><div class="alr-info"><div class="alr-name">'+w.name+(w.clockedIn?' <span class="tag-active">Clocked In</span>':'')+' </div><div class="alr-meta">'+w.title+' · '+fmtMoney(w.rate)+'/hr</div></div></div>';}).join('');
+    if(!vW.length){el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers found for code: <code>'+id+'</code><br><small>Key checked: eev_'+id+'_workers</small></p></div>';return;}
+    el.innerHTML=vW.map(function(w){return '<div class="alr"><div class="alr-info"><div class="alr-name">'+w.name+(w.clockedIn?' <span class="tag-active">Clocked In</span>':'')+' </div><div class="alr-meta">'+w.title+' · '+fmtMoney(w.rate)+'/hr · Rate: '+fmtMoney(w.rate)+'/hr</div></div></div>';}).join('');
   }else if(filter==='logs'){
+    // Also include active clock-ins from workers
+    var activeLogRows=vW.filter(function(w){return w.clockedIn&&w.clockInTime;}).map(function(w){
+      var din=new Date(w.clockInTime);
+      return '<tr style="background:rgba(45,198,83,0.05);"><td>'+w.name+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono" style="color:var(--green);">Active</td><td class="mono">—</td><td class="mono">—</td></tr>';
+    }).join('');
     var recent=[...vL].reverse().slice(0,50);
-    if(!recent.length){el.innerHTML='<div class="empty-state"><p>No records found.</p></div>';return;}
-    el.innerHTML='<div class="log-table-wrap"><table><thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>Wage</th></tr></thead><tbody>'+recent.map(function(l){var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return '<tr><td>'+l.workerName+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono">'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'Active')+'</td><td class="mono">'+(l.clockOut?fmtHours(l.hoursWorked):'—')+'</td><td class="mono green">'+(l.clockOut?fmtMoney(l.wage):'—')+'</td></tr>';}).join('')+'</tbody></table></div>';
+    if(!recent.length&&!activeLogRows){el.innerHTML='<div class="empty-state"><p>No records found for code: <code>'+id+'</code></p></div>';return;}
+    el.innerHTML='<div class="log-table-wrap"><table><thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>Wage</th></tr></thead><tbody>'+activeLogRows+recent.map(function(l){var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return '<tr><td>'+l.workerName+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono">'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'Active')+'</td><td class="mono">'+(l.clockOut?fmtHours(l.hoursWorked):'—')+'</td><td class="mono green">'+(l.clockOut?fmtMoney(l.wage):'—')+'</td></tr>';}).join('')+'</tbody></table></div>';
   }else{
     var all=[];
     Object.entries(vLS).forEach(function(pair){var wId=pair[0],ents=pair[1];var w=vW.find(function(x){return x.id===wId;});ents.forEach(function(e){all.push(Object.assign({},e,{workerName:w?w.name:'Unknown'}));});});
@@ -1694,7 +1700,7 @@ function renderLogs(){
       +'<td class="mono" style="color:'+(otHrs>0?'var(--orange)':'var(--muted)')+'">'+(complete?(otHrs>0?fmtHours(otHrs):'—'):'—')+'</td>'
       +'<td class="mono green">'+(complete?fmtMoney(l.wage):'—')+'</td>'
       +'<td><span class="badge '+(complete?'complete':'in')+'">'+(complete?'Done':'Active')+'</span></td>'
-      +'<td><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')">Edit</button></td>'
+      +'<td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="deleteLog(\''+l.id+'\')">×</button></td>'
       +'</tr>';
   }).join('');
   renderLogTotals(data);
@@ -1725,6 +1731,12 @@ function renderLogTotals(data){
   }
   html+='</div>';
   document.getElementById('logTotals').innerHTML=html;
+}
+function deleteLog(id){
+  if(!confirm('Delete this record?')) return;
+  logs=logs.filter(function(l){return l.id!==id;});
+  saveCompanyData(); renderLogs();
+  showToast('Record deleted','success');
 }
 function openEditLog(id){
   const l=logs.find(x=>x.id===id);
