@@ -693,11 +693,13 @@ let companies = [];
 // ═══════════════════════════════════════
 function cKey(k){ return 'eev_'+currentCompanyId+'_'+k; }
 function loadCompanyData(){
+  if(!currentCompanyId||currentCompanyId==='__SA__'){console.warn('loadCompanyData: no company');return;}
   workers = JSON.parse(localStorage.getItem(cKey('workers')) || '[]');
   logs    = JSON.parse(localStorage.getItem(cKey('logs'))    || '[]');
   lsData  = JSON.parse(localStorage.getItem(cKey('ls'))      || '{}');
 }
 function saveCompanyData(){
+  if(!currentCompanyId||currentCompanyId==='__SA__'){console.warn('saveCompanyData: no company');return;}
   localStorage.setItem(cKey('workers'), JSON.stringify(workers));
   localStorage.setItem(cKey('logs'),    JSON.stringify(logs));
   localStorage.setItem(cKey('ls'),      JSON.stringify(lsData));
@@ -964,6 +966,7 @@ function goHome(){
   renderWorkerGrid();
 }
 function switchAdminTab(tab){
+  if(currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
   showPage(tab);
   document.querySelectorAll('#adminTabs .tab').forEach(t=>t.classList.remove('active'));
   const tabMap={logs:0,workers:1,admin:2,export:3,superadmin:4};
@@ -1591,6 +1594,7 @@ function timeSince(iso){
   const h=Math.floor(m/60); return h+'h '+(m%60)+'m ago';
 }
 function renderWorkerGrid(){
+  if(currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
   const el=document.getElementById('workerGrid');
   if(!workers.length){ el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers added yet.<br>Contact your admin to add workers.</p></div>'; return; }
   const ts=getTrialStatus();
@@ -1601,6 +1605,7 @@ function renderWorkerGrid(){
   }).join('');
 }
 function renderWorkersList(){
+  if(currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
   const el=document.getElementById('workersList');
   if(!workers.length){ el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers registered yet.</p></div>'; return; }
   el.innerHTML=workers.map(w=>'<div class="wlc">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--green);">':'<div class="w-avatar-ph" style="width:40px;height:40px;font-size:0.9rem;">'+initials(w.name)+'</div>')+'<div class="info"><div class="nm">'+w.name+'</div><div class="mt">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr &middot; OT: '+fmtMoney(w.overtimeRate||w.rate*1.5)+'/hr</div></div><div style="display:flex;gap:6px;"><button class="btn-sm edit" onclick="openEditWorker(\''+w.id+'\')">Edit</button><button class="btn-danger" onclick="deleteWorker(\''+w.id+'\')">Delete</button></div></div>').join('');
@@ -1666,10 +1671,17 @@ function getFilteredLogs(){
   return data;
 }
 function renderLogs(){
+  if(currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
   const data=getFilteredLogs().slice().reverse();
   const body=document.getElementById('logBody');
-  if(!data.length){body.innerHTML='<tr><td colspan="9" class="no-records">No records found</td></tr>';document.getElementById('logTotals').innerHTML='';return;}
-  body.innerHTML=data.map(l=>{
+  // Also show currently clocked-in workers as active rows
+  const activeRows=workers.filter(function(w){return w.clockedIn&&w.clockInTime;}).map(function(w){
+    const din=new Date(w.clockInTime);
+    return '<tr style="background:rgba(45,198,83,0.05);"><td>'+w.name+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono" style="color:var(--green);">Active</td><td class="mono">—</td><td class="mono">—</td><td class="mono">—</td><td><span class="badge in">Active</span></td><td></td></tr>';
+  }).join('');
+  if(!data.length&&!activeRows){body.innerHTML='<tr><td colspan="9" class="no-records">No records found</td></tr>';document.getElementById('logTotals').innerHTML='';return;}
+  if(!data.length){body.innerHTML=activeRows;document.getElementById('logTotals').innerHTML='';return;}
+  body.innerHTML=activeRows+data.map(l=>{
     const din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;
     const complete=!!l.clockOut;
     const otHrs=l.overtimeHours||0;
