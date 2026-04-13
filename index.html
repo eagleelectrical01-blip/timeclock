@@ -590,16 +590,21 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 <!-- EDIT LOG MODAL -->
 <div class="modal-backdrop" id="editLogModal">
   <div class="modal">
-    <h2>Edit Record</h2>
+    <h2>Edit Log Record</h2>
+    <p class="sub" id="editLogWorkerName" style="color:var(--orange);font-weight:600;margin-bottom:12px;"></p>
     <input type="hidden" id="editLogId">
-    <div class="form-row">
-      <div class="form-field"><label>Clock In</label><input type="datetime-local" id="editClockIn" oninput="previewEditLog()"></div>
-      <div class="form-field"><label>Clock Out</label><input type="datetime-local" id="editClockOut" oninput="previewEditLog()"></div>
+    <div class="form-field" style="margin-bottom:10px;">
+      <label>Clock In Date &amp; Time</label>
+      <input type="datetime-local" id="editClockIn" oninput="previewEditLog()">
+    </div>
+    <div class="form-field" style="margin-bottom:10px;">
+      <label>Clock Out Date &amp; Time</label>
+      <input type="datetime-local" id="editClockOut" oninput="previewEditLog()">
     </div>
     <div class="calc-preview" id="editLogPreview"></div>
-    <div class="modal-btns">
+    <div class="modal-btns" style="margin-top:12px;">
       <button class="btn btn-ghost" onclick="closeEditLogModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEditLog()">&#128190; Save</button>
+      <button class="btn btn-primary" onclick="saveEditLog()">&#128190; Save Changes</button>
     </div>
   </div>
 </div>
@@ -1739,13 +1744,23 @@ function deleteLog(id){
   showToast('Record deleted','success');
 }
 function openEditLog(id){
-  const l=logs.find(x=>x.id===id);
-  if(!l) return;
+  loadCompanyData();
+  const l=logs.find(function(x){return x.id===id;});
+  if(!l){showToast('Record not found','error');return;}
   document.getElementById('editLogId').value=id;
-  const fmt=d=>{ const dt=new Date(d);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+'T'+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0'); };
+  document.getElementById('editLogWorkerName').textContent=l.workerName;
+  function fmt(d){
+    var dt=new Date(d);
+    return dt.getFullYear()+'-'
+      +String(dt.getMonth()+1).padStart(2,'0')+'-'
+      +String(dt.getDate()).padStart(2,'0')+'T'
+      +String(dt.getHours()).padStart(2,'0')+':'
+      +String(dt.getMinutes()).padStart(2,'0');
+  }
   document.getElementById('editClockIn').value=fmt(l.clockIn);
   document.getElementById('editClockOut').value=l.clockOut?fmt(l.clockOut):'';
   document.getElementById('editLogPreview').textContent='';
+  document.getElementById('editLogPreview').className='calc-preview';
   document.getElementById('editLogModal').classList.add('open');
 }
 function previewEditLog(){
@@ -1754,34 +1769,68 @@ function previewEditLog(){
   const el=document.getElementById('editLogPreview');
   if(!i||!o){el.textContent='';el.className='calc-preview';return;}
   const id=document.getElementById('editLogId').value;
-  const l=logs.find(x=>x.id===id);
+  const l=logs.find(function(x){return x.id===id;});
   if(!l){return;}
-  const hrs=(new Date(o)-new Date(i))/3600000;
+  const inDate=new Date(i),outDate=new Date(o);
+  const hrs=(outDate-inDate)/3600000;
   if(hrs<=0){el.textContent='Clock out must be after clock in';el.className='calc-preview err';return;}
-  const w=workers.find(x=>x.id===l.workerId);
+  const w=workers.find(function(x){return x.id===l.workerId;});
   const rate=w?w.rate:l.rate;
-  const ot=w?w.overtimeRate:l.overtimeRate;
-  const normalHrs=Math.min(hrs,8),otHrs=Math.max(hrs-8,0);
-  const wage=normalHrs*rate+otHrs*ot;
-  el.textContent=fmtHours(hrs)+' \u2014 '+fmtMoney(wage);el.className='calc-preview ok';
+  const otRate=w?w.overtimeRate:l.overtimeRate;
+  const sched=getScheduleForDate(inDate);
+  var normalHrs=hrs,otHrs=0;
+  if(sched&&sched.enabled){
+    const parts=sched.end.split(':').map(Number);
+    const shiftEnd=new Date(inDate); shiftEnd.setHours(parts[0],parts[1],0,0);
+    const shiftHrs=Math.max((shiftEnd-inDate)/3600000,0);
+    normalHrs=Math.min(hrs,shiftHrs); otHrs=Math.max(hrs-shiftHrs,0);
+  } else {
+    normalHrs=Math.min(hrs,8); otHrs=Math.max(hrs-8,0);
+  }
+  const wage=normalHrs*rate+otHrs*otRate;
+  el.textContent=fmtHours(hrs)+(otHrs>0?' (OT: '+fmtHours(otHrs)+')':'');
+  el.textContent+=' — '+fmtMoney(wage);
+  el.className='calc-preview ok';
 }
 function closeEditLogModal(){ document.getElementById('editLogModal').classList.remove('open'); }
 function saveEditLog(){
   const id=document.getElementById('editLogId').value;
-  const l=logs.find(x=>x.id===id);
-  if(!l) return;
+  loadCompanyData();
+  const l=logs.find(function(x){return x.id===id;});
+  if(!l){showToast('Record not found','error');return;}
   const i=document.getElementById('editClockIn').value;
   const o=document.getElementById('editClockOut').value;
-  if(!i){showToast('Clock in required','error');return;}
-  const hrs=o?(new Date(o)-new Date(i))/3600000:0;
-  if(o&&hrs<=0){showToast('Clock out must be after clock in','error');return;}
-  const w=workers.find(x=>x.id===l.workerId);
-  const rate=w?w.rate:l.rate; const ot=w?w.overtimeRate:l.overtimeRate;
-  l.clockIn=new Date(i).toISOString();
-  l.clockOut=o?new Date(o).toISOString():null;
-  if(o){ l.hoursWorked=Math.round(hrs*100)/100; const n=Math.min(hrs,8),otH=Math.max(hrs-8,0); l.wage=Math.round((n*rate+otH*ot)*100)/100; l.rate=rate; l.overtimeRate=ot; }
+  if(!i){showToast('Clock in time is required','error');return;}
+  const inDate=new Date(i);
+  const outDate=o?new Date(o):null;
+  if(outDate&&outDate<=inDate){showToast('Clock out must be after clock in','error');return;}
+  const hrs=outDate?(outDate-inDate)/3600000:0;
+  const w=workers.find(function(x){return x.id===l.workerId;});
+  const rate=w?w.rate:l.rate;
+  const otRate=w?w.overtimeRate:l.overtimeRate;
+  l.clockIn=inDate.toISOString();
+  l.clockOut=outDate?outDate.toISOString():null;
+  if(outDate){
+    const sched=getScheduleForDate(inDate);
+    var normalHrs=hrs,otHrs=0;
+    if(sched&&sched.enabled){
+      const parts=sched.end.split(':').map(Number);
+      const shiftEnd=new Date(inDate);
+      shiftEnd.setHours(parts[0],parts[1],0,0);
+      const shiftHrs=Math.max((shiftEnd-inDate)/3600000,0);
+      normalHrs=Math.min(hrs,shiftHrs);
+      otHrs=Math.max(hrs-shiftHrs,0);
+    } else {
+      normalHrs=Math.min(hrs,8); otHrs=Math.max(hrs-8,0);
+    }
+    l.hoursWorked=Math.round(hrs*100)/100;
+    l.normalHours=Math.round(normalHrs*100)/100;
+    l.overtimeHours=Math.round(otHrs*100)/100;
+    l.wage=Math.round((normalHrs*rate+otHrs*otRate)*100)/100;
+    l.rate=rate; l.overtimeRate=otRate;
+  }
   saveCompanyData(); closeEditLogModal(); renderLogs();
-  showToast('Record updated \u2713','success');
+  showToast('Record updated ✓','success');
 }
 
 // ═══════════════════════════════════════
