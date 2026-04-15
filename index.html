@@ -468,53 +468,139 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 <div class="page" id="page-superadmin" style="display:none;">
   <div class="section-title">&#9889; Super Admin</div>
 
-  <div class="admin-section">
-    <div class="admin-section-title">&#127970; Register New Company</div>
-    <div class="card">
-      <div class="form-row">
-        <div class="form-field"><label>Company Name</label><input type="text" id="newCoName" placeholder="e.g. Smith Builders"></div>
-        <div class="form-field"><label>Company Code</label><input type="text" id="newCoCode" placeholder="e.g. SMITH01" style="text-transform:uppercase;letter-spacing:1px;"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-field"><label>Temporary Password</label><input type="text" id="newCoPw" placeholder="e.g. Welcome123"></div>
-        <div class="form-field"><label>Trial Days</label><input type="number" id="newCoTrial" value="30" min="1"></div>
-      </div>
-      <button class="btn btn-green" onclick="registerNewCompany()" style="width:100%;padding:11px;">&#10133; Register Company</button>
+  <!-- Company selector shown on Logs/Workers/Admin/Export tabs -->
+  <div id="saCoSelector" style="display:none;margin-bottom:14px;max-width:500px;">
+    <label style="font-size:0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:6px;">Select Company</label>
+    <select class="fs" id="saCoDropdown" onchange="onSACoChange()" style="width:100%;background:var(--surface2);border:1px solid var(--orange);color:var(--text);border-radius:8px;padding:10px 12px;font-size:0.9rem;">
+      <option value="">-- Choose a company --</option>
+    </select>
+  </div>
+
+  <!-- LOGS VIEW -->
+  <div id="saLogsView" style="display:none;">
+    <div class="section-title" style="font-size:1rem;">&#128203; Logs</div>
+    <div class="filter-bar">
+      <select id="saLogFilterWorker" onchange="renderSALogs()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:0.78rem;flex:1;min-width:110px;"><option value="">All Workers</option></select>
+      <input type="date" id="saLogFrom" onchange="renderSALogs()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:0.78rem;flex:1;min-width:110px;">
+      <input type="date" id="saLogTo" onchange="renderSALogs()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:0.78rem;flex:1;min-width:110px;">
+    </div>
+    <div id="saLogTotals"></div>
+    <div class="log-table-wrap">
+      <table>
+        <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>OT</th><th>Wage</th><th>Status</th><th></th></tr></thead>
+        <tbody id="saLogBody"></tbody>
+      </table>
     </div>
   </div>
 
-  <div class="divider"></div>
-
-  <div class="admin-section">
-    <div class="admin-section-title">&#127970; All Companies</div>
-    <div id="saCompaniesList"></div>
-  </div>
-
-  <div class="divider"></div>
-
-  <div class="admin-section" id="saCompanyViewer" style="display:none;">
-    <div class="admin-section-title" id="saViewerTitle">&#128065; Company Data</div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-      <select class="fs" id="saViewFilter" onchange="renderSAViewer()" style="flex:1;min-width:140px;"><option value="workers">Workers</option><option value="logs">Logs</option><option value="loans">Loans &amp; Savings</option></select>
-      <button class="btn btn-ghost" onclick="document.getElementById('saCompanyViewer').style.display='none'" style="flex:0;padding:9px 14px;font-size:0.78rem;">&#10005; Close</button>
+  <!-- WORKERS VIEW -->
+  <div id="saWorkersView" style="display:none;">
+    <div class="section-title" style="font-size:1rem;">&#128119; Workers</div>
+    <div class="card" id="saAddWorkerCard">
+      <h3>&#10133; Add Worker</h3>
+      <p>Register a new worker for this company.</p>
+      <div class="form-row">
+        <div class="form-field"><label>Full Name</label><input type="text" id="saWorkerName" placeholder="John Smith"></div>
+        <div class="form-field"><label>Job Title</label><input type="text" id="saWorkerTitle" placeholder="Electrician"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Rate (R/hr)</label><input type="number" id="saWorkerRate" placeholder="75" min="1" step="0.5"></div>
+        <div class="form-field"><label>OT Rate (R/hr)</label><input type="number" id="saWorkerOTRate" placeholder="112.50" min="1" step="0.5"></div>
+      </div>
+      <button class="btn btn-primary" onclick="saOpenRegisterFace()" style="width:100%;padding:11px;">&#128247; Capture Face &amp; Register</button>
     </div>
-    <div id="saViewerContent"></div>
+    <div class="section-title" style="font-size:1rem;margin-top:8px;">Registered Workers</div>
+    <div class="workers-list" id="saWorkersList2"></div>
   </div>
 
-  <div class="divider"></div>
-
-  <div class="admin-section">
-    <div class="admin-section-title">&#9881; Global System Settings</div>
+  <!-- ADMIN/SETTINGS VIEW -->
+  <div id="saAdminView" style="display:none;">
+    <div class="section-title" style="font-size:1rem;">&#9881; Company Settings</div>
     <div class="card">
       <div class="form-row">
-        <div class="form-field"><label>PayShap ShapID</label><input type="text" id="saShapId" placeholder="0823747094@nedbank"></div>
-        <div class="form-field"><label>Display Name</label><input type="text" id="saShapName" placeholder="D VAN VOLLENSTEE"></div>
+        <div class="form-field"><label>Company Name</label><input type="text" id="saEditCoName2"></div>
+        <div class="form-field"><label>Company Code</label><input type="text" id="saEditCoCode2" style="text-transform:uppercase;font-family:'JetBrains Mono',monospace;"></div>
       </div>
       <div class="form-row">
-        <div class="form-field"><label>PayFast Merchant ID</label><input type="text" id="saPfMid"></div>
-        <div class="form-field"><label>PayFast Merchant Key</label><input type="text" id="saPfKey"></div>
+        <div class="form-field"><label>Admin Password</label><input type="text" id="saEditCoPw2"></div>
+        <div class="form-field"><label>Worker PIN</label><input type="text" id="saEditCoPin2" inputmode="numeric" maxlength="8"></div>
       </div>
-      <button class="btn btn-primary" onclick="saveGlobalSettings()" style="width:100%;padding:11px;">&#128190; Save Global Settings</button>
+      <div class="form-row">
+        <div class="form-field"><label>Trial Days</label><input type="number" id="saEditCoTrial2" min="1"></div>
+        <div class="form-field" style="display:flex;align-items:flex-end;padding-bottom:2px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:0.78rem;font-weight:500;color:var(--text);">
+            <input type="checkbox" id="saEditCoMustChange2" style="width:16px;height:16px;accent-color:var(--orange);">
+            Force password reset on next login
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="saveSACoSettings()" style="width:100%;padding:11px;">&#128190; Save Company Settings</button>
+    </div>
+    <div class="divider"></div>
+    <div class="section-title" style="font-size:1rem;">&#128197; Subscription</div>
+    <div class="card">
+      <div id="saCoSubInfo" style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-green" onclick="saActivateSubCurrent(1)" style="flex:1;padding:10px;font-size:0.78rem;">+1 Month</button>
+        <button class="btn btn-green" onclick="saActivateSubCurrent(3)" style="flex:1;padding:10px;font-size:0.78rem;">+3 Months</button>
+        <button class="btn btn-green" onclick="saActivateSubCurrent(12)" style="flex:1;padding:10px;font-size:0.78rem;">+1 Year</button>
+        <button class="btn btn-ghost" onclick="saResetTrialCurrent()" style="flex:1;padding:10px;font-size:0.78rem;">Reset Trial</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section-title" style="font-size:1rem;">&#128183; Loans &amp; Savings</div>
+    <div id="saLSView"></div>
+  </div>
+
+  <!-- EXPORT VIEW -->
+  <div id="saExportView" style="display:none;">
+    <div class="section-title" style="font-size:1rem;">&#128228; Export</div>
+    <div class="summary-grid" id="saExportSummary"></div>
+    <div class="card">
+      <div class="filter-bar" style="margin-bottom:12px;">
+        <input type="date" id="saExpFrom" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:0.78rem;flex:1;">
+        <input type="date" id="saExpTo" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:0.78rem;flex:1;">
+      </div>
+      <div id="saExportWorkerSummary"></div>
+      <button class="btn btn-primary" onclick="saExportExcel()" style="width:100%;padding:11px;margin-top:12px;">&#128202; Export Excel</button>
+    </div>
+  </div>
+
+  <!-- SUPER TAB (unchanged) -->
+  <div id="saSuperView" style="display:none;">
+    <div class="admin-section">
+      <div class="admin-section-title">&#127970; Register New Company</div>
+      <div class="card">
+        <div class="form-row">
+          <div class="form-field"><label>Company Name</label><input type="text" id="newCoName" placeholder="e.g. Smith Builders"></div>
+          <div class="form-field"><label>Company Code</label><input type="text" id="newCoCode" placeholder="e.g. SMITH01" style="text-transform:uppercase;letter-spacing:1px;"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label>Temporary Password</label><input type="text" id="newCoPw" placeholder="e.g. Welcome123"></div>
+          <div class="form-field"><label>Trial Days</label><input type="number" id="newCoTrial" value="30" min="1"></div>
+        </div>
+        <button class="btn btn-green" onclick="registerNewCompany()" style="width:100%;padding:11px;">&#10133; Register Company</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="admin-section">
+      <div class="admin-section-title">&#127970; All Companies</div>
+      <div id="saCompaniesList"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="admin-section">
+      <div class="admin-section-title">&#9881; Global System Settings</div>
+      <div class="card">
+        <div class="form-row">
+          <div class="form-field"><label>PayShap ShapID</label><input type="text" id="saShapId" placeholder="0823747094@nedbank"></div>
+          <div class="form-field"><label>Display Name</label><input type="text" id="saShapName" placeholder="D VAN VOLLENSTEE"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label>PayFast Merchant ID</label><input type="text" id="saPfMid"></div>
+          <div class="form-field"><label>PayFast Merchant Key</label><input type="text" id="saPfKey"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveGlobalSettings()" style="width:100%;padding:11px;">&#128190; Save Global Settings</button>
+      </div>
     </div>
   </div>
 </div>
@@ -876,12 +962,22 @@ function initSuperAdminUI(){
   document.getElementById('adminTabs').style.display='flex';
   const at=document.getElementById('adminTabs');
   if(!document.getElementById('superAdminTab')){
-    const t=document.createElement('div');t.className='tab';t.id='superAdminTab';t.textContent='\u26A1 Super';t.onclick=()=>switchAdminTab('superadmin');at.appendChild(t);
+    const t=document.createElement('div');t.className='tab';t.id='superAdminTab';t.textContent='\u26A1 Super';
+    t.onclick=function(){_saCurrentTab='super';switchSATab('super');switchAdminTab('superadmin');};
+    at.appendChild(t);
   }
+  // Wire SA tabs to show correct views
+  var logTab=at.children[0]; logTab.onclick=function(){_saCurrentTab='logs';switchSATab('logs');showPage('superadmin');};
+  var workerTab=at.children[1]; workerTab.onclick=function(){_saCurrentTab='workers';switchSATab('workers');showPage('superadmin');};
+  var adminTab=at.children[2]; adminTab.onclick=function(){_saCurrentTab='admin';switchSATab('admin');showPage('superadmin');};
+  var exportTab=at.children[3]; exportTab.onclick=function(){_saCurrentTab='export';switchSATab('export');showPage('superadmin');};
   document.getElementById('logoutBtn').style.display='block';
   document.getElementById('logoutBtn').textContent='\u26A1 Super Admin \u2014 Logout';
   document.getElementById('headerLogo').innerHTML='TimeClock<span>Super Admin</span>';
-  startClock(); switchAdminTab('superadmin');
+  startClock();
+  _saCurrentTab='super';
+  showPage('superadmin');
+  renderSuperAdmin();
 }
 
 // ═══════════════════════════════════════
@@ -970,19 +1066,7 @@ function goHome(){
   showPage('clock');
   renderWorkerGrid();
 }
-function switchAdminTab(tab){
-  if(currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
-  showPage(tab);
-  document.querySelectorAll('#adminTabs .tab').forEach(t=>t.classList.remove('active'));
-  const tabMap={logs:0,workers:1,admin:2,export:3,superadmin:4};
-  const tabs=document.getElementById('adminTabs').children;
-  if(tabMap[tab]!==undefined && tabs[tabMap[tab]]) tabs[tabMap[tab]].classList.add('active');
-  if(tab==='logs'){renderLogs();renderWorkerSelects();}
-  if(tab==='workers'){renderWorkersList();}
-  if(tab==='admin'){loadAdminPanel();}
-  if(tab==='export'){renderExport();}
-  if(tab==='superadmin'){renderSuperAdmin();}
-}
+/* switchAdminTab moved above */
 function setActiveTab(el){
   document.querySelectorAll('#publicTabs .tab').forEach(t=>t.classList.remove('active'));
   if(el) el.classList.add('active');
@@ -1143,91 +1227,19 @@ function registerNewCompany(){
   renderSuperAdmin();
   showToast('Company registered: '+code+' \u2713','success');
 }
-function renderSuperAdmin(){
+function renderSuperAdminCompanyList(){
   loadCompanies();
-  // Global settings
-  document.getElementById('saShapId').value=saSettings.shapId||'';
-  document.getElementById('saShapName').value=saSettings.shapName||'';
-  document.getElementById('saPfMid').value=saSettings.pfMid||'16936284';
-  document.getElementById('saPfKey').value=saSettings.pfKey||'hn1r1ick5zokt';
-  // Companies list
   const el=document.getElementById('saCompaniesList');
-  if(!companies.length){
-    el.innerHTML='<div class="empty-state"><div class="icon">&#127970;</div><p>No companies registered yet.</p></div>';
-    return;
-  }
-  el.innerHTML=companies.map(co=>{
+  if(!companies.length){el.innerHTML='<div class="empty-state"><div class="icon">&#127970;</div><p>No companies registered yet.</p></div>';return;}
+  el.innerHTML=companies.map(function(co){
     const sub=getSubData(co.id);
-    const trialStart=sub?new Date(sub.trialStart).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'—';
     const trialDays=co.trialDays||30;
-    let status,tag;
-    if(sub&&sub.subscribed&&sub.subExpiry){
-      const left=Math.ceil((new Date(sub.subExpiry)-new Date())/86400000);
-      if(left>0){status='subscribed';tag='<span class="tag-active">Active &mdash; '+left+'d left</span>';}
-      else{status='expired';tag='<span class="tag-expired">Expired</span>';}
-    } else if(sub){
-      const elapsed=(new Date()-new Date(sub.trialStart))/86400000;
-      const left=Math.ceil(trialDays-elapsed);
-      if(left>0){status='trial';tag='<span class="tag-trial">Trial &mdash; '+left+'d left</span>';}
-      else{status='expired';tag='<span class="tag-expired">Expired</span>';}
-    } else {tag='<span class="tag-expired">No data</span>';}
-    return '<div class="alr" style="flex-direction:column;align-items:flex-start;">'
-      +'<div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap;">'
-      +'<div class="alr-info">'
-      +'<div class="alr-name">'+co.name+' &nbsp;<code style="font-size:0.72rem;color:var(--orange);">'+co.id+'</code> '+tag+(co.mustChangePw?' <span style="font-size:0.64rem;color:#FDBA74;background:rgba(245,130,10,0.1);padding:2px 6px;border-radius:4px;">Temp PW</span>':'')+'</div>'
-      +'<div class="alr-meta">Trial started: '+trialStart+' &nbsp;&#183;&nbsp; Trial days: '+trialDays+'&nbsp;&#183;&nbsp; Password: <code>'+co.password+'</code>'+(sub&&sub.subExpiry?'&nbsp;&#183;&nbsp; Sub expires: '+new Date(sub.subExpiry).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'')+'</div>'
-      +'</div>'
-      +'</div>'
-      +'<div class="alr-btns" style="margin-top:8px;">'
-      +'<button class="btn-sm edit" onclick="saEditCompany(\''+co.id+'\')">&#9998; Edit</button>'
-      +'<button class="btn-sm edit" onclick="saViewCompany(\''+co.id+'\')">&#128065; View</button>'
-      +'<button class="btn-sm edit" onclick="saActivateSub(\''+co.id+'\',1)">+1 Month</button>'
-      +'<button class="btn-sm edit" onclick="saActivateSub(\''+co.id+'\',3)">+3 Months</button>'
-      +'<button class="btn-sm edit" onclick="saActivateSub(\''+co.id+'\',12)">+1 Year</button>'
-      +'<button class="btn-sm edit" onclick="saResetTrial(\''+co.id+'\')">Reset Trial</button>'
-      +'<button class="btn-danger" onclick="saDeleteCompany(\''+co.id+'\')">Delete</button>'
-      +'</div>'
-      +'</div>';
+    var tag;
+    if(sub&&sub.subscribed&&sub.subExpiry){const left=Math.ceil((new Date(sub.subExpiry)-new Date())/86400000);tag=left>0?'<span class="tag-active">Active &mdash; '+left+'d left</span>":'<span class="tag-expired">Expired</span>';}else if(sub){const elapsed=(new Date()-new Date(sub.trialStart))/86400000;const left=Math.ceil(trialDays-elapsed);tag=left>0?'<span class="tag-trial">Trial &mdash; '+left+'d left</span>":'<span class="tag-expired">Expired</span>';}else{tag='<span class="tag-expired">No data</span>';}
+    return '<div class="alr" style="flex-direction:column;align-items:flex-start;"><div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap;"><div class="alr-info"><div class="alr-name">'+co.name+' &nbsp;<code style="font-size:0.72rem;color:var(--orange);">'+co.id+'</code> '+tag+(co.mustChangePw?' <span style="font-size:0.64rem;color:#FDBA74;background:rgba(245,130,10,0.1);padding:2px 6px;border-radius:4px;">Temp PW</span>":"")+'</div><div class="alr-meta">Password: <code>'+co.password+'</code> &nbsp;&#183;&nbsp; PIN: <code>'+(co.workerPin||'1234')+'</code> &nbsp;&#183;&nbsp; Trial: '+trialDays+'d</div></div></div><div class="alr-btns" style="margin-top:8px;"><button class="btn-sm edit" onclick="saEditCompany(\''+co.id+'\')">&#9998; Edit</button><button class="btn-danger" onclick="saDeleteCompany(\''+co.id+'\')">Delete</button></div></div>';
   }).join('');
 }
-function saViewCompany(id){
-  var co=getCompany(id);
-  if(!co) return;
-  console.log('SA View company:',id,'workers key:','eev_'+id+'_workers','data:',localStorage.getItem('eev_'+id+'_workers'));
-  document.getElementById('saViewerTitle').textContent='🏢 '+co.name+' ('+id+')';
-  document.getElementById('saCompanyViewer').style.display='block';
-  document.getElementById('saCompanyViewer')._viewId=id;
-  document.getElementById('saViewFilter').value='workers';
-  renderSAViewer();
-  document.getElementById('saCompanyViewer').scrollIntoView({behavior:'smooth'});
-}
-function renderSAViewer(){
-  var id=document.getElementById('saCompanyViewer')._viewId;
-  if(!id) return;
-  var filter=document.getElementById('saViewFilter').value;
-  var vW=JSON.parse(localStorage.getItem('eev_'+id+'_workers')||'[]');
-  var vL=JSON.parse(localStorage.getItem('eev_'+id+'_logs')||'[]');
-  var vLS=JSON.parse(localStorage.getItem('eev_'+id+'_ls')||'{}');
-  var el=document.getElementById('saViewerContent');
-  if(filter==='workers'){
-    if(!vW.length){el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers found for code: <code>'+id+'</code><br><small>Key checked: eev_'+id+'_workers</small></p></div>';return;}
-    el.innerHTML=vW.map(function(w){return '<div class="alr"><div class="alr-info"><div class="alr-name">'+w.name+(w.clockedIn?' <span class="tag-active">Clocked In</span>':'')+' </div><div class="alr-meta">'+w.title+' · '+fmtMoney(w.rate)+'/hr · Rate: '+fmtMoney(w.rate)+'/hr</div></div></div>';}).join('');
-  }else if(filter==='logs'){
-    // Also include active clock-ins from workers
-    var activeLogRows=vW.filter(function(w){return w.clockedIn&&w.clockInTime;}).map(function(w){
-      var din=new Date(w.clockInTime);
-      return '<tr style="background:rgba(45,198,83,0.05);"><td>'+w.name+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono" style="color:var(--green);">Active</td><td class="mono">—</td><td class="mono">—</td></tr>';
-    }).join('');
-    var recent=[...vL].reverse().slice(0,50);
-    if(!recent.length&&!activeLogRows){el.innerHTML='<div class="empty-state"><p>No records found for code: <code>'+id+'</code></p></div>';return;}
-    el.innerHTML='<div class="log-table-wrap"><table><thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>Wage</th></tr></thead><tbody>'+activeLogRows+recent.map(function(l){var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return '<tr><td>'+l.workerName+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono">'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'Active')+'</td><td class="mono">'+(l.clockOut?fmtHours(l.hoursWorked):'—')+'</td><td class="mono green">'+(l.clockOut?fmtMoney(l.wage):'—')+'</td></tr>';}).join('')+'</tbody></table></div>';
-  }else{
-    var all=[];
-    Object.entries(vLS).forEach(function(pair){var wId=pair[0],ents=pair[1];var w=vW.find(function(x){return x.id===wId;});ents.forEach(function(e){all.push(Object.assign({},e,{workerName:w?w.name:'Unknown'}));});});
-    if(!all.length){el.innerHTML='<div class="empty-state"><p>No loans or savings.</p></div>';return;}
-    el.innerHTML=all.map(function(e){var paid=(e.repayments||[]).reduce(function(s,r){return s+r.amount;},0);var bal=e.type==='loan'?Math.max(e.amount-paid,0):e.amount;return '<div class="ls-item"><div class="lsi"><div class="lsn">'+e.workerName+' — '+e.desc+'</div><div class="lsm">'+new Date(e.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+(paid?' · Paid: '+fmtMoney(paid):'')+' </div></div><span class="ls-badge '+(e.type==='loan'?'loan':'saving')+'">'+(e.type==='loan'?'Loan':'Saving')+'</span><span class="mono">'+fmtMoney(bal)+(e.type==='loan'&&paid?' of '+fmtMoney(e.amount):'')+' </span></div>';}).join('');
-  }
-}
+
 function saActivateSub(id,months){
   const sub=getSubData(id)||{trialStart:new Date().toISOString()};
   sub.subscribed=true;
@@ -1688,7 +1700,7 @@ function renderLogs(){
   // Also show currently clocked-in workers as active rows
   const activeRows=workers.filter(function(w){return w.clockedIn&&w.clockInTime;}).map(function(w){
     const din=new Date(w.clockInTime);
-    return '<tr style="background:rgba(45,198,83,0.05);"><td>'+w.name+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono" style="color:var(--green);">Active</td><td class="mono">—</td><td class="mono">—</td><td class="mono">—</td><td><span class="badge in">Active</span></td><td></td></tr>';
+    return '<tr style="background:rgba(45,198,83,0.05);"><td>'+w.name+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono" style="color:var(--green);">Active</td><td class="mono">—</td><td class="mono">—</td><td class="mono">—</td><td><span class="badge in">Active</span></td><td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditActiveLog(\''+w.id+'\')" style="margin-right:4px;">Edit</button></td></tr>';
   }).join('');
   if(!data.length&&!activeRows){body.innerHTML='<tr><td colspan="9" class="no-records">No records found</td></tr>';document.getElementById('logTotals').innerHTML='';return;}
   if(!data.length){body.innerHTML=activeRows;document.getElementById('logTotals').innerHTML='';return;}
@@ -1736,6 +1748,19 @@ function renderLogTotals(data){
   }
   html+='</div>';
   document.getElementById('logTotals').innerHTML=html;
+}
+function openEditActiveLog(workerId){
+  loadCompanyData();
+  const w=workers.find(function(x){return x.id===workerId;});
+  if(!w||!w.clockedIn){showToast('Worker not found or not clocked in','error');return;}
+  document.getElementById('editLogId').value='active_'+workerId;
+  document.getElementById('editLogWorkerName').textContent=w.name+' (Currently clocked in)';
+  function fmt(d){var dt=new Date(d);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+ 'T'+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');}
+  document.getElementById('editClockIn').value=fmt(w.clockInTime);
+  document.getElementById('editClockOut').value='';
+  document.getElementById('editLogPreview').textContent='Leave Clock Out blank to only update Clock In time';
+  document.getElementById('editLogPreview').className='calc-preview';
+  document.getElementById('editLogModal').classList.add('open');
 }
 function deleteLog(id){
   if(!confirm('Delete this record?')) return;
@@ -1796,6 +1821,33 @@ function closeEditLogModal(){ document.getElementById('editLogModal').classList.
 function saveEditLog(){
   const id=document.getElementById('editLogId').value;
   loadCompanyData();
+  if(id.startsWith('salog_')){
+    var parts=id.split('_'); var coId=parts[1]; var logId=parts.slice(2).join('_');
+    var d=getSACoData();
+    var l=d.logs.find(function(x){return x.id===logId;});
+    if(!l){showToast('Record not found','error');return;}
+    const i2=document.getElementById('editClockIn').value;
+    const o2=document.getElementById('editClockOut').value;
+    if(!i2){showToast('Clock in required','error');return;}
+    const inD2=new Date(i2); const outD2=o2?new Date(o2):null;
+    if(outD2&&outD2<=inD2){showToast('Clock out must be after clock in','error');return;}
+    l.clockIn=inD2.toISOString();
+    l.clockOut=outD2?outD2.toISOString():null;
+    if(outD2){var hrs2=(outD2-inD2)/3600000;l.hoursWorked=Math.round(hrs2*100)/100;var n2=Math.min(hrs2,8),ot2=Math.max(hrs2-8,0);l.wage=Math.round((n2*l.rate+ot2*l.overtimeRate)*100)/100;}
+    saveSACoData({logs:d.logs});
+    closeEditLogModal(); renderSALogs();
+    showToast('Record updated ✓','success'); return;
+  }
+  if(id.startsWith('active_')){
+    const wId=id.replace('active_','');
+    const w=workers.find(function(x){return x.id===wId;});
+    if(!w){showToast('Worker not found','error');return;}
+    const i=document.getElementById('editClockIn').value;
+    if(!i){showToast('Clock in time required','error');return;}
+    w.clockInTime=new Date(i).toISOString();
+    saveCompanyData(); closeEditLogModal(); renderLogs();
+    showToast('Clock in time updated ✓','success'); return;
+  }
   const l=logs.find(function(x){return x.id===id;});
   if(!l){showToast('Record not found','error');return;}
   const i=document.getElementById('editClockIn').value;
@@ -2028,6 +2080,373 @@ function closeApp(){
 // ═══════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════
+// ═══════════════════════════════════════
+// SUPER ADMIN TAB MANAGEMENT
+// ═══════════════════════════════════════
+var _saCurrentTab='super';
+var _saCurrentCoId=null;
+
+function switchAdminTab(tab){
+  if(currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
+  showPage(tab);
+  document.querySelectorAll('#adminTabs .tab').forEach(function(t){t.classList.remove('active');});
+  const tabMap={logs:0,workers:1,admin:2,export:3,superadmin:4};
+  const tabs=document.getElementById('adminTabs').children;
+  if(tabMap[tab]!==undefined&&tabs[tabMap[tab]]) tabs[tabMap[tab]].classList.add('active');
+  if(tab==='logs'){renderLogs();renderWorkerSelects();}
+  if(tab==='workers'){renderWorkersList();}
+  if(tab==='admin'){loadAdminPanel();}
+  if(tab==='export'){renderExport();}
+  if(tab==='superadmin'){renderSuperAdmin();}
+}
+
+function renderSuperAdmin(){
+  loadCompanies();
+  document.getElementById('saShapId').value=saSettings.shapId||'';
+  document.getElementById('saShapName').value=saSettings.shapName||'';
+  document.getElementById('saPfMid').value=saSettings.pfMid||'16936284';
+  document.getElementById('saPfKey').value=saSettings.pfKey||'hn1r1ick5zokt';
+  populateSACoDropdown();
+  renderSACompanyList();
+  switchSATab(_saCurrentTab);
+}
+
+function switchSATab(tab){
+  _saCurrentTab=tab;
+  var views=['saLogsView','saWorkersView','saAdminView','saExportView','saSuperView','saCoSelector'];
+  views.forEach(function(v){document.getElementById(v).style.display='none';});
+  if(tab==='super'){document.getElementById('saSuperView').style.display='block';return;}
+  document.getElementById('saCoSelector').style.display='block';
+  if(tab==='logs'){document.getElementById('saLogsView').style.display='block';if(_saCurrentCoId)renderSALogs();}
+  if(tab==='workers'){document.getElementById('saWorkersView').style.display='block';if(_saCurrentCoId)renderSAWorkers();}
+  if(tab==='admin'){document.getElementById('saAdminView').style.display='block';if(_saCurrentCoId)loadSACoSettings();}
+  if(tab==='export'){document.getElementById('saExportView').style.display='block';if(_saCurrentCoId)renderSAExport();}
+}
+
+function populateSACoDropdown(){
+  loadCompanies();
+  var sel=document.getElementById('saCoDropdown');
+  var cur=sel.value;
+  sel.innerHTML='<option value="">-- Choose a company --</option>'+companies.map(function(co){
+    return '<option value="'+co.id+'">'+(co.name||co.id)+' ('+co.id+')</option>';
+  }).join('');
+  if(cur) sel.value=cur;
+}
+
+function onSACoChange(){
+  _saCurrentCoId=document.getElementById('saCoDropdown').value||null;
+  switchSATab(_saCurrentTab);
+}
+
+function getSACoData(){
+  if(!_saCurrentCoId) return {workers:[],logs:[],ls:{}};
+  return {
+    workers:JSON.parse(localStorage.getItem('eev_'+_saCurrentCoId+'_workers')||'[]'),
+    logs:JSON.parse(localStorage.getItem('eev_'+_saCurrentCoId+'_logs')||'[]'),
+    ls:JSON.parse(localStorage.getItem('eev_'+_saCurrentCoId+'_ls')||'{}')
+  };
+}
+
+function saveSACoData(d){
+  if(!_saCurrentCoId) return;
+  if(d.workers!==undefined) localStorage.setItem('eev_'+_saCurrentCoId+'_workers',JSON.stringify(d.workers));
+  if(d.logs!==undefined) localStorage.setItem('eev_'+_saCurrentCoId+'_logs',JSON.stringify(d.logs));
+  if(d.ls!==undefined) localStorage.setItem('eev_'+_saCurrentCoId+'_ls',JSON.stringify(d.ls));
+}
+
+// SA Logs
+function renderSALogs(){
+  if(!_saCurrentCoId){document.getElementById('saLogBody').innerHTML='<tr><td colspan="9" class="no-records">Select a company above</td></tr>';return;}
+  var d=getSACoData();
+  var fw=document.getElementById('saLogFilterWorker').value;
+  var ff=document.getElementById('saLogFrom').value;
+  var ft=document.getElementById('saLogTo').value;
+  var data=d.logs.slice().reverse();
+  if(fw) data=data.filter(function(l){return l.workerId===fw;});
+  if(ff) data=data.filter(function(l){return new Date(l.clockIn)>=new Date(ff);});
+  if(ft) data=data.filter(function(l){return new Date(l.clockIn)<=new Date(ft+' 23:59:59');});
+  var sel=document.getElementById('saLogFilterWorker');
+  var curW=sel.value;
+  sel.innerHTML='<option value="">All Workers</option>'+d.workers.map(function(w){return '<option value="'+w.id+'">'+ w.name+'</option>';}).join('');
+  sel.value=curW;
+  var activeRows=d.workers.filter(function(w){return w.clockedIn&&w.clockInTime;}).map(function(w){
+    var din=new Date(w.clockInTime);
+    return '<tr style="background:rgba(45,198,83,0.05);"><td>'+w.name+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono" style="color:var(--green);">Active</td><td class="mono">—</td><td class="mono">—</td><td class="mono">—</td><td><span class="badge in">Active</span></td><td></td></tr>';
+  }).join('');
+  var body=document.getElementById('saLogBody');
+  if(!data.length&&!activeRows){body.innerHTML='<tr><td colspan="9" class="no-records">No records found</td></tr>';document.getElementById('saLogTotals').innerHTML='';return;}
+  body.innerHTML=activeRows+data.map(function(l){
+    var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;
+    var complete=!!l.clockOut;
+    var otHrs=l.overtimeHours||0;
+    return '<tr><td>'+l.workerName+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono">'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'Active')+'</td><td class="mono">'+(complete?fmtHours(l.hoursWorked):'—')+'</td><td class="mono" style="color:'+(otHrs>0?'var(--orange)':'var(--muted)')+'">'+(complete&&otHrs>0?fmtHours(otHrs):'—')+'</td><td class="mono green">'+(complete?fmtMoney(l.wage):'—')+'</td><td><span class="badge '+(complete?'complete':'in')+'">'+(complete?'Done':'Active')+'</span></td><td style="white-space:nowrap;"><button class="btn-sm edit" onclick="saEditLog(\''+l.id+'\')" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="saDeleteLog(\''+l.id+'\')">×</button></td></tr>';
+  }).join('');
+  var totals=data.filter(function(l){return l.clockOut;});
+  var tot=document.getElementById('saLogTotals');
+  if(!totals.length){tot.innerHTML='';return;}
+  var byW={};
+  totals.forEach(function(l){if(!byW[l.workerId])byW[l.workerId]={name:l.workerName,shifts:0,hrs:0,wage:0};byW[l.workerId].shifts++;byW[l.workerId].hrs+=l.hoursWorked;byW[l.workerId].wage+=l.wage;});
+  var rows=Object.values(byW);
+  var tH=rows.reduce(function(s,r){return s+r.hrs;},0);
+  var tW=rows.reduce(function(s,r){return s+r.wage;},0);
+  var html='<div class="totals-card"><div class="tc-title">&#128202; Period Totals</div>';
+  rows.forEach(function(r){html+='<div class="tc-row"><span>'+r.name+' ('+r.shifts+' shift'+(r.shifts>1?'s':'')+')</span><span class="mono">'+fmtHours(r.hrs)+' &nbsp;&middot;&nbsp; '+fmtMoney(r.wage)+'</span></div>';});
+  if(rows.length>1) html+='<div class="tc-row grand"><span>Grand Total</span><span class="mono">'+fmtHours(tH)+' &nbsp;&middot;&nbsp; '+fmtMoney(tW)+'</span></div>';
+  tot.innerHTML=html+'</div>';
+}
+
+function saEditLog(id){
+  var d=getSACoData();
+  var l=d.logs.find(function(x){return x.id===id;});
+  if(!l){showToast('Record not found','error');return;}
+  document.getElementById('editLogId').value='salog_'+_saCurrentCoId+'_'+id;
+  document.getElementById('editLogWorkerName').textContent=l.workerName;
+  function fmt(dt){var d=new Date(dt);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+  document.getElementById('editClockIn').value=fmt(l.clockIn);
+  document.getElementById('editClockOut').value=l.clockOut?fmt(l.clockOut):'';
+  document.getElementById('editLogPreview').textContent='';
+  document.getElementById('editLogPreview').className='calc-preview';
+  document.getElementById('editLogModal').classList.add('open');
+}
+
+function saDeleteLog(id){
+  if(!confirm('Delete this record?')) return;
+  var d=getSACoData();
+  d.logs=d.logs.filter(function(l){return l.id!==id;});
+  saveSACoData({logs:d.logs});
+  renderSALogs();
+  showToast('Record deleted','success');
+}
+
+// SA Workers
+function renderSAWorkers(){
+  if(!_saCurrentCoId){document.getElementById('saWorkersList2').innerHTML='<div class="empty-state"><p>Select a company above</p></div>';return;}
+  var d=getSACoData();
+  var el=document.getElementById('saWorkersList2');
+  if(!d.workers.length){el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers registered.</p></div>';return;}
+  el.innerHTML=d.workers.map(function(w){return '<div class="wlc">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--green);">':'<div class="w-avatar-ph" style="width:40px;height:40px;font-size:0.9rem;">'+initials(w.name)+'</div>')+'<div class="info"><div class="nm">'+w.name+(w.clockedIn?' <span class="tag-active">In</span>':'')+'</div><div class="mt">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr</div></div><div style="display:flex;gap:6px;"><button class="btn-sm edit" onclick="saEditWorker(\''+w.id+'\')">✎ Edit</button><button class="btn-danger" onclick="saDeleteWorker2(\''+w.id+'\')">×</button></div></div>';}).join('');
+}
+
+function saOpenRegisterFace(){
+  var name=document.getElementById('saWorkerName').value.trim();
+  var title=document.getElementById('saWorkerTitle').value.trim();
+  var rate=parseFloat(document.getElementById('saWorkerRate').value);
+  var ot=parseFloat(document.getElementById('saWorkerOTRate').value)||rate*1.5;
+  if(!name||!title||!rate){showToast('Fill in name, title and rate first','error');return;}
+  if(!_saCurrentCoId){showToast('Select a company first','error');return;}
+  faceMode='register';
+  document.getElementById('faceTitle').textContent='Register Face: '+name;
+  document.getElementById('faceSub').textContent='Position face in oval, tap Capture';
+  resetFaceModal(); openFaceModal();
+  window._saRegisteringWorker={name:name,title:title,rate:rate,ot:ot};
+}
+
+function saCompleteRegister(){
+  var reg=window._saRegisteringWorker;
+  if(!reg||!_saCurrentCoId) return;
+  var d=getSACoData();
+  var w={id:Date.now().toString(),name:reg.name,title:reg.title,rate:reg.rate,overtimeRate:reg.ot,descriptor:capturedDescriptor,photoURL:capturedPhoto,clockedIn:false,clockInTime:null};
+  d.workers.push(w);
+  saveSACoData({workers:d.workers});
+  document.getElementById('saWorkerName').value='';
+  document.getElementById('saWorkerTitle').value='';
+  document.getElementById('saWorkerRate').value='';
+  document.getElementById('saWorkerOTRate').value='';
+  window._saRegisteringWorker=null;
+  closeFaceModal();
+  renderSAWorkers();
+  showToast(reg.name+' registered ✓','success');
+}
+
+function saEditWorker(id){
+  var d=getSACoData();
+  var w=d.workers.find(function(x){return x.id===id;});
+  if(!w) return;
+  document.getElementById('editWorkerId').value='saworker_'+_saCurrentCoId+'_'+id;
+  document.getElementById('editWorkerName').value=w.name;
+  document.getElementById('editWorkerTitle').value=w.title;
+  document.getElementById('editWorkerRate').value=w.rate;
+  document.getElementById('editWorkerOTRate').value=w.overtimeRate||w.rate*1.5;
+  document.getElementById('editWorkerModal').classList.add('open');
+}
+
+function saDeleteWorker2(id){
+  if(!confirm('Delete this worker and all their records?')) return;
+  var d=getSACoData();
+  d.workers=d.workers.filter(function(w){return w.id!==id;});
+  d.logs=d.logs.filter(function(l){return l.workerId!==id;});
+  delete d.ls[id];
+  saveSACoData(d);
+  renderSAWorkers();
+  showToast('Worker deleted','success');
+}
+
+// SA Admin/Settings
+function loadSACoSettings(){
+  if(!_saCurrentCoId) return;
+  loadCompanies();
+  var co=getCompany(_saCurrentCoId);
+  if(!co) return;
+  document.getElementById('saEditCoName2').value=co.name||'';
+  document.getElementById('saEditCoCode2').value=co.id||'';
+  document.getElementById('saEditCoPw2').value=co.password||'';
+  document.getElementById('saEditCoPin2').value=co.workerPin||'';
+  document.getElementById('saEditCoTrial2').value=co.trialDays||30;
+  document.getElementById('saEditCoMustChange2').checked=co.mustChangePw||false;
+  var sub=getSubData(_saCurrentCoId);
+  var info='Trial started: '+(sub?new Date(sub.trialStart).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'—');
+  if(sub&&sub.subExpiry) info+=' | Sub expires: '+new Date(sub.subExpiry).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('saCoSubInfo').textContent=info;
+  var d=getSACoData();
+  var lsAll=[];
+  Object.entries(d.ls).forEach(function(pair){var wId=pair[0],ents=pair[1];var w=d.workers.find(function(x){return x.id===wId;});ents.forEach(function(e){lsAll.push(Object.assign({},e,{workerName:w?w.name:'Unknown',workerId:wId}));});});
+  var lsEl=document.getElementById('saLSView');
+  if(!lsAll.length){lsEl.innerHTML='<div class="empty-state"><p>No loans or savings.</p></div>';}
+  else lsEl.innerHTML=lsAll.map(function(e){var paid=(e.repayments||[]).reduce(function(s,r){return s+r.amount;},0);var bal=e.type==='loan'?Math.max(e.amount-paid,0):e.amount;return '<div class="ls-item"><div class="lsi"><div class="lsn">'+e.workerName+' — '+e.desc+'</div><div class="lsm">'+new Date(e.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+(paid?' · Paid: '+fmtMoney(paid):'')+'</div></div><span class="ls-badge '+(e.type==='loan'?'loan':'saving')+'">'+( e.type==='loan'?'Loan':'Saving')+'</span><span class="mono">'+fmtMoney(bal)+'</span></div>'}).join('');
+}
+
+function saveSACoSettings(){
+  if(!_saCurrentCoId) return;
+  loadCompanies();
+  var co=getCompany(_saCurrentCoId);
+  if(!co) return;
+  var newCode=document.getElementById('saEditCoCode2').value.trim().toUpperCase();
+  var name=document.getElementById('saEditCoName2').value.trim();
+  var pw=document.getElementById('saEditCoPw2').value.trim();
+  var pin=document.getElementById('saEditCoPin2').value.trim();
+  var trial=parseInt(document.getElementById('saEditCoTrial2').value)||30;
+  var mustChange=document.getElementById('saEditCoMustChange2').checked;
+  if(!name){showToast('Company name required','error');return;}
+  if(!newCode){showToast('Company code required','error');return;}
+  if(!pw||pw.length<4){showToast('Password must be at least 4 characters','error');return;}
+  if(newCode!==_saCurrentCoId&&companies.find(function(c){return c.id===newCode;})){showToast('Code already in use','error');return;}
+  if(newCode!==_saCurrentCoId){
+    ['workers','logs','ls','schedule'].forEach(function(k){var v=localStorage.getItem('eev_'+_saCurrentCoId+'_'+k);if(v)localStorage.setItem('eev_'+newCode+'_'+k,v);localStorage.removeItem('eev_'+_saCurrentCoId+'_'+k);});
+    var sub=localStorage.getItem('eev_sub_'+_saCurrentCoId);
+    if(sub) localStorage.setItem('eev_sub_'+newCode,sub);
+    localStorage.removeItem('eev_sub_'+_saCurrentCoId);
+    co.id=newCode; _saCurrentCoId=newCode;
+  }
+  co.name=name; co.password=pw; if(pin) co.workerPin=pin;
+  co.trialDays=trial; co.mustChangePw=mustChange;
+  saveCompanies();
+  populateSACoDropdown();
+  document.getElementById('saCoDropdown').value=_saCurrentCoId;
+  loadSACoSettings();
+  showToast('Settings saved ✓','success');
+}
+
+function saActivateSubCurrent(months){
+  if(!_saCurrentCoId) return;
+  saActivateSub(_saCurrentCoId,months);
+  loadSACoSettings();
+}
+
+function saResetTrialCurrent(){
+  if(!_saCurrentCoId) return;
+  saResetTrial(_saCurrentCoId);
+  loadSACoSettings();
+}
+
+// SA Export
+function renderSAExport(){
+  if(!_saCurrentCoId){document.getElementById('saExportSummary').innerHTML='';return;}
+  var d=getSACoData();
+  var ff=document.getElementById('saExpFrom').value;
+  var ft=document.getElementById('saExpTo').value;
+  var data=d.logs.filter(function(l){return l.clockOut;});
+  if(ff) data=data.filter(function(l){return new Date(l.clockIn)>=new Date(ff);});
+  if(ft) data=data.filter(function(l){return new Date(l.clockIn)<=new Date(ft+' 23:59:59');});
+  var total=data.reduce(function(s,l){return s+l.wage;},0);
+  var hrs=data.reduce(function(s,l){return s+l.hoursWorked;},0);
+  document.getElementById('saExportSummary').innerHTML='<div class="sbox"><div class="lbl">Workers</div><div class="val">'+d.workers.length+'</div></div><div class="sbox"><div class="lbl">Records</div><div class="val">'+data.length+'</div></div><div class="sbox"><div class="lbl">Hours</div><div class="val">'+fmtHours(hrs)+'</div></div><div class="sbox"><div class="lbl">Wages</div><div class="val orange">'+fmtMoney(total)+'</div></div>';
+  var byW={};
+  data.forEach(function(l){if(!byW[l.workerId])byW[l.workerId]={name:l.workerName,shifts:0,hrs:0,wage:0};byW[l.workerId].shifts++;byW[l.workerId].hrs+=l.hoursWorked;byW[l.workerId].wage+=l.wage;});
+  document.getElementById('saExportWorkerSummary').innerHTML=Object.values(byW).map(function(r){return '<div class="deduction-card"><div class="dc-title">'+r.name+'</div><div class="dc-row"><span>Shifts</span><span>'+r.shifts+'</span></div><div class="dc-row"><span>Hours</span><span class="mono">'+fmtHours(r.hrs)+'</span></div><div class="dc-row total"><span>Gross Wage</span><span class="mono">'+fmtMoney(r.wage)+'</span></div></div>';}).join('');
+}
+
+function saExportExcel(){
+  if(!_saCurrentCoId){showToast('Select a company first','error');return;}
+  var d=getSACoData();
+  var co=getCompany(_saCurrentCoId);
+  var ff=document.getElementById('saExpFrom').value;
+  var ft=document.getElementById('saExpTo').value;
+  var data=d.logs.filter(function(l){return l.clockOut;});
+  if(ff) data=data.filter(function(l){return new Date(l.clockIn)>=new Date(ff);});
+  if(ft) data=data.filter(function(l){return new Date(l.clockIn)<=new Date(ft+' 23:59:59');});
+  if(!data.length){showToast('No records to export','error');return;}
+  var wb=XLSX.utils.book_new();
+  var det=data.map(function(l){var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return{'Worker':l.workerName,'Date':din.toLocaleDateString('en-ZA'),'In':din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),'Out':dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'','Hours':l.hoursWorked,'OT Hrs':l.overtimeHours||0,'Wage (R)':l.wage};});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(det),'Attendance');
+  var fname=((co?co.name:'Company').replace(/\s+/g,'_'))+'_'+new Date().toLocaleDateString('en-ZA').replace(/\//g,'-')+'.xlsx';
+  XLSX.writeFile(wb,fname);
+  showToast('Excel exported ✓','success');
+}
+
+// Hook completeRegister to check SA context
+var _origCompleteRegister=null;
+function completeRegister(){
+  if(window._saRegisteringWorker){
+    saCompleteRegister(); return;
+  }
+  var name=document.getElementById('workerName').value.trim();
+  var title=document.getElementById('workerTitle').value.trim();
+  var rate=parseFloat(document.getElementById('workerRate').value);
+  var ot=parseFloat(document.getElementById('workerOTRate').value)||Math.round(rate*1.5*100)/100;
+  var w={id:Date.now().toString(),name:name,title:title,rate:rate,overtimeRate:ot,descriptor:capturedDescriptor,photoURL:capturedPhoto,clockedIn:false,clockInTime:null};
+  workers.push(w);
+  saveCompanyData();
+  document.getElementById('workerName').value='';
+  document.getElementById('workerTitle').value='';
+  document.getElementById('workerRate').value='';
+  document.getElementById('workerOTRate').value='';
+  closeFaceModal();
+  renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
+  showToast(name+' registered ✓','success');
+}
+
+// Hook saveEditWorker to check SA context
+function saveEditWorker(){
+  var id=document.getElementById('editWorkerId').value;
+  if(id.startsWith('saworker_')){
+    var parts=id.split('_');
+    var coId=parts[1]; var wId=parts.slice(2).join('_');
+    var d=getSACoData();
+    var w=d.workers.find(function(x){return x.id===wId;});
+    if(!w) return;
+    var nn=document.getElementById('editWorkerName').value.trim();
+    var nt=document.getElementById('editWorkerTitle').value.trim();
+    var nr=parseFloat(document.getElementById('editWorkerRate').value);
+    var no=parseFloat(document.getElementById('editWorkerOTRate').value)||nr*1.5;
+    if(!nn||!nr){showToast('Name and rate required','error');return;}
+    w.name=nn; w.title=nt; w.rate=nr; w.overtimeRate=no;
+    saveSACoData({workers:d.workers});
+    document.getElementById('editWorkerModal').classList.remove('open');
+    renderSAWorkers();
+    showToast('Worker updated ✓','success'); return;
+  }
+  var w=workers.find(function(x){return x.id===id;});
+  if(!w) return;
+  var newName=document.getElementById('editWorkerName').value.trim();
+  var newRate=parseFloat(document.getElementById('editWorkerRate').value);
+  var newOT=parseFloat(document.getElementById('editWorkerOTRate').value);
+  if(!newName||!newRate){showToast('Name and rate are required','error');return;}
+  var oldName=w.name;
+  w.name=newName; w.title=document.getElementById('editWorkerTitle').value.trim(); w.rate=newRate; w.overtimeRate=newOT||newRate*1.5;
+  if(newName!==oldName) logs.forEach(function(l){if(l.workerId===id) l.workerName=newName;});
+  saveCompanyData();
+  document.getElementById('editWorkerModal').classList.remove('open');
+  renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
+  showToast('Worker updated ✓','success');
+}
+
+// Hook saveEditLog to handle SA log edits
+var _origSaveEditLog=saveEditLog;
+
+function renderSACompanyList(){
+  renderSuperAdminCompanyList();
+}
+
 window.addEventListener('load',function(){
   loadSASettings();
   loadCompanies();
