@@ -1235,8 +1235,8 @@ function renderSuperAdminCompanyList(){
     const sub=getSubData(co.id);
     const trialDays=co.trialDays||30;
     var tag;
-    if(sub&&sub.subscribed&&sub.subExpiry){const left=Math.ceil((new Date(sub.subExpiry)-new Date())/86400000);tag=left>0?'<span class="tag-active">Active &mdash; '+left+'d left</span>":'<span class="tag-expired">Expired</span>';}else if(sub){const elapsed=(new Date()-new Date(sub.trialStart))/86400000;const left=Math.ceil(trialDays-elapsed);tag=left>0?'<span class="tag-trial">Trial &mdash; '+left+'d left</span>":'<span class="tag-expired">Expired</span>';}else{tag='<span class="tag-expired">No data</span>';}
-    return '<div class="alr" style="flex-direction:column;align-items:flex-start;"><div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap;"><div class="alr-info"><div class="alr-name">'+co.name+' &nbsp;<code style="font-size:0.72rem;color:var(--orange);">'+co.id+'</code> '+tag+(co.mustChangePw?' <span style="font-size:0.64rem;color:#FDBA74;background:rgba(245,130,10,0.1);padding:2px 6px;border-radius:4px;">Temp PW</span>":"")+'</div><div class="alr-meta">Password: <code>'+co.password+'</code> &nbsp;&#183;&nbsp; PIN: <code>'+(co.workerPin||'1234')+'</code> &nbsp;&#183;&nbsp; Trial: '+trialDays+'d</div></div></div><div class="alr-btns" style="margin-top:8px;"><button class="btn-sm edit" onclick="saEditCompany(\''+co.id+'\')">&#9998; Edit</button><button class="btn-danger" onclick="saDeleteCompany(\''+co.id+'\')">Delete</button></div></div>';
+    if(sub&&sub.subscribed&&sub.subExpiry){const left=Math.ceil((new Date(sub.subExpiry)-new Date())/86400000);tag=left>0?'<span class="tag-active">Active &mdash; '+left+'d left</span>':'<span class="tag-expired">Expired</span>';}else if(sub){const elapsed=(new Date()-new Date(sub.trialStart))/86400000;const left=Math.ceil(trialDays-elapsed);tag=left>0?'<span class="tag-trial">Trial &mdash; '+left+'d left</span>':'<span class="tag-expired">Expired</span>';}else{tag='<span class="tag-expired">No data</span>';}
+    return '<div class="alr" style="flex-direction:column;align-items:flex-start;"><div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap;"><div class="alr-info"><div class="alr-name">'+co.name+' &nbsp;<code style="font-size:0.72rem;color:var(--orange);">'+co.id+'</code> '+tag+(co.mustChangePw?' <span style="font-size:0.64rem;color:#FDBA74;background:rgba(245,130,10,0.1);padding:2px 6px;border-radius:4px;">Temp PW</span>':'')+'</div><div class="alr-meta">Password: <code>'+co.password+'</code> &nbsp;&#183;&nbsp; PIN: <code>'+(co.workerPin||'1234')+'</code> &nbsp;&#183;&nbsp; Trial: '+trialDays+'d</div></div></div><div class="alr-btns" style="margin-top:8px;"><button class="btn-sm edit" onclick="saEditCompany(\''+co.id+'\')">&#9998; Edit</button><button class="btn-danger" onclick="saDeleteCompany(\''+co.id+'\')">Delete</button></div></div>';
   }).join('');
 }
 
@@ -1822,29 +1822,29 @@ function saveEditLog(){
   const id=document.getElementById('editLogId').value;
   loadCompanyData();
   if(id.startsWith('salog_')){
-    var parts=id.split('_'); var coId=parts[1]; var logId=parts.slice(2).join('_');
-    var d=getSACoData();
-    var l=d.logs.find(function(x){return x.id===logId;});
-    if(!l){showToast('Record not found','error');return;}
-    const i2=document.getElementById('editClockIn').value;
-    const o2=document.getElementById('editClockOut').value;
-    if(!i2){showToast('Clock in required','error');return;}
-    const inD2=new Date(i2); const outD2=o2?new Date(o2):null;
-    if(outD2&&outD2<=inD2){showToast('Clock out must be after clock in','error');return;}
-    l.clockIn=inD2.toISOString();
-    l.clockOut=outD2?outD2.toISOString():null;
-    if(outD2){var hrs2=(outD2-inD2)/3600000;l.hoursWorked=Math.round(hrs2*100)/100;var n2=Math.min(hrs2,8),ot2=Math.max(hrs2-8,0);l.wage=Math.round((n2*l.rate+ot2*l.overtimeRate)*100)/100;}
-    saveSACoData({logs:d.logs});
+    var saParts=id.split('_'); var saLogId=saParts.slice(2).join('_');
+    var saD=getSACoData();
+    var saL=saD.logs.find(function(x){return x.id===saLogId;});
+    if(!saL){showToast('Record not found','error');return;}
+    var saI=document.getElementById('editClockIn').value;
+    var saO=document.getElementById('editClockOut').value;
+    if(!saI){showToast('Clock in required','error');return;}
+    var saIn=new Date(saI); var saOut=saO?new Date(saO):null;
+    if(saOut&&saOut<=saIn){showToast('Clock out must be after clock in','error');return;}
+    saL.clockIn=saIn.toISOString();
+    saL.clockOut=saOut?saOut.toISOString():null;
+    if(saOut){var saHrs=(saOut-saIn)/3600000;saL.hoursWorked=Math.round(saHrs*100)/100;var saN=Math.min(saHrs,8),saOt=Math.max(saHrs-8,0);saL.wage=Math.round((saN*saL.rate+saOt*saL.overtimeRate)*100)/100;}
+    saveSACoData({logs:saD.logs});
     closeEditLogModal(); renderSALogs();
     showToast('Record updated ✓','success'); return;
   }
   if(id.startsWith('active_')){
-    const wId=id.replace('active_','');
-    const w=workers.find(function(x){return x.id===wId;});
-    if(!w){showToast('Worker not found','error');return;}
-    const i=document.getElementById('editClockIn').value;
-    if(!i){showToast('Clock in time required','error');return;}
-    w.clockInTime=new Date(i).toISOString();
+    var actWId=id.replace('active_','');
+    var actW=workers.find(function(x){return x.id===actWId;});
+    if(!actW){showToast('Worker not found','error');return;}
+    var actI=document.getElementById('editClockIn').value;
+    if(!actI){showToast('Clock in time required','error');return;}
+    actW.clockInTime=new Date(actI).toISOString();
     saveCompanyData(); closeEditLogModal(); renderLogs();
     showToast('Clock in time updated ✓','success'); return;
   }
