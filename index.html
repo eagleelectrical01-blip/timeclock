@@ -1750,7 +1750,7 @@ function renderLogs(){
       +'<td class="mono">—</td>'
       +'<td class="mono">—</td>'
       +'<td><span class="badge in">Active</span></td>'
-      +'<td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditActiveLog(\''+w.id+'\')" style="margin-right:4px;">Edit</button></td>'
+      +'<td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditActiveLog(\''+w.id+'\')" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="clearActiveClockIn(\''+w.id+'\')">×</button></td>'
       +'</tr>';
   }).join('');
   if(!data.length&&!activeRows){body.innerHTML='<tr><td colspan="9" class="no-records">No records found</td></tr>';document.getElementById('logTotals').innerHTML='';return;}
@@ -1799,6 +1799,18 @@ function renderLogTotals(data){
   }
   html+='</div>';
   document.getElementById('logTotals').innerHTML=html;
+}
+function clearActiveClockIn(workerId){
+  if(!confirm('Clear this active clock-in? This removes the stale entry without creating a log record.')) return;
+  loadCompanyData();
+  var w=workers.find(function(x){return x.id===workerId;});
+  if(!w) return;
+  w.clockedIn=false;
+  w.clockInTime=null;
+  saveCompanyData();
+  loadCompanyData();
+  renderLogs();
+  showToast(w.name+' active entry cleared','success');
 }
 function openEditActiveLog(workerId){
   loadCompanyData();
