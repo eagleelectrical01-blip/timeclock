@@ -1930,18 +1930,37 @@ function saveManualEntry(){
   const i=document.getElementById('manIn').value;
   const o=document.getElementById('manOut').value;
   if(!wId||!i||!o){showToast('Fill in all fields','error');return;}
-  const w=workers.find(x=>x.id===wId);
-  if(!w) return;
-  const hrs=(new Date(o)-new Date(i))/3600000;
+  // Always reload fresh before pushing to avoid stale array
+  loadCompanyData();
+  const w=workers.find(function(x){return x.id===wId;});
+  if(!w){showToast('Worker not found','error');return;}
+  const inDate=new Date(i); const outDate=new Date(o);
+  const hrs=(outDate-inDate)/3600000;
   if(hrs<=0){showToast('Clock out must be after clock in','error');return;}
-  const n=Math.min(hrs,8),otH=Math.max(hrs-8,0);
+  // Use schedule-aware OT calc
+  const sched=getScheduleForDate(inDate);
+  let normalHrs=hrs,otHrs=0;
+  if(sched&&sched.enabled){
+    const parts=sched.end.split(':').map(Number);
+    const shiftEnd=new Date(inDate); shiftEnd.setHours(parts[0],parts[1],0,0);
+    const shiftHrs=Math.max((shiftEnd-inDate)/3600000,0);
+    normalHrs=Math.min(hrs,shiftHrs); otHrs=Math.max(hrs-shiftHrs,0);
+  } else {
+    normalHrs=Math.min(hrs,8); otHrs=Math.max(hrs-8,0);
+  }
   const ot=w.overtimeRate||w.rate*1.5;
-  const wage=Math.round((n*w.rate+otH*ot)*100)/100;
-  logs.push({id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,clockIn:new Date(i).toISOString(),clockOut:new Date(o).toISOString(),hoursWorked:Math.round(hrs*100)/100,rate:w.rate,overtimeRate:ot,wage,manual:true});
+  const wage=Math.round((normalHrs*w.rate+otHrs*ot)*100)/100;
+  logs.push({id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,
+    clockIn:inDate.toISOString(),clockOut:outDate.toISOString(),
+    hoursWorked:Math.round(hrs*100)/100,normalHours:Math.round(normalHrs*100)/100,
+    overtimeHours:Math.round(otHrs*100)/100,rate:w.rate,overtimeRate:ot,wage:wage,manual:true});
   saveCompanyData();
-  document.getElementById('manIn').value=''; document.getElementById('manOut').value=''; document.getElementById('manPreview').textContent='';
-  showToast('Manual entry added \u2713','success');
+  document.getElementById('manIn').value='';
+  document.getElementById('manOut').value='';
+  document.getElementById('manPreview').textContent='';
+  showToast('Manual entry added ✓ — '+w.name+' '+fmtHours(hrs)+' '+fmtMoney(wage),'success');
 }
+
 
 // ═══════════════════════════════════════
 // LOANS & SAVINGS
@@ -1952,12 +1971,13 @@ function addLSEntry(){
   const desc=document.getElementById('lsDesc').value.trim();
   const amount=parseFloat(document.getElementById('lsAmount').value);
   if(!wId||!desc||!amount){showToast('Fill in all fields','error');return;}
+  loadCompanyData();
   if(!lsData[wId]) lsData[wId]=[];
-  lsData[wId].push({id:Date.now().toString(),type,desc,amount,date:new Date().toISOString()});
+  lsData[wId].push({id:Date.now().toString(),type:type,desc:desc,amount:amount,date:new Date().toISOString()});
   saveCompanyData();
   document.getElementById('lsDesc').value=''; document.getElementById('lsAmount').value='';
   renderLSList();
-  showToast('Entry added \u2713','success');
+  showToast('Entry added ✓','success');
 }
 function renderLSList(){
   const el=document.getElementById('lsList');
