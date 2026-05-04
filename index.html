@@ -1520,20 +1520,27 @@ function processRegister(descriptor){
   showFaceBtns({cancel:true,capture:false,register:true,tryAgain:false,done:false});
 }
 function completeRegister(){
+  // SA context — registering worker for a specific company
+  if(window._saRegisteringWorker){ saCompleteRegister(); return; }
+  // Re-capture face for existing worker
   if(reCapturing){
     const id=document.getElementById('editWorkerId').value;
-    const w=workers.find(x=>x.id===id);
+    loadCompanyData();
+    const w=workers.find(function(x){return x.id===id;});
     if(w){w.descriptor=capturedDescriptor;w.photoURL=capturedPhoto;saveCompanyData();}
     closeFaceModal();
     document.getElementById('editWorkerModal').classList.add('open');
-    showToast('Face updated \u2713','success');
+    showToast('Face updated ✓','success');
     return;
   }
+  // Register new worker for current company
   const name=document.getElementById('workerName').value.trim();
   const title=document.getElementById('workerTitle').value.trim();
   const rate=parseFloat(document.getElementById('workerRate').value);
   const ot=parseFloat(document.getElementById('workerOTRate').value)||Math.round(rate*1.5*100)/100;
-  const w={id:Date.now().toString(),name,title,rate,overtimeRate:ot,descriptor:capturedDescriptor,photoURL:capturedPhoto,clockedIn:false,clockInTime:null};
+  if(!name||!title||!rate){showToast('Fill in all worker details first','error');return;}
+  loadCompanyData();
+  const w={id:Date.now().toString(),name:name,title:title,rate:rate,overtimeRate:ot,descriptor:capturedDescriptor,photoURL:capturedPhoto,clockedIn:false,clockInTime:null};
   workers.push(w);
   saveCompanyData();
   document.getElementById('workerName').value='';
@@ -1542,7 +1549,7 @@ function completeRegister(){
   document.getElementById('workerOTRate').value='';
   closeFaceModal();
   renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
-  showToast(name+' registered \u2713','success');
+  showToast(name+' registered ✓','success');
 }
 function processClockAction(descriptor){
   const threshold=0.52;
@@ -1712,18 +1719,39 @@ function getFilteredLogs(){
   const fw=document.getElementById('filterWorker').value;
   const ff=document.getElementById('filterFrom').value;
   const ft=document.getElementById('filterTo').value;
-  if(fw) data=data.filter(l=>l.workerId===fw);
-  if(ff) data=data.filter(l=>new Date(l.clockIn)>=new Date(ff));
-  if(ft) data=data.filter(l=>new Date(l.clockIn)<=new Date(ft+' 23:59:59'));
+  if(fw) data=data.filter(function(l){return l.workerId===fw;});
+  if(ff) data=data.filter(function(l){
+    // Compare date portion only, timezone-safe
+    var logDate=l.clockIn?l.clockIn.substring(0,10):'';
+    return logDate>=ff;
+  });
+  if(ft) data=data.filter(function(l){
+    var logDate=l.clockIn?l.clockIn.substring(0,10):'';
+    return logDate<=ft;
+  });
   return data;
 }
 function renderLogs(){
   const data=getFilteredLogs().slice().reverse();
   const body=document.getElementById('logBody');
   // Also show currently clocked-in workers as active rows
+  // Reload fresh to get latest clockedIn status
+  loadCompanyData();
   const activeRows=workers.filter(function(w){return w.clockedIn&&w.clockInTime;}).map(function(w){
     const din=new Date(w.clockInTime);
-    return '<tr style="background:rgba(45,198,83,0.05);"><td>'+w.name+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono" style="color:var(--green);">Active</td><td class="mono">—</td><td class="mono">—</td><td class="mono">—</td><td><span class="badge in">Active</span></td><td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditActiveLog(\''+w.id+'\')" style="margin-right:4px;">Edit</button></td></tr>';
+    const elapsed=Math.floor((new Date()-din)/60000);
+    const elStr=elapsed<60?(elapsed+'m ago'):(Math.floor(elapsed/60)+'h '+( elapsed%60)+'m ago');
+    return '<tr style="background:rgba(45,198,83,0.06);">'
+      +'<td style="font-weight:600;">'+w.name+'</td>'
+      +'<td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td>'
+      +'<td class="mono" style="color:var(--green);">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td>'
+      +'<td class="mono" style="color:var(--green);">'+elStr+'</td>'
+      +'<td class="mono">—</td>'
+      +'<td class="mono">—</td>'
+      +'<td class="mono">—</td>'
+      +'<td><span class="badge in">Active</span></td>'
+      +'<td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditActiveLog(\''+w.id+'\')" style="margin-right:4px;">Edit</button></td>'
+      +'</tr>';
   }).join('');
   if(!data.length&&!activeRows){body.innerHTML='<tr><td colspan="9" class="no-records">No records found</td></tr>';document.getElementById('logTotals').innerHTML='';return;}
   if(!data.length){body.innerHTML=activeRows;document.getElementById('logTotals').innerHTML='';return;}
@@ -1775,7 +1803,8 @@ function renderLogTotals(data){
 function openEditActiveLog(workerId){
   loadCompanyData();
   const w=workers.find(function(x){return x.id===workerId;});
-  if(!w||!w.clockedIn){showToast('Worker not found or not clocked in','error');return;}
+  if(!w){showToast('Worker not found','error');return;}
+  if(!w.clockedIn){showToast(w.name+' is not currently clocked in','error');return;}
   document.getElementById('editLogId').value='active_'+workerId;
   document.getElementById('editLogWorkerName').textContent=w.name+' (Currently clocked in)';
   function fmt(d){var dt=new Date(d);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+ 'T'+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');}
@@ -1787,8 +1816,11 @@ function openEditActiveLog(workerId){
 }
 function deleteLog(id){
   if(!confirm('Delete this record?')) return;
+  loadCompanyData();
   logs=logs.filter(function(l){return l.id!==id;});
-  saveCompanyData(); renderLogs();
+  saveCompanyData();
+  loadCompanyData();
+  renderLogs();
   showToast('Record deleted','success');
 }
 function openEditLog(id){
@@ -1863,13 +1895,20 @@ function saveEditLog(){
   }
   if(id.startsWith('active_')){
     var actWId=id.replace('active_','');
+    loadCompanyData();
     var actW=workers.find(function(x){return x.id===actWId;});
     if(!actW){showToast('Worker not found','error');return;}
     var actI=document.getElementById('editClockIn').value;
     if(!actI){showToast('Clock in time required','error');return;}
-    actW.clockInTime=new Date(actI).toISOString();
-    saveCompanyData(); closeEditLogModal(); renderLogs();
-    showToast('Clock in time updated ✓','success'); return;
+    var actNewTime=new Date(actI);
+    if(isNaN(actNewTime.getTime())){showToast('Invalid time','error');return;}
+    actW.clockedIn=true;
+    actW.clockInTime=actNewTime.toISOString();
+    saveCompanyData();
+    closeEditLogModal();
+    loadCompanyData();
+    renderLogs();
+    showToast('Clock-in time updated for '+actW.name+' ✓','success'); return;
   }
   const l=logs.find(function(x){return x.id===id;});
   if(!l){showToast('Record not found','error');return;}
@@ -1904,7 +1943,10 @@ function saveEditLog(){
     l.wage=Math.round((normalHrs*rate+otHrs*otRate)*100)/100;
     l.rate=rate; l.overtimeRate=otRate;
   }
-  saveCompanyData(); closeEditLogModal(); renderLogs();
+  saveCompanyData();
+  loadCompanyData();
+  closeEditLogModal();
+  renderLogs();
   showToast('Record updated ✓','success');
 }
 
@@ -2055,8 +2097,8 @@ function getExpFiltered(){
   let data=logs.filter(l=>l.clockOut);
   const ff=document.getElementById('expFrom').value;
   const ft=document.getElementById('expTo').value;
-  if(ff) data=data.filter(l=>new Date(l.clockIn)>=new Date(ff));
-  if(ft) data=data.filter(l=>new Date(l.clockIn)<=new Date(ft+' 23:59:59'));
+  if(ff) data=data.filter(function(l){var d=l.clockIn?l.clockIn.substring(0,10):'';return d>=ff;});
+  if(ft) data=data.filter(function(l){var d=l.clockIn?l.clockIn.substring(0,10):'';return d<=ft;});
   return data;
 }
 function renderWorkerSummary(){
@@ -2206,8 +2248,8 @@ function renderSALogs(){
   var ft=document.getElementById('saLogTo').value;
   var data=d.logs.slice().reverse();
   if(fw) data=data.filter(function(l){return l.workerId===fw;});
-  if(ff) data=data.filter(function(l){return new Date(l.clockIn)>=new Date(ff);});
-  if(ft) data=data.filter(function(l){return new Date(l.clockIn)<=new Date(ft+' 23:59:59');});
+  if(ff) data=data.filter(function(l){var d=l.clockIn?l.clockIn.substring(0,10):'';return d>=ff;});
+  if(ft) data=data.filter(function(l){var d=l.clockIn?l.clockIn.substring(0,10):'';return d<=ft;});
   var sel=document.getElementById('saLogFilterWorker');
   var curW=sel.value;
   sel.innerHTML='<option value="">All Workers</option>'+d.workers.map(function(w){return '<option value="'+w.id+'">'+ w.name+'</option>';}).join('');
@@ -2398,8 +2440,8 @@ function renderSAExport(){
   var ff=document.getElementById('saExpFrom').value;
   var ft=document.getElementById('saExpTo').value;
   var data=d.logs.filter(function(l){return l.clockOut;});
-  if(ff) data=data.filter(function(l){return new Date(l.clockIn)>=new Date(ff);});
-  if(ft) data=data.filter(function(l){return new Date(l.clockIn)<=new Date(ft+' 23:59:59');});
+  if(ff) data=data.filter(function(l){var d=l.clockIn?l.clockIn.substring(0,10):'';return d>=ff;});
+  if(ft) data=data.filter(function(l){var d=l.clockIn?l.clockIn.substring(0,10):'';return d<=ft;});
   var total=data.reduce(function(s,l){return s+l.wage;},0);
   var hrs=data.reduce(function(s,l){return s+l.hoursWorked;},0);
   document.getElementById('saExportSummary').innerHTML='<div class="sbox"><div class="lbl">Workers</div><div class="val">'+d.workers.length+'</div></div><div class="sbox"><div class="lbl">Records</div><div class="val">'+data.length+'</div></div><div class="sbox"><div class="lbl">Hours</div><div class="val">'+fmtHours(hrs)+'</div></div><div class="sbox"><div class="lbl">Wages</div><div class="val orange">'+fmtMoney(total)+'</div></div>';
@@ -2415,8 +2457,8 @@ function saExportExcel(){
   var ff=document.getElementById('saExpFrom').value;
   var ft=document.getElementById('saExpTo').value;
   var data=d.logs.filter(function(l){return l.clockOut;});
-  if(ff) data=data.filter(function(l){return new Date(l.clockIn)>=new Date(ff);});
-  if(ft) data=data.filter(function(l){return new Date(l.clockIn)<=new Date(ft+' 23:59:59');});
+  if(ff) data=data.filter(function(l){var d=l.clockIn?l.clockIn.substring(0,10):'';return d>=ff;});
+  if(ft) data=data.filter(function(l){var d=l.clockIn?l.clockIn.substring(0,10):'';return d<=ft;});
   if(!data.length){showToast('No records to export','error');return;}
   var wb=XLSX.utils.book_new();
   var det=data.map(function(l){var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return{'Worker':l.workerName,'Date':din.toLocaleDateString('en-ZA'),'In':din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),'Out':dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'','Hours':l.hoursWorked,'OT Hrs':l.overtimeHours||0,'Wage (R)':l.wage};});
@@ -2426,65 +2468,7 @@ function saExportExcel(){
   showToast('Excel exported ✓','success');
 }
 
-// Hook completeRegister to check SA context
-var _origCompleteRegister=null;
-function completeRegister(){
-  if(window._saRegisteringWorker){
-    saCompleteRegister(); return;
-  }
-  var name=document.getElementById('workerName').value.trim();
-  var title=document.getElementById('workerTitle').value.trim();
-  var rate=parseFloat(document.getElementById('workerRate').value);
-  var ot=parseFloat(document.getElementById('workerOTRate').value)||Math.round(rate*1.5*100)/100;
-  var w={id:Date.now().toString(),name:name,title:title,rate:rate,overtimeRate:ot,descriptor:capturedDescriptor,photoURL:capturedPhoto,clockedIn:false,clockInTime:null};
-  workers.push(w);
-  saveCompanyData();
-  document.getElementById('workerName').value='';
-  document.getElementById('workerTitle').value='';
-  document.getElementById('workerRate').value='';
-  document.getElementById('workerOTRate').value='';
-  closeFaceModal();
-  renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
-  showToast(name+' registered ✓','success');
-}
-
-// Hook saveEditWorker to check SA context
-function saveEditWorker(){
-  var id=document.getElementById('editWorkerId').value;
-  if(id.startsWith('saworker_')){
-    var parts=id.split('_');
-    var coId=parts[1]; var wId=parts.slice(2).join('_');
-    var d=getSACoData();
-    var w=d.workers.find(function(x){return x.id===wId;});
-    if(!w) return;
-    var nn=document.getElementById('editWorkerName').value.trim();
-    var nt=document.getElementById('editWorkerTitle').value.trim();
-    var nr=parseFloat(document.getElementById('editWorkerRate').value);
-    var no=parseFloat(document.getElementById('editWorkerOTRate').value)||nr*1.5;
-    if(!nn||!nr){showToast('Name and rate required','error');return;}
-    w.name=nn; w.title=nt; w.rate=nr; w.overtimeRate=no;
-    saveSACoData({workers:d.workers});
-    document.getElementById('editWorkerModal').classList.remove('open');
-    renderSAWorkers();
-    showToast('Worker updated ✓','success'); return;
-  }
-  var w=workers.find(function(x){return x.id===id;});
-  if(!w) return;
-  var newName=document.getElementById('editWorkerName').value.trim();
-  var newRate=parseFloat(document.getElementById('editWorkerRate').value);
-  var newOT=parseFloat(document.getElementById('editWorkerOTRate').value);
-  if(!newName||!newRate){showToast('Name and rate are required','error');return;}
-  var oldName=w.name;
-  w.name=newName; w.title=document.getElementById('editWorkerTitle').value.trim(); w.rate=newRate; w.overtimeRate=newOT||newRate*1.5;
-  if(newName!==oldName) logs.forEach(function(l){if(l.workerId===id) l.workerName=newName;});
-  saveCompanyData();
-  document.getElementById('editWorkerModal').classList.remove('open');
-  renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
-  showToast('Worker updated ✓','success');
-}
-
-// Hook saveEditLog to handle SA log edits
-var _origSaveEditLog=saveEditLog;
+// saveEditWorker checks SA context
 
 function renderSACompanyList(){
   renderSuperAdminCompanyList();
