@@ -889,7 +889,7 @@ function submitWorkerName(){
   document.getElementById('publicTabs').style.display='flex';
   document.getElementById('logoutBtn').style.display='block';
   document.getElementById('logoutBtn').textContent='🔓 Exit';
-  showPage('clock'); renderWorkerGrid();
+  showPage('clock');
   const action=w.clockedIn?'out':'in';
   initClockAction(w.id,action);
 }
@@ -1564,12 +1564,17 @@ function processClockAction(descriptor){
   }
   completeClockAction(best);
 }
-function completeClockAction(w){
-  const now=new Date();
+function completeClockAction(wIn){
+  let w=wIn; const now=new Date();
   if(clockAction==='in'){
     const rounded=applyClockInRounding(now);
     const wasRounded=rounded.getTime()!==now.getTime();
-    w.clockedIn=true; w.clockInTime=rounded.toISOString();
+    // Reload to get fresh array reference, then find and update the worker
+    loadCompanyData();
+    const wFresh=workers.find(function(x){return x.id===w.id;});
+    const ww=wFresh||w;
+    ww.clockedIn=true; ww.clockInTime=rounded.toISOString();
+    w=ww;
     const timeStr=rounded.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
     const note=wasRounded?' <span style="font-size:0.65rem;color:#FDBA74;">(rounded from '+now.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+')</span>':'';
     document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128994;</div><div class="rm">Clocked In: '+w.name+'</div><div class="rd">'+timeStr+note+'</div></div>';
@@ -1577,9 +1582,30 @@ function completeClockAction(w){
     const rawOut=now;
     const rounded=applyClockOutRounding(rawOut);
     const wasRounded=rounded.getTime()!==rawOut.getTime();
+    // Reload fresh worker reference to avoid stale object bug
+    loadCompanyData();
+    const wFreshOut=workers.find(function(x){return x.id===w.id;});
+    if(wFreshOut) w=wFreshOut;
+    if(!w.clockInTime){
+      document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#9888;</div><div class="rm">No clock-in found</div><div class="rd">This worker has no recorded clock-in time. Please ask Admin to add a manual entry.</div></div>';
+      showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
+      return;
+    }
     const inTime=new Date(w.clockInTime);
     const ms=rounded-inTime;
     const hrs=ms/3600000;
+    if(hrs<0){
+      document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#9888;</div><div class="rm">Clock-in time is in the future</div><div class="rd">Clock-in was recorded as: '+inTime.toLocaleString('en-ZA')+'. Please ask Admin to correct this.</div></div>';
+      showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
+      return;
+    }
+    if(hrs>36){
+      document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#9888;</div><div class="rm">Stale clock-in detected</div><div class="rd">This worker was clocked in on '+inTime.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short'})+' at '+inTime.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'. Clock-out cancelled. Ask Admin to add a manual entry.</div></div>';
+      w.clockedIn=false; w.clockInTime=null;
+      saveCompanyData();
+      showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
+      return;
+    }
     // overtime is anything beyond end-of-shift; calculate based on schedule
     const sched=getScheduleForDate(inTime);
     let normalHrs=hrs, otHrs=0;
@@ -1617,7 +1643,6 @@ function timeSince(iso){
   const h=Math.floor(m/60); return h+'h '+(m%60)+'m ago';
 }
 function renderWorkerGrid(){
-  if(currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
   const el=document.getElementById('workerGrid');
   if(!workers.length){ el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers added yet.<br>Contact your admin to add workers.</p></div>'; return; }
   const ts=getTrialStatus();
@@ -1628,7 +1653,6 @@ function renderWorkerGrid(){
   }).join('');
 }
 function renderWorkersList(){
-  if(currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
   const el=document.getElementById('workersList');
   if(!workers.length){ el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers registered yet.</p></div>'; return; }
   el.innerHTML=workers.map(w=>'<div class="wlc">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--green);">':'<div class="w-avatar-ph" style="width:40px;height:40px;font-size:0.9rem;">'+initials(w.name)+'</div>')+'<div class="info"><div class="nm">'+w.name+'</div><div class="mt">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr &middot; OT: '+fmtMoney(w.overtimeRate||w.rate*1.5)+'/hr</div></div><div style="display:flex;gap:6px;"><button class="btn-sm edit" onclick="openEditWorker(\''+w.id+'\')">Edit</button><button class="btn-danger" onclick="deleteWorker(\''+w.id+'\')">Delete</button></div></div>').join('');
@@ -1694,7 +1718,6 @@ function getFilteredLogs(){
   return data;
 }
 function renderLogs(){
-  if(currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
   const data=getFilteredLogs().slice().reverse();
   const body=document.getElementById('logBody');
   // Also show currently clocked-in workers as active rows
@@ -2087,7 +2110,7 @@ var _saCurrentTab='super';
 var _saCurrentCoId=null;
 
 function switchAdminTab(tab){
-  if(currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
+  if(adminIn&&currentCompanyId&&currentCompanyId!=='__SA__') loadCompanyData();
   showPage(tab);
   document.querySelectorAll('#adminTabs .tab').forEach(function(t){t.classList.remove('active');});
   const tabMap={logs:0,workers:1,admin:2,export:3,superadmin:4};
