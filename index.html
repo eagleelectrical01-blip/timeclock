@@ -496,7 +496,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <button class="btn btn-green" onclick="downloadBackup()" style="width:100%;padding:11px;margin-bottom:14px;">&#11015; Download Backup File</button>
     <h3>&#128228; Restore from Backup</h3>
     <p>Select a previously downloaded backup file to restore all data.</p>
-    <input type="file" id="restoreFile" accept=".json,application/json" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px;font-family:'DM Sans',sans-serif;font-size:0.82rem;margin-bottom:10px;">
+    <input type="file" id="restoreFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px;font-family:'DM Sans',sans-serif;font-size:0.82rem;margin-bottom:10px;">
     <button class="btn btn-primary" onclick="restoreBackup()" style="width:100%;padding:11px;">&#11014; Restore from Backup</button>
   </div>
 </div>
@@ -2753,17 +2753,39 @@ function downloadBackup(){
   if(!currentCompanyId||currentCompanyId==='__SA__'){showToast('Log in as Admin first','error');return;}
   loadCompanyData();
   var co=getCompany(currentCompanyId);
-  var backup={version:'v6',companyId:currentCompanyId,exportedAt:new Date().toISOString(),
-    workers:workers,logs:logs,ls:lsData,
-    payments:loadPayments(),archives:loadArchives(),
-    schedule:JSON.parse(localStorage.getItem(cKey('schedule'))||'[]'),
-    companies:JSON.parse(localStorage.getItem('eev_companies')||'[]')};
-  var fname=(co?co.name:currentCompanyId).replace(/\s+/g,'_')+'_backup_'+new Date().toLocaleDateString('en-ZA').replace(/\//g,'-')+'.json';
-  var blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();document.body.removeChild(a);
-  setTimeout(function(){URL.revokeObjectURL(url);},1000);
-  showToast('Backup saved: '+fname+' ✓ — Check your Downloads folder','success');
+  var coName=co?co.name:currentCompanyId;
+  var dateStr=new Date().toLocaleDateString('en-ZA').replace(/\//g,'-');
+  var fname=coName.replace(/\s+/g,'_')+'_backup_'+dateStr+'.xlsx';
+
+  // Build Excel workbook with all data
+  var wb=XLSX.utils.book_new();
+
+  // Sheet 1: Backup metadata (used to restore)
+  var meta=[{Key:'version',Value:'v6'},{Key:'companyId',Value:currentCompanyId},
+    {Key:'companyName',Value:coName},{Key:'exportedAt',Value:new Date().toISOString()},
+    {Key:'companies',Value:JSON.stringify(JSON.parse(localStorage.getItem('eev_companies')||'[]'))},
+    {Key:'schedule',Value:JSON.stringify(JSON.parse(localStorage.getItem(cKey('schedule'))||'[]'))},
+    {Key:'archives',Value:JSON.stringify(loadArchives())},
+    {Key:'payments',Value:JSON.stringify(loadPayments())},
+    {Key:'ls',Value:JSON.stringify(lsData)}];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(meta),'_BackupMeta');
+
+  // Sheet 2: Workers
+  var wRows=workers.map(function(w){return{ID:w.id,Name:w.name,Title:w.title,Rate:w.rate,OTRate:w.overtimeRate,ClockedIn:w.clockedIn?'Yes':'No',ClockInTime:w.clockInTime||'',Photo:w.photoURL?'[photo]':'',Descriptor:w.descriptor?JSON.stringify(w.descriptor):''};});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(wRows.length?wRows:[{Info:'No workers'}]),'Workers');
+
+  // Sheet 3: Attendance Logs
+  var lRows=logs.map(function(l){var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return{ID:l.id,WorkerID:l.workerId,Worker:l.workerName,Date:din.toLocaleDateString('en-ZA'),In:din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),Out:dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'',Hours:l.hoursWorked||0,NormalHrs:l.normalHours||0,OTHrs:l.overtimeHours||0,Rate:l.rate,OTRate:l.overtimeRate,Wage:l.wage||0,Manual:l.manual?'Yes':'No',ClockInISO:l.clockIn,ClockOutISO:l.clockOut||''};});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(lRows.length?lRows:[{Info:'No logs'}]),'Logs');
+
+  // Sheet 4: Payments
+  var pmts=loadPayments();
+  var pRows=[];
+  Object.values(pmts).forEach(function(arr){arr.forEach(function(p){pRows.push({ID:p.id,WorkerID:p.workerId,Worker:p.workerName,Amount:p.amount,Note:p.note,Date:new Date(p.date).toLocaleDateString('en-ZA'),ISO:p.date});});});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pRows.length?pRows:[{Info:'No payments'}]),'Payments');
+
+  XLSX.writeFile(wb,fname);
+  showToast('Backup saved as Excel: '+fname+' ✓','success');
 }
 function restoreBackup(){
   var file=document.getElementById('restoreFile').files[0];
@@ -2772,23 +2794,42 @@ function restoreBackup(){
   var reader=new FileReader();
   reader.onload=function(e){
     try{
-      var b=JSON.parse(e.target.result);
-      if(!b.companyId){showToast('Invalid backup file','error');return;}
-      if(b.companies&&b.companies.length) localStorage.setItem('eev_companies',JSON.stringify(b.companies));
-      var id=b.companyId;
-      localStorage.setItem('eev_'+id+'_workers',JSON.stringify(b.workers||[]));
-      localStorage.setItem('eev_'+id+'_logs',JSON.stringify(b.logs||[]));
-      localStorage.setItem('eev_'+id+'_ls',JSON.stringify(b.ls||{}));
-      localStorage.setItem('eev_'+id+'_archives',JSON.stringify(b.archives||[]));
-      if(b.payments) localStorage.setItem('eev_'+id+'_payments',JSON.stringify(b.payments));
-      if(b.schedule) localStorage.setItem('eev_'+id+'_schedule',JSON.stringify(b.schedule));
+      var wb=XLSX.read(e.target.result,{type:'binary'});
+      // Read metadata sheet
+      var meta={};
+      var metaSheet=wb.Sheets['_BackupMeta'];
+      if(!metaSheet){showToast('Invalid backup file - missing metadata sheet','error');return;}
+      var metaRows=XLSX.utils.sheet_to_json(metaSheet);
+      metaRows.forEach(function(r){meta[r.Key]=r.Value;});
+      if(!meta.companyId){showToast('Invalid backup - no company ID found','error');return;}
+      var id=meta.companyId;
+      // Restore companies
+      if(meta.companies) localStorage.setItem('eev_companies',meta.companies);
+      // Restore schedule
+      if(meta.schedule) localStorage.setItem('eev_'+id+'_schedule',meta.schedule);
+      // Restore archives
+      if(meta.archives) localStorage.setItem('eev_'+id+'_archives',meta.archives);
+      // Restore payments
+      if(meta.payments) localStorage.setItem('eev_'+id+'_payments',meta.payments);
+      // Restore LS data
+      if(meta.ls) localStorage.setItem('eev_'+id+'_ls',meta.ls);
+      // Restore workers (rebuild with face data from sheet)
+      var wSheet=wb.Sheets['Workers'];
+      var wRows=wSheet?XLSX.utils.sheet_to_json(wSheet):[];
+      var restoredWorkers=wRows.filter(function(r){return r.ID;}).map(function(r){return{id:r.ID,name:r.Name,title:r.Title,rate:parseFloat(r.Rate)||0,overtimeRate:parseFloat(r.OTRate)||0,clockedIn:false,clockInTime:null,photoURL:null,descriptor:r.Descriptor?JSON.parse(r.Descriptor):null};});
+      localStorage.setItem('eev_'+id+'_workers',JSON.stringify(restoredWorkers));
+      // Restore logs
+      var lSheet=wb.Sheets['Logs'];
+      var lRows=lSheet?XLSX.utils.sheet_to_json(lSheet):[];
+      var restoredLogs=lRows.filter(function(r){return r.ID&&r.ClockInISO;}).map(function(r){return{id:r.ID,workerId:r.WorkerID,workerName:r.Worker,workerTitle:r.Title||'',clockIn:r.ClockInISO,clockOut:r.ClockOutISO||null,hoursWorked:parseFloat(r.Hours)||0,normalHours:parseFloat(r.NormalHrs)||0,overtimeHours:parseFloat(r.OTHrs)||0,rate:parseFloat(r.Rate)||0,overtimeRate:parseFloat(r.OTRate)||0,wage:parseFloat(r.Wage)||0,manual:r.Manual==='Yes'};});
+      localStorage.setItem('eev_'+id+'_logs',JSON.stringify(restoredLogs));
       loadCompanyData();
       renderLogs();renderWorkersList();renderWorkerGrid();renderWorkerSelects();
       renderPaymentsList();renderExport();populatePeriodDropdown();
-      showToast('Restored: '+(b.workers||[]).length+' workers, '+(b.logs||[]).length+' records ✓','success');
-    }catch(err){showToast('Failed: '+err.message,'error');}
+      showToast('Restored: '+restoredWorkers.length+' workers, '+restoredLogs.length+' records ✓ Note: Face photos must be re-captured','success');
+    }catch(err){showToast('Failed to restore: '+err.message,'error');console.error(err);}
   };
-  reader.readAsText(file);
+  reader.readAsBinaryString(file);
 }
 window.addEventListener('load',function(){
   loadSASettings();
