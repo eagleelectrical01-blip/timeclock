@@ -456,6 +456,45 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   </div>
   <div class="section-title">Loans &amp; Savings Records</div>
   <div id="lsList"></div>
+
+  <div class="divider"></div>
+  <div class="section-title">&#128179; Payments Made</div>
+  <div class="card">
+    <h3>&#10133; Record Payment</h3>
+    <p>Record a payment made to a worker this period. Reduces their net still owed on Export.</p>
+    <div class="form-row">
+      <div class="form-field"><label>Worker</label><select class="fs" id="payWorker"><option value="">Select worker</option></select></div>
+      <div class="form-field"><label>Amount (R)</label><input type="number" id="payAmount" placeholder="500" min="1" step="0.01"></div>
+    </div>
+    <div class="form-field" style="margin-bottom:12px;"><label>Note (optional)</label><input type="text" id="payNote" placeholder="e.g. Week 1 advance"></div>
+    <button class="btn btn-green" onclick="addPayment()" style="width:100%;padding:11px;">&#10003; Record Payment</button>
+  </div>
+  <div id="paymentsList"></div>
+
+  <div class="divider"></div>
+  <div class="section-title">&#128197; Close Period</div>
+  <div class="card">
+    <h3>&#128274; Archive &amp; Start New Period</h3>
+    <p>Saves all logs and payments for the selected date range. A clean period starts after close.</p>
+    <div class="form-row">
+      <div class="form-field"><label>Period From</label><input type="date" id="closeFrom"></div>
+      <div class="form-field"><label>Period To</label><input type="date" id="closeTo"></div>
+    </div>
+    <div class="form-field" style="margin-bottom:12px;"><label>Period Label</label><input type="text" id="closeLabel" placeholder="e.g. May 2026"></div>
+    <button class="btn btn-primary" onclick="closePeriod()" style="width:100%;padding:11px;">&#128274; Close Period &amp; Archive</button>
+  </div>
+
+  <div class="divider"></div>
+  <div class="section-title">&#128190; Backup &amp; Restore</div>
+  <div class="card">
+    <h3>&#128190; Download Backup</h3>
+    <p>Download all your data as a backup file. Save it to Google Drive or WhatsApp yourself. Restore it any time data is lost.</p>
+    <button class="btn btn-green" onclick="downloadBackup()" style="width:100%;padding:11px;margin-bottom:14px;">&#11015; Download Backup File</button>
+    <h3>&#128228; Restore from Backup</h3>
+    <p>Select a previously downloaded backup file to restore all data.</p>
+    <input type="file" id="restoreFile" accept=".json" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px;font-family:'DM Sans',sans-serif;font-size:0.82rem;margin-bottom:10px;">
+    <button class="btn btn-primary" onclick="restoreBackup()" style="width:100%;padding:11px;">&#11014; Restore from Backup</button>
+  </div>
 </div>
 
 <!-- EXPORT PAGE -->
@@ -2619,6 +2658,47 @@ function closePeriod(){
   populatePeriodDropdown();
   renderLogs(); renderPaymentsList(); renderExport();
   showToast('Period "'+label+'" archived ✓ — '+archiveLogs.length+' records saved','success');
+}
+function downloadBackup(){
+  if(!currentCompanyId||currentCompanyId==='__SA__'){showToast('Log in as Admin first','error');return;}
+  loadCompanyData();
+  var co=getCompany(currentCompanyId);
+  var backup={version:'v6',companyId:currentCompanyId,exportedAt:new Date().toISOString(),
+    workers:workers,logs:logs,ls:lsData,
+    payments:loadPayments(),archives:loadArchives(),
+    schedule:JSON.parse(localStorage.getItem(cKey('schedule'))||'[]'),
+    companies:JSON.parse(localStorage.getItem('eev_companies')||'[]')};
+  var fname=(co?co.name:currentCompanyId).replace(/\s+/g,'_')+'_backup_'+new Date().toLocaleDateString('en-ZA').replace(/\//g,'-')+'.json';
+  var blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=fname;a.click();
+  URL.revokeObjectURL(url);
+  showToast('Backup downloaded ✓','success');
+}
+function restoreBackup(){
+  var file=document.getElementById('restoreFile').files[0];
+  if(!file){showToast('Select a backup file first','error');return;}
+  if(!confirm('Restore from backup?\nThis replaces ALL current data for this company.')) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var b=JSON.parse(e.target.result);
+      if(!b.companyId){showToast('Invalid backup file','error');return;}
+      if(b.companies&&b.companies.length) localStorage.setItem('eev_companies',JSON.stringify(b.companies));
+      var id=b.companyId;
+      localStorage.setItem('eev_'+id+'_workers',JSON.stringify(b.workers||[]));
+      localStorage.setItem('eev_'+id+'_logs',JSON.stringify(b.logs||[]));
+      localStorage.setItem('eev_'+id+'_ls',JSON.stringify(b.ls||{}));
+      localStorage.setItem('eev_'+id+'_archives',JSON.stringify(b.archives||[]));
+      if(b.payments) localStorage.setItem('eev_'+id+'_payments',JSON.stringify(b.payments));
+      if(b.schedule) localStorage.setItem('eev_'+id+'_schedule',JSON.stringify(b.schedule));
+      loadCompanyData();
+      renderLogs();renderWorkersList();renderWorkerGrid();renderWorkerSelects();
+      renderPaymentsList();renderExport();populatePeriodDropdown();
+      showToast('Restored: '+(b.workers||[]).length+' workers, '+(b.logs||[]).length+' records ✓','success');
+    }catch(err){showToast('Failed: '+err.message,'error');}
+  };
+  reader.readAsText(file);
 }
 window.addEventListener('load',function(){
   loadSASettings();
