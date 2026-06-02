@@ -373,6 +373,10 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 <!-- LOGS PAGE -->
 <div class="page" id="page-logs" style="display:none;">
   <div class="section-title">Attendance Log</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <select id="periodSelect" onchange="onPeriodChange()" style="flex:1;background:var(--surface2);border:1px solid var(--orange);color:var(--text);border-radius:8px;padding:8px 12px;font-family:'DM Sans',sans-serif;font-size:0.82rem;"><option value="current">&#128197; Current Period</option></select>
+    <span id="archiveBadge" style="display:none;background:rgba(26,111,212,0.15);color:#7DB8F7;border:1px solid rgba(26,111,212,0.3);border-radius:20px;padding:2px 9px;font-size:0.68rem;font-weight:700;">Archived</span>
+  </div>
   <div class="filter-bar">
     <select id="filterWorker" onchange="renderLogs()"><option value="">All Workers</option></select>
     <input type="date" id="filterFrom" onchange="renderLogs()">
@@ -807,6 +811,25 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="document.getElementById('repayModal').classList.remove('open')">Cancel</button>
       <button class="btn btn-green" onclick="saveRepayment()">&#10003; Save Repayment</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT PAYMENT MODAL -->
+<div class="modal-backdrop" id="editPaymentModal">
+  <div class="modal">
+    <h2>&#9998; Edit Payment</h2>
+    <p class="sub" id="editPaymentWorkerName" style="color:var(--blue);font-weight:600;margin-bottom:12px;"></p>
+    <input type="hidden" id="editPaymentWId">
+    <input type="hidden" id="editPaymentId">
+    <div class="form-row">
+      <div class="form-field"><label>Amount (R)</label><input type="number" id="editPaymentAmount" min="1" step="0.01"></div>
+      <div class="form-field"><label>Date</label><input type="date" id="editPaymentDate"></div>
+    </div>
+    <div class="form-field" style="margin-bottom:14px;"><label>Note</label><input type="text" id="editPaymentNote" placeholder="e.g. Week 1 advance"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('editPaymentModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditPayment()">&#128190; Save</button>
     </div>
   </div>
 </div>
@@ -1843,7 +1866,7 @@ function renderLogTotals(data){
   if(!completed.length){document.getElementById('logTotals').innerHTML='';return;}
   const byWorker={};
   completed.forEach(l=>{
-    if(!byWorker[l.workerId]) byWorker[l.workerId]={name:l.workerName,shifts:0,hours:0,ot:0,wage:0};
+    if(!byWorker[l.workerId]) byWorker[l.workerId]={id:l.workerId,name:l.workerName,shifts:0,hours:0,ot:0,wage:0};
     byWorker[l.workerId].shifts++;
     byWorker[l.workerId].hours+=l.hoursWorked;
     byWorker[l.workerId].ot+=(l.overtimeHours||0);
@@ -2099,14 +2122,31 @@ function addLSEntry(){
   showToast('Entry added ✓','success');
 }
 function renderLSList(){
-  const el=document.getElementById('lsList');
+  var el=document.getElementById('lsList');
   const all=[];
-  Object.entries(lsData).forEach(([wId,entries])=>{
-    const w=workers.find(x=>x.id===wId);
-    entries.forEach(e=>all.push({...e,workerName:w?w.name:'Unknown',workerId:wId}));
+  Object.entries(lsData).forEach(function(entry){
+    var wId=entry[0],entries=entry[1];
+    var w=workers.find(function(x){return x.id===wId;});
+    entries.forEach(function(e){all.push(Object.assign({},e,{workerName:w?w.name:'Unknown',workerId:wId}));});
   });
   if(!all.length){el.innerHTML='<div class="empty-state"><p>No loans or savings recorded.</p></div>';return;}
-  el.innerHTML=all.map(function(e){var paid=(e.repayments||[]).reduce(function(s,r){return s+r.amount;},0);var bal=e.type==='loan'?Math.max(e.amount-paid,0):e.amount;var rb=e.type==='loan'?'<button class="btn-sm edit" style="background:rgba(45,198,83,0.15);color:var(--green);border:1px solid rgba(45,198,83,0.3);" onclick="openRepayment(\''+e.workerId+'\',\''+e.id+'\')">&#128179; Repay</button>':'';return '<div class="ls-item" style="flex-wrap:wrap;"><div class="lsi" style="width:100%;"><div class="lsn">'+e.workerName+' &mdash; '+e.desc+'</div><div class="lsm">'+new Date(e.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+(paid>0?' &nbsp;·&nbsp; <span style="color:var(--green);">Paid back: '+fmtMoney(paid)+'</span>':'')+'</div></div><span class="ls-badge '+(e.type==='loan'?'loan':'saving')+'">'+(e.type==='loan'?'Loan':'Saving')+'</span><span class="mono" style="font-size:0.9rem;font-weight:700;">'+fmtMoney(bal)+(e.type==='loan'&&paid>0?' <span style="color:var(--muted);font-size:0.68rem;">of '+fmtMoney(e.amount)+'</span>':'')+'</span>'+rb+'<button class="btn-sm edit" onclick="openEditLS(\''+e.workerId+'\',\''+e.id+'\')">✎</button><button class="btn-danger" onclick="deleteLS(\''+e.workerId+'\',\''+e.id+'\')">Del</button></div>';}).join('');
+  var html=all.map(function(e){
+    var paid=(e.repayments||[]).reduce(function(s,r){return s+r.amount;},0);
+    var bal=e.type==='loan'?Math.max(e.amount-paid,0):e.amount;
+    var rb=e.type==='loan'?'<button class="btn-sm edit" data-wid="'+e.workerId+'" data-eid="'+e.id+'" data-action="repay" style="background:rgba(45,198,83,0.15);color:var(--green);border:1px solid rgba(45,198,83,0.3);">&#128179; Repay</button>':'';
+    return '<div class="ls-item" style="flex-wrap:wrap;"><div class="lsi" style="width:100%;"><div class="lsn">'+e.workerName+' &mdash; '+e.desc+'</div>'
+      +'<div class="lsm">'+new Date(e.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+(paid>0?' &nbsp;&middot;&nbsp; <span style="color:var(--green);">Paid back: '+fmtMoney(paid)+'</span>':'')+'</div></div>'
+      +'<span class="ls-badge '+(e.type==='loan'?'loan':'saving')+'">'+(e.type==='loan'?'Loan':'Saving')+'</span>'
+      +'<span class="mono" style="font-size:0.9rem;font-weight:700;">'+fmtMoney(bal)+(e.type==='loan'&&paid>0?' <span style="color:var(--muted);font-size:0.68rem;">of '+fmtMoney(e.amount)+'</span>':'')+'</span>'
+      +rb
+      +'<button class="btn-sm edit" data-wid="'+e.workerId+'" data-eid="'+e.id+'" data-action="editls" style="margin-right:4px;">✎</button>'
+      +'<button class="btn-danger" data-wid="'+e.workerId+'" data-eid="'+e.id+'" data-action="delayls" style="font-size:0.66rem;padding:4px 8px;">Del</button>'
+      +'</div>';
+  }).join('');
+  el.innerHTML=html;
+  el.querySelectorAll('[data-action="editls"]').forEach(function(b){b.addEventListener('click',function(){openEditLS(this.dataset.wid,this.dataset.eid);});});
+  el.querySelectorAll('[data-action="delayls"]').forEach(function(b){b.addEventListener('click',function(){deleteLS(this.dataset.wid,this.dataset.eid);});});
+  el.querySelectorAll('[data-action="repay"]').forEach(function(b){b.addEventListener('click',function(){openRepayment(this.dataset.wid,this.dataset.eid);});});
 }
 function openEditLS(wId,id){
   const entry=lsData[wId]?.find(e=>e.id===id);
