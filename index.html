@@ -2620,7 +2620,13 @@ function renderPaymentsList(){
   all.sort(function(a,b){return new Date(b.date)-new Date(a.date);});
   if(!all.length){el.innerHTML='<div class="empty-state"><p>No payments recorded this period.</p></div>';return;}
   el.innerHTML=all.map(function(p){
-    return '<div class="payment-item"><div class="pi"><div class="pn">'+p.workerName+' &mdash; '+p.note+'</div><div class="pm">'+new Date(p.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+'</div></div><span class="mono" style="font-size:0.9rem;font-weight:700;color:#7DB8F7;">'+fmtMoney(p.amount)+'</span><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="deletePayment(\''+p.workerId+'\',\''+p.id+'\')">&#215;</button></div>';
+    return '<div class="payment-item">'
+      +'<div class="pi"><div class="pn">'+p.workerName+' &mdash; '+p.note+'</div>'
+      +'<div class="pm">'+new Date(p.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+'</div></div>'
+      +'<span class="mono" style="font-size:0.9rem;font-weight:700;color:#7DB8F7;">'+fmtMoney(p.amount)+'</span>'
+      +'<button class="btn-sm edit" style="margin-right:4px;" onclick="openEditPayment(\''+p.workerId+'\',\''+p.id+'\')">&#9998;</button>'
+      +'<button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="deletePayment(\''+p.workerId+'\',\''+p.id+'\')">&#215;</button>'
+      +'</div>';
   }).join('');
 }
 function deletePayment(wId,id){
@@ -2630,6 +2636,38 @@ function deletePayment(wId,id){
   savePayments(payments);
   renderPaymentsList(); renderExport();
   showToast('Payment deleted','success');
+}
+function openEditPayment(wId,id){
+  var payments=loadPayments();
+  var p=payments[wId]&&payments[wId].find(function(x){return x.id===id;});
+  if(!p){showToast('Payment not found','error');return;}
+  document.getElementById('editPaymentWId').value=wId;
+  document.getElementById('editPaymentId').value=id;
+  document.getElementById('editPaymentWorkerName').textContent=p.workerName;
+  document.getElementById('editPaymentAmount').value=p.amount;
+  document.getElementById('editPaymentNote').value=p.note||'';
+  var d=new Date(p.date);
+  document.getElementById('editPaymentDate').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  document.getElementById('editPaymentModal').classList.add('open');
+}
+function saveEditPayment(){
+  var wId=document.getElementById('editPaymentWId').value;
+  var id=document.getElementById('editPaymentId').value;
+  var amount=parseFloat(document.getElementById('editPaymentAmount').value);
+  var note=document.getElementById('editPaymentNote').value.trim();
+  var date=document.getElementById('editPaymentDate').value;
+  if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
+  if(!date){showToast('Select a date','error');return;}
+  var payments=loadPayments();
+  var p=payments[wId]&&payments[wId].find(function(x){return x.id===id;});
+  if(!p){showToast('Payment not found','error');return;}
+  p.amount=amount;
+  p.note=note||'Payment';
+  p.date=new Date(date).toISOString();
+  savePayments(payments);
+  document.getElementById('editPaymentModal').classList.remove('open');
+  renderPaymentsList(); renderExport();
+  showToast('Payment updated ✓','success');
 }
 function closePeriod(){
   var from=document.getElementById('closeFrom').value;
