@@ -1105,6 +1105,17 @@ function loadAdminPanel(){
   renderScheduleGrid();
   renderWorkerSelects();
   renderLSList();
+  renderPaymentsList();
+  // Default close period to current month
+  var now=new Date(),y=now.getFullYear(),m=now.getMonth();
+  var fromD=y+'-'+String(m+1).padStart(2,'0')+'-01';
+  var toD=y+'-'+String(m+1).padStart(2,'0')+'-'+String(new Date(y,m+1,0).getDate()).padStart(2,'0');
+  if(!document.getElementById('closeFrom').value) document.getElementById('closeFrom').value=fromD;
+  if(!document.getElementById('closeTo').value) document.getElementById('closeTo').value=toD;
+  if(!document.getElementById('closeLabel').value){
+    var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('closeLabel').value=months[m]+' '+y;
+  }
 }
 function saveCompanySettings(){
   loadCompanies();
@@ -1668,7 +1679,7 @@ function renderWorkersList(){
   el.innerHTML=workers.map(w=>'<div class="wlc">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--green);">':'<div class="w-avatar-ph" style="width:40px;height:40px;font-size:0.9rem;">'+initials(w.name)+'</div>')+'<div class="info"><div class="nm">'+w.name+'</div><div class="mt">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr &middot; OT: '+fmtMoney(w.overtimeRate||w.rate*1.5)+'/hr</div></div><div style="display:flex;gap:6px;"><button class="btn-sm edit" onclick="openEditWorker(\''+w.id+'\')">Edit</button><button class="btn-danger" onclick="deleteWorker(\''+w.id+'\')">Delete</button></div></div>').join('');
 }
 function renderWorkerSelects(){
-  const selects=['filterWorker','manWorker','lsWorker'];
+  const selects=['filterWorker','manWorker','lsWorker','payWorker'];
   selects.forEach(id=>{
     const sel=document.getElementById(id);
     if(!sel) return;
@@ -1718,7 +1729,7 @@ function deleteWorker(id){
 function fmtMoney(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtHours(h){ const hr=Math.floor(h),mn=Math.round((h-hr)*60); return hr+'h '+(mn<10?'0':'')+mn+'m'; }
 function getFilteredLogs(){
-  let data=[...logs];
+  let data=[...getViewLogs()];
   const fw=document.getElementById('filterWorker').value;
   const ff=document.getElementById('filterFrom').value;
   const ft=document.getElementById('filterTo').value;
@@ -1735,6 +1746,8 @@ function getFilteredLogs(){
   return data;
 }
 function renderLogs(){
+  populatePeriodDropdown();
+  const isArchive=!!_viewingArchive;
   const data=getFilteredLogs().slice().reverse();
   const body=document.getElementById('logBody');
   // Also show currently clocked-in workers as active rows
@@ -1771,7 +1784,7 @@ function renderLogs(){
       +'<td class="mono" style="color:'+(otHrs>0?'var(--orange)':'var(--muted)')+'">'+(complete?(otHrs>0?fmtHours(otHrs):'—'):'—')+'</td>'
       +'<td class="mono green">'+(complete?fmtMoney(l.wage):'—')+'</td>'
       +'<td><span class="badge '+(complete?'complete':'in')+'">'+(complete?'Done':'Active')+'</span></td>'
-      +'<td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="deleteLog(\''+l.id+'\')">×</button></td>'
+      +(isArchive?'<td></td>':'<td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="deleteLog(\''+l.id+'\')">×</button></td>')
       +'</tr>';
   }).join('');
   renderLogTotals(data);
@@ -2130,7 +2143,19 @@ function renderWorkerSummary(){
     const ded=entries.reduce(function(s,e){if(e.type==='loan'){var p=(e.repayments||[]).reduce(function(a,r){return a+r.amount;},0);return s+Math.max(e.amount-p,0);}return s-e.amount;},0);
     byWorker[wId].deductions=ded;
   });
-  el.innerHTML=Object.values(byWorker).map(r=>'<div class="deduction-card"><div class="dc-title">'+r.name+'</div><div class="dc-row"><span>Shifts</span><span>'+r.shifts+'</span></div><div class="dc-row"><span>Total Hours</span><span class="mono">'+fmtHours(r.hours)+'</span></div><div class="dc-row"><span>Gross Wage</span><span class="mono green">'+fmtMoney(r.wage)+'</span></div>'+(r.deductions?'<div class="dc-row"><span>Deductions (Loans)</span><span class="mono" style="color:#FC8181;">'+fmtMoney(r.deductions)+'</span></div>':'')+'<div class="dc-row total"><span>Net Payable</span><span class="mono">'+fmtMoney(r.wage-r.deductions)+'</span></div></div>').join('');
+  var payments=loadPayments();
+  el.innerHTML=Object.values(byWorker).map(function(r){
+    var paid=(payments[r.id]||[]).reduce(function(s,p){return s+p.amount;},0);
+    var net=r.wage-r.deductions-paid;
+    return '<div class="deduction-card"><div class="dc-title">'+r.name+'</div>'
+      +'<div class="dc-row"><span>Shifts</span><span>'+r.shifts+'</span></div>'
+      +'<div class="dc-row"><span>Total Hours</span><span class="mono">'+fmtHours(r.hours)+'</span></div>'
+      +'<div class="dc-row"><span>Gross Wage</span><span class="mono green">'+fmtMoney(r.wage)+'</span></div>'
+      +(r.deductions>0?'<div class="dc-row"><span>Loan Deductions</span><span class="mono" style="color:#FC8181;">-'+fmtMoney(r.deductions)+'</span></div>':'')
+      +(paid>0?'<div class="dc-row"><span>Payments Made</span><span class="mono" style="color:#7DB8F7;">-'+fmtMoney(paid)+'</span></div>':'')
+      +'<div class="net-payable-box"><span class="npl">Net Still Owed</span><span class="npv">'+fmtMoney(Math.max(net,0))+'</span></div>'
+      +'</div>';
+  }).join('');
 }
 function exportExcel(){
   const data=getExpFiltered();
@@ -2489,6 +2514,96 @@ function renderSACompanyList(){
   renderSuperAdminCompanyList();
 }
 
+// ═══════════════════════════════════════
+// PERIOD ARCHIVE & PAYMENTS
+// ═══════════════════════════════════════
+var _viewingArchive=null;
+function archiveKey(){return cKey('archives');}
+function paymentKey(){return cKey('payments');}
+function loadArchives(){if(!currentCompanyId||currentCompanyId==='__SA__') return [];return JSON.parse(localStorage.getItem(archiveKey())||'[]');}
+function saveArchives(a){localStorage.setItem(archiveKey(),JSON.stringify(a));}
+function loadPayments(){if(!currentCompanyId||currentCompanyId==='__SA__') return {};return JSON.parse(localStorage.getItem(paymentKey())||'{}'  );}
+function savePayments(p){localStorage.setItem(paymentKey(),JSON.stringify(p));}
+function getViewLogs(){if(!_viewingArchive) return logs;var a=loadArchives().find(function(x){return x.id===_viewingArchive;});return a?a.logs:[];}
+function populatePeriodDropdown(){
+  var sel=document.getElementById('periodSelect');if(!sel) return;
+  var archives=loadArchives();
+  sel.innerHTML='<option value="current">&#128197; Current Period</option>';
+  archives.slice().reverse().forEach(function(a){sel.innerHTML+='<option value="'+a.id+'">'+a.label+'</option>';});
+  sel.value=_viewingArchive||'current';
+}
+function onPeriodChange(){
+  var sel=document.getElementById('periodSelect');
+  _viewingArchive=sel.value==='current'?null:sel.value;
+  var badge=document.getElementById('archiveBadge');
+  if(badge) badge.style.display=_viewingArchive?'inline-block':'none';
+  renderLogs();
+}
+function addPayment(){
+  var wId=document.getElementById('payWorker').value;
+  var amount=parseFloat(document.getElementById('payAmount').value);
+  var note=document.getElementById('payNote').value.trim();
+  if(!wId||!amount||amount<=0){showToast('Select worker and enter amount','error');return;}
+  loadCompanyData();
+  var w=workers.find(function(x){return x.id===wId;});
+  if(!w){showToast('Worker not found','error');return;}
+  var payments=loadPayments();
+  if(!payments[wId]) payments[wId]=[];
+  payments[wId].push({id:Date.now().toString(),workerId:wId,workerName:w.name,amount:amount,date:new Date().toISOString(),note:note||'Payment'});
+  savePayments(payments);
+  document.getElementById('payAmount').value='';
+  document.getElementById('payNote').value='';
+  renderPaymentsList();
+  renderExport();
+  showToast('Payment of '+fmtMoney(amount)+' recorded for '+w.name+' ✓','success');
+}
+function renderPaymentsList(){
+  var el=document.getElementById('paymentsList');if(!el) return;
+  var payments=loadPayments();
+  var all=[];
+  Object.entries(payments).forEach(function(pair){pair[1].forEach(function(p){all.push(p);});});
+  all.sort(function(a,b){return new Date(b.date)-new Date(a.date);});
+  if(!all.length){el.innerHTML='<div class="empty-state"><p>No payments recorded this period.</p></div>';return;}
+  el.innerHTML=all.map(function(p){
+    return '<div class="payment-item"><div class="pi"><div class="pn">'+p.workerName+' &mdash; '+p.note+'</div><div class="pm">'+new Date(p.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+'</div></div><span class="mono" style="font-size:0.9rem;font-weight:700;color:#7DB8F7;">'+fmtMoney(p.amount)+'</span><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="deletePayment(\''+p.workerId+'\',\''+p.id+'\')">&#215;</button></div>';
+  }).join('');
+}
+function deletePayment(wId,id){
+  if(!confirm('Delete this payment?')) return;
+  var payments=loadPayments();
+  if(payments[wId]) payments[wId]=payments[wId].filter(function(p){return p.id!==id;});
+  savePayments(payments);
+  renderPaymentsList(); renderExport();
+  showToast('Payment deleted','success');
+}
+function closePeriod(){
+  var from=document.getElementById('closeFrom').value;
+  var to=document.getElementById('closeTo').value;
+  var label=document.getElementById('closeLabel').value.trim();
+  if(!from||!to){showToast('Select from and to dates','error');return;}
+  if(!label){showToast('Enter a period label','error');return;}
+  if(from>to){showToast('From date must be before To date','error');return;}
+  if(!confirm('Archive logs from '+from+' to '+to+' as "'+label+'"?\n\nA clean period starts after this.')) return;
+  loadCompanyData();
+  var archiveLogs=logs.filter(function(l){var d=l.clockIn?l.clockIn.substring(0,10):'';return d>=from&&d<=to;});
+  if(!archiveLogs.length){showToast('No logs found in this date range','error');return;}
+  var payments=loadPayments();
+  var archive={id:'arc_'+Date.now(),label:label,from:from,to:to,logs:archiveLogs,payments:JSON.parse(JSON.stringify(payments)),closedAt:new Date().toISOString(),workerSnapshot:JSON.parse(JSON.stringify(workers))};
+  var archives=loadArchives(); archives.push(archive); saveArchives(archives);
+  var ids=archiveLogs.map(function(l){return l.id;});
+  logs=logs.filter(function(l){return ids.indexOf(l.id)===-1;});
+  saveCompanyData();
+  savePayments({});
+  workers.forEach(function(w){w.clockedIn=false;w.clockInTime=null;});
+  saveCompanyData();
+  document.getElementById('closeFrom').value='';
+  document.getElementById('closeTo').value='';
+  document.getElementById('closeLabel').value='';
+  _viewingArchive=null;
+  populatePeriodDropdown();
+  renderLogs(); renderPaymentsList(); renderExport();
+  showToast('Period "'+label+'" archived ✓ — '+archiveLogs.length+' records saved','success');
+}
 window.addEventListener('load',function(){
   loadSASettings();
   loadCompanies();
