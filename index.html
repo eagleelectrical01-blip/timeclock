@@ -1872,18 +1872,24 @@ function renderLogTotals(data){
     byWorker[l.workerId].ot+=(l.overtimeHours||0);
     byWorker[l.workerId].wage+=l.wage;
   });
+  var pmts=loadPayments();
   const rows=Object.values(byWorker);
   const totalHrs=rows.reduce((s,r)=>s+r.hours,0);
   const totalOT=rows.reduce((s,r)=>s+r.ot,0);
   const totalWage=rows.reduce((s,r)=>s+r.wage,0);
+  const totalPaid=rows.reduce((s,r)=>s+((pmts[r.id]||[]).reduce((a,p)=>a+p.amount,0)),0);
   let html='<div class="totals-card"><div class="tc-title">&#128202; Period Totals</div>';
   rows.forEach(r=>{
+    var paid=(pmts[r.id]||[]).reduce((a,p)=>a+p.amount,0);
+    var net=r.wage-paid;
     const otNote=r.ot>0?' &nbsp;<span style="color:var(--orange);font-size:0.72rem;">OT: '+fmtHours(r.ot)+'</span>':'';
-    html+='<div class="tc-row"><span>'+r.name+' ('+r.shifts+' shift'+(r.shifts>1?'s':'')+')</span><span class="mono">'+fmtHours(r.hours)+otNote+' &nbsp;&middot;&nbsp; '+fmtMoney(r.wage)+'</span></div>';
+    const payNote=paid>0?' &nbsp;<span style="color:#7DB8F7;font-size:0.72rem;">Paid: '+fmtMoney(paid)+' | Owed: '+fmtMoney(Math.max(net,0))+'</span>':'';
+    html+='<div class="tc-row"><span>'+r.name+' ('+r.shifts+' shift'+(r.shifts>1?'s':'')+')</span><span class="mono">'+fmtHours(r.hours)+otNote+' &nbsp;&middot;&nbsp; '+fmtMoney(r.wage)+payNote+'</span></div>';
   });
   if(rows.length>1){
     const otNote=totalOT>0?' &nbsp;<span style="color:var(--orange);font-size:0.72rem;">OT: '+fmtHours(totalOT)+'</span>':'';
-    html+='<div class="tc-row grand"><span>Grand Total</span><span class="mono">'+fmtHours(totalHrs)+otNote+' &nbsp;&middot;&nbsp; '+fmtMoney(totalWage)+'</span></div>';
+    const payNote=totalPaid>0?' &nbsp;<span style="color:#7DB8F7;font-size:0.72rem;">Paid: '+fmtMoney(totalPaid)+' | Owed: '+fmtMoney(Math.max(totalWage-totalPaid,0))+'</span>':'';
+    html+='<div class="tc-row grand"><span>Grand Total</span><span class="mono">'+fmtHours(totalHrs)+otNote+' &nbsp;&middot;&nbsp; '+fmtMoney(totalWage)+payNote+'</span></div>';
   }
   html+='</div>';
   document.getElementById('logTotals').innerHTML=html;
@@ -2230,7 +2236,7 @@ function renderWorkerSummary(){
   if(!data.length){el.innerHTML='<div class="empty-state"><p>No records in selected range.</p></div>';return;}
   const byWorker={};
   data.forEach(l=>{
-    if(!byWorker[l.workerId]) byWorker[l.workerId]={name:l.workerName,shifts:0,hours:0,wage:0,deductions:0};
+    if(!byWorker[l.workerId]) byWorker[l.workerId]={id:l.workerId,name:l.workerName,shifts:0,hours:0,wage:0,deductions:0};
     byWorker[l.workerId].shifts++; byWorker[l.workerId].hours+=l.hoursWorked; byWorker[l.workerId].wage+=l.wage;
   });
   Object.keys(byWorker).forEach(wId=>{
