@@ -200,6 +200,16 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .toast.show{transform:translateX(-50%) translateY(0);}
 .toast.success{border-color:var(--green);}
 .toast.error{border-color:var(--red);}
+.period-selector{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.period-selector select{background:var(--surface2);border:1px solid var(--orange);color:var(--text);border-radius:8px;padding:8px 12px;font-family:'DM Sans',sans-serif;font-size:0.82rem;flex:1;}
+.archive-badge{background:rgba(26,111,212,0.15);color:#7DB8F7;border:1px solid rgba(26,111,212,0.3);border-radius:20px;padding:2px 9px;font-size:0.68rem;font-weight:700;}
+.payment-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.payment-item .pi{flex:1;min-width:150px;}
+.payment-item .pn{font-weight:600;font-size:0.83rem;}
+.payment-item .pm{font-size:0.7rem;color:var(--muted);margin-top:2px;}
+.net-payable-box{background:linear-gradient(135deg,rgba(45,198,83,0.15),rgba(45,198,83,0.05));border:1px solid rgba(45,198,83,0.4);border-radius:11px;padding:14px;margin-top:10px;text-align:center;}
+.net-payable-box .npl{display:block;font-size:0.72rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;}
+.net-payable-box .npv{display:block;font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:700;color:var(--green);}
 /* Work Schedule */
 .sched-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
 .sched-row:last-child{border-bottom:none;}
@@ -2116,6 +2126,12 @@ function saveRepayment(){
 // EXPORT
 // ═══════════════════════════════════════
 function renderExport(){
+  // Set default date range if empty
+  if(!document.getElementById('expFrom').value){
+    var now=new Date(),y=now.getFullYear(),m=now.getMonth();
+    document.getElementById('expFrom').value=y+'-'+String(m+1).padStart(2,'0')+'-01';
+    document.getElementById('expTo').value=y+'-'+String(m+1).padStart(2,'0')+'-'+String(new Date(y,m+1,0).getDate()).padStart(2,'0');
+  }
   const total=logs.filter(l=>l.clockOut).reduce((s,l)=>s+l.wage,0);
   const hrs=logs.filter(l=>l.clockOut).reduce((s,l)=>s+l.hoursWorked,0);
   document.getElementById('summaryGrid').innerHTML='<div class="sbox"><div class="lbl">Total Workers</div><div class="val">'+workers.length+'</div></div><div class="sbox"><div class="lbl">Total Records</div><div class="val">'+logs.length+'</div></div><div class="sbox"><div class="lbl">Total Hours</div><div class="val">'+fmtHours(hrs)+'</div></div><div class="sbox"><div class="lbl">Total Wages</div><div class="val orange">'+fmtMoney(total)+'</div></div>';
