@@ -2756,37 +2756,110 @@ function downloadBackup(){
   var coName=co?co.name:currentCompanyId;
   var dateStr=new Date().toLocaleDateString('en-ZA').replace(/\//g,'-');
   var fname=coName.replace(/\s+/g,'_')+'_backup_'+dateStr+'.xlsx';
-
-  // Build Excel workbook with all data
   var wb=XLSX.utils.book_new();
 
-  // Sheet 1: Backup metadata (used to restore)
-  var meta=[{Key:'version',Value:'v6'},{Key:'companyId',Value:currentCompanyId},
-    {Key:'companyName',Value:coName},{Key:'exportedAt',Value:new Date().toISOString()},
+  // Sheet 1: Restore Data (hidden technical data - do not edit)
+  var meta=[
+    {Key:'version',Value:'v6'},
+    {Key:'companyId',Value:currentCompanyId},
+    {Key:'companyName',Value:coName},
+    {Key:'exportedAt',Value:new Date().toISOString()},
     {Key:'companies',Value:JSON.stringify(JSON.parse(localStorage.getItem('eev_companies')||'[]'))},
     {Key:'schedule',Value:JSON.stringify(JSON.parse(localStorage.getItem(cKey('schedule'))||'[]'))},
     {Key:'archives',Value:JSON.stringify(loadArchives())},
     {Key:'payments',Value:JSON.stringify(loadPayments())},
-    {Key:'ls',Value:JSON.stringify(lsData)}];
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(meta),'_BackupMeta');
+    {Key:'ls',Value:JSON.stringify(lsData)}
+  ];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(meta),'_RestoreData');
 
-  // Sheet 2: Workers
-  var wRows=workers.map(function(w){return{ID:w.id,Name:w.name,Title:w.title,Rate:w.rate,OTRate:w.overtimeRate,ClockedIn:w.clockedIn?'Yes':'No',ClockInTime:w.clockInTime||'',Photo:w.photoURL?'[photo]':'',Descriptor:w.descriptor?JSON.stringify(w.descriptor):''};});
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(wRows.length?wRows:[{Info:'No workers'}]),'Workers');
+  // Sheet 2: Workers (clean, readable - no face data)
+  var wRows=workers.map(function(w){
+    return{
+      'Name':w.name,
+      'Job Title':w.title,
+      'Rate (R/hr)':w.rate,
+      'OT Rate (R/hr)':w.overtimeRate||w.rate,
+      'Status':w.clockedIn?'Clocked In':'Clocked Out',
+      '_ID':w.id,
+      '_Descriptor':w.descriptor?JSON.stringify(w.descriptor):'',
+      '_Photo':w.photoURL||''
+    };
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(wRows.length?wRows:[{'Info':'No workers registered'}]),'Workers');
 
-  // Sheet 3: Attendance Logs
-  var lRows=logs.map(function(l){var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;return{ID:l.id,WorkerID:l.workerId,Worker:l.workerName,Date:din.toLocaleDateString('en-ZA'),In:din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),Out:dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'',Hours:l.hoursWorked||0,NormalHrs:l.normalHours||0,OTHrs:l.overtimeHours||0,Rate:l.rate,OTRate:l.overtimeRate,Wage:l.wage||0,Manual:l.manual?'Yes':'No',ClockInISO:l.clockIn,ClockOutISO:l.clockOut||''};});
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(lRows.length?lRows:[{Info:'No logs'}]),'Logs');
+  // Sheet 3: Attendance Logs (clean and readable)
+  var lRows=logs.map(function(l){
+    var din=new Date(l.clockIn);
+    var dout=l.clockOut?new Date(l.clockOut):null;
+    return{
+      'Worker':l.workerName,
+      'Date':din.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'}),
+      'Clock In':din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),
+      'Clock Out':dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'',
+      'Hours':l.hoursWorked||0,
+      'OT Hours':l.overtimeHours||0,
+      'Wage (R)':l.wage||0,
+      'Entry Type':l.manual?'Manual':'Face Clock',
+      '_ID':l.id,
+      '_WorkerID':l.workerId,
+      '_ClockInISO':l.clockIn,
+      '_ClockOutISO':l.clockOut||'',
+      '_Rate':l.rate,
+      '_OTRate':l.overtimeRate
+    };
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(lRows.length?lRows:[{'Info':'No attendance records'}]),'Attendance Logs');
 
-  // Sheet 4: Payments
+  // Sheet 4: Payments (clean and readable)
   var pmts=loadPayments();
   var pRows=[];
-  Object.values(pmts).forEach(function(arr){arr.forEach(function(p){pRows.push({ID:p.id,WorkerID:p.workerId,Worker:p.workerName,Amount:p.amount,Note:p.note,Date:new Date(p.date).toLocaleDateString('en-ZA'),ISO:p.date});});});
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pRows.length?pRows:[{Info:'No payments'}]),'Payments');
+  Object.values(pmts).forEach(function(arr){
+    arr.forEach(function(p){
+      pRows.push({
+        'Worker':p.workerName,
+        'Amount (R)':p.amount,
+        'Note':p.note||'',
+        'Date':new Date(p.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}),
+        '_ID':p.id,
+        '_WorkerID':p.workerId,
+        '_ISO':p.date
+      });
+    });
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pRows.length?pRows:[{'Info':'No payments recorded'}]),'Payments Made');
+
+  // Sheet 5: Summary
+  var pmtTotals={};
+  pRows.forEach(function(p){
+    if(!pmtTotals[p.Worker]) pmtTotals[p.Worker]=0;
+    pmtTotals[p.Worker]+=p['Amount (R)'];
+  });
+  var wageTotals={};
+  lRows.forEach(function(l){
+    if(!l.Worker) return;
+    if(!wageTotals[l.Worker]) wageTotals[l.Worker]={shifts:0,hours:0,wage:0};
+    wageTotals[l.Worker].shifts++;
+    wageTotals[l.Worker].hours+=l.Hours||0;
+    wageTotals[l.Worker].wage+=l['Wage (R)']||0;
+  });
+  var sumRows=Object.keys(wageTotals).map(function(name){
+    var paid=pmtTotals[name]||0;
+    var gross=wageTotals[name].wage;
+    return{
+      'Worker':name,
+      'Shifts':wageTotals[name].shifts,
+      'Total Hours':Math.round(wageTotals[name].hours*100)/100,
+      'Gross Wage (R)':Math.round(gross*100)/100,
+      'Payments Made (R)':Math.round(paid*100)/100,
+      'Net Still Owed (R)':Math.round(Math.max(gross-paid,0)*100)/100
+    };
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sumRows.length?sumRows:[{'Info':'No data'}]),'Summary');
 
   XLSX.writeFile(wb,fname);
-  showToast('Backup saved as Excel: '+fname+' ✓','success');
+  showToast('Backup saved: '+fname+' ✓','success');
 }
+
 function restoreBackup(){
   var file=document.getElementById('restoreFile').files[0];
   if(!file){showToast('Select a backup file first','error');return;}
