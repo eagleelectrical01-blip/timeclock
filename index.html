@@ -2758,102 +2758,47 @@ function downloadBackup(){
   var fname=coName.replace(/\s+/g,'_')+'_backup_'+dateStr+'.xlsx';
   var wb=XLSX.utils.book_new();
 
-  // Sheet 1: Restore Data (hidden technical data - do not edit)
-  var meta=[
-    {Key:'version',Value:'v6'},
-    {Key:'companyId',Value:currentCompanyId},
-    {Key:'companyName',Value:coName},
-    {Key:'exportedAt',Value:new Date().toISOString()},
-    {Key:'companies',Value:JSON.stringify(JSON.parse(localStorage.getItem('eev_companies')||'[]'))},
-    {Key:'schedule',Value:JSON.stringify(JSON.parse(localStorage.getItem(cKey('schedule'))||'[]'))},
-    {Key:'archives',Value:JSON.stringify(loadArchives())},
-    {Key:'payments',Value:JSON.stringify(loadPayments())},
-    {Key:'ls',Value:JSON.stringify(lsData)}
-  ];
+  // Sheet 1: All restore data as JSON (workers WITH face data for full restore)
+  var fullBackup={
+    version:'v6',
+    companyId:currentCompanyId,
+    exportedAt:new Date().toISOString(),
+    workers:workers,
+    logs:logs,
+    ls:lsData,
+    payments:loadPayments(),
+    archives:loadArchives(),
+    schedule:JSON.parse(localStorage.getItem(cKey('schedule'))||'[]'),
+    companies:JSON.parse(localStorage.getItem('eev_companies')||'[]')
+  };
+  var meta=[{Key:'_JSON',Value:JSON.stringify(fullBackup)}];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(meta),'_RestoreData');
 
-  // Sheet 2: Workers (clean, readable - no face data)
+  // Sheet 2: Workers (readable, NO face data)
   var wRows=workers.map(function(w){
-    return{
-      'Name':w.name,
-      'Job Title':w.title,
-      'Rate (R/hr)':w.rate,
-      'OT Rate (R/hr)':w.overtimeRate||w.rate,
-      'Status':w.clockedIn?'Clocked In':'Clocked Out',
-      '_ID':w.id,
-      '_Descriptor':w.descriptor?JSON.stringify(w.descriptor):'',
-      '_Photo':w.photoURL||''
-    };
+    return{'Name':w.name,'Job Title':w.title,'Rate (R/hr)':w.rate,'OT Rate (R/hr)':w.overtimeRate||w.rate,'Status':w.clockedIn?'Clocked In':'Clocked Out'};
   });
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(wRows.length?wRows:[{'Info':'No workers registered'}]),'Workers');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(wRows.length?wRows:[{'Info':'No workers'}]),'Workers');
 
-  // Sheet 3: Attendance Logs (clean and readable)
+  // Sheet 3: Attendance Logs
   var lRows=logs.map(function(l){
-    var din=new Date(l.clockIn);
-    var dout=l.clockOut?new Date(l.clockOut):null;
-    return{
-      'Worker':l.workerName,
-      'Date':din.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'}),
-      'Clock In':din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),
-      'Clock Out':dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'',
-      'Hours':l.hoursWorked||0,
-      'OT Hours':l.overtimeHours||0,
-      'Wage (R)':l.wage||0,
-      'Entry Type':l.manual?'Manual':'Face Clock',
-      '_ID':l.id,
-      '_WorkerID':l.workerId,
-      '_ClockInISO':l.clockIn,
-      '_ClockOutISO':l.clockOut||'',
-      '_Rate':l.rate,
-      '_OTRate':l.overtimeRate
-    };
+    var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;
+    return{'Worker':l.workerName,'Date':din.toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}),'Clock In':din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}),'Clock Out':dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'',' Hours':l.hoursWorked||0,'OT Hrs':l.overtimeHours||0,'Wage (R)':l.wage||0,'Type':l.manual?'Manual':'Face'};
   });
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(lRows.length?lRows:[{'Info':'No attendance records'}]),'Attendance Logs');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(lRows.length?lRows:[{'Info':'No logs'}]),'Attendance Logs');
 
-  // Sheet 4: Payments (clean and readable)
+  // Sheet 4: Payments
   var pmts=loadPayments();
   var pRows=[];
-  Object.values(pmts).forEach(function(arr){
-    arr.forEach(function(p){
-      pRows.push({
-        'Worker':p.workerName,
-        'Amount (R)':p.amount,
-        'Note':p.note||'',
-        'Date':new Date(p.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}),
-        '_ID':p.id,
-        '_WorkerID':p.workerId,
-        '_ISO':p.date
-      });
-    });
-  });
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pRows.length?pRows:[{'Info':'No payments recorded'}]),'Payments Made');
+  Object.values(pmts).forEach(function(arr){arr.forEach(function(p){pRows.push({'Worker':p.workerName,'Amount (R)':p.amount,'Note':p.note||'','Date':new Date(p.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})});});});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pRows.length?pRows:[{'Info':'No payments'}]),'Payments Made');
 
   // Sheet 5: Summary
-  var pmtTotals={};
-  pRows.forEach(function(p){
-    if(!pmtTotals[p.Worker]) pmtTotals[p.Worker]=0;
-    pmtTotals[p.Worker]+=p['Amount (R)'];
-  });
   var wageTotals={};
-  lRows.forEach(function(l){
-    if(!l.Worker) return;
-    if(!wageTotals[l.Worker]) wageTotals[l.Worker]={shifts:0,hours:0,wage:0};
-    wageTotals[l.Worker].shifts++;
-    wageTotals[l.Worker].hours+=l.Hours||0;
-    wageTotals[l.Worker].wage+=l['Wage (R)']||0;
-  });
-  var sumRows=Object.keys(wageTotals).map(function(name){
-    var paid=pmtTotals[name]||0;
-    var gross=wageTotals[name].wage;
-    return{
-      'Worker':name,
-      'Shifts':wageTotals[name].shifts,
-      'Total Hours':Math.round(wageTotals[name].hours*100)/100,
-      'Gross Wage (R)':Math.round(gross*100)/100,
-      'Payments Made (R)':Math.round(paid*100)/100,
-      'Net Still Owed (R)':Math.round(Math.max(gross-paid,0)*100)/100
-    };
-  });
+  var pmtTotals={};
+  lRows.forEach(function(l){if(!wageTotals[l.Worker])wageTotals[l.Worker]={shifts:0,hours:0,wage:0};wageTotals[l.Worker].shifts++;wageTotals[l.Worker].hours+=l[' Hours']||0;wageTotals[l.Worker].wage+=l['Wage (R)']||0;});
+  pRows.forEach(function(p){if(!pmtTotals[p.Worker])pmtTotals[p.Worker]=0;pmtTotals[p.Worker]+=p['Amount (R)'];});
+  var sumRows=Object.keys(wageTotals).map(function(n){var paid=pmtTotals[n]||0,gross=wageTotals[n].wage;return{'Worker':n,'Shifts':wageTotals[n].shifts,'Hours':Math.round(wageTotals[n].hours*100)/100,'Gross Wage (R)':Math.round(gross*100)/100,'Paid (R)':Math.round(paid*100)/100,'Net Owed (R)':Math.round(Math.max(gross-paid,0)*100)/100};});
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sumRows.length?sumRows:[{'Info':'No data'}]),'Summary');
 
   mobileXLSXDownload(wb,fname);
@@ -2868,42 +2813,34 @@ function restoreBackup(){
   reader.onload=function(e){
     try{
       var wb=XLSX.read(e.target.result,{type:'binary'});
-      // Read metadata sheet
-      var meta={};
-      var metaSheet=wb.Sheets['_BackupMeta'];
-      if(!metaSheet){showToast('Invalid backup file - missing metadata sheet','error');return;}
+      var metaSheet=wb.Sheets['_RestoreData'];
+      if(!metaSheet){showToast('Invalid backup file','error');return;}
       var metaRows=XLSX.utils.sheet_to_json(metaSheet);
-      metaRows.forEach(function(r){meta[r.Key]=r.Value;});
-      if(!meta.companyId){showToast('Invalid backup - no company ID found','error');return;}
-      var id=meta.companyId;
-      // Restore companies
-      if(meta.companies) localStorage.setItem('eev_companies',meta.companies);
-      // Restore schedule
-      if(meta.schedule) localStorage.setItem('eev_'+id+'_schedule',meta.schedule);
-      // Restore archives
-      if(meta.archives) localStorage.setItem('eev_'+id+'_archives',meta.archives);
-      // Restore payments
-      if(meta.payments) localStorage.setItem('eev_'+id+'_payments',meta.payments);
-      // Restore LS data
-      if(meta.ls) localStorage.setItem('eev_'+id+'_ls',meta.ls);
-      // Restore workers (rebuild with face data from sheet)
-      var wSheet=wb.Sheets['Workers'];
-      var wRows=wSheet?XLSX.utils.sheet_to_json(wSheet):[];
-      var restoredWorkers=wRows.filter(function(r){return r.ID;}).map(function(r){return{id:r.ID,name:r.Name,title:r.Title,rate:parseFloat(r.Rate)||0,overtimeRate:parseFloat(r.OTRate)||0,clockedIn:false,clockInTime:null,photoURL:null,descriptor:r.Descriptor?JSON.parse(r.Descriptor):null};});
-      localStorage.setItem('eev_'+id+'_workers',JSON.stringify(restoredWorkers));
-      // Restore logs
-      var lSheet=wb.Sheets['Logs'];
-      var lRows=lSheet?XLSX.utils.sheet_to_json(lSheet):[];
-      var restoredLogs=lRows.filter(function(r){return r.ID&&r.ClockInISO;}).map(function(r){return{id:r.ID,workerId:r.WorkerID,workerName:r.Worker,workerTitle:r.Title||'',clockIn:r.ClockInISO,clockOut:r.ClockOutISO||null,hoursWorked:parseFloat(r.Hours)||0,normalHours:parseFloat(r.NormalHrs)||0,overtimeHours:parseFloat(r.OTHrs)||0,rate:parseFloat(r.Rate)||0,overtimeRate:parseFloat(r.OTRate)||0,wage:parseFloat(r.Wage)||0,manual:r.Manual==='Yes'};});
-      localStorage.setItem('eev_'+id+'_logs',JSON.stringify(restoredLogs));
-      loadCompanyData();
-      renderLogs();renderWorkersList();renderWorkerGrid();renderWorkerSelects();
-      renderPaymentsList();renderExport();populatePeriodDropdown();
-      showToast('Restored: '+restoredWorkers.length+' workers, '+restoredLogs.length+' records ✓ Note: Face photos must be re-captured','success');
-    }catch(err){showToast('Failed to restore: '+err.message,'error');console.error(err);}
+      // New format: single JSON blob
+      var jsonRow=metaRows.find(function(r){return r.Key==='_JSON';});
+      if(jsonRow&&jsonRow.Value){
+        var b=JSON.parse(jsonRow.Value);
+        if(!b.companyId){showToast('Invalid backup - no company ID','error');return;}
+        var id=b.companyId;
+        if(b.companies&&b.companies.length) localStorage.setItem('eev_companies',JSON.stringify(b.companies));
+        localStorage.setItem('eev_'+id+'_workers',JSON.stringify(b.workers||[]));
+        localStorage.setItem('eev_'+id+'_logs',JSON.stringify(b.logs||[]));
+        localStorage.setItem('eev_'+id+'_ls',JSON.stringify(b.ls||{}));
+        localStorage.setItem('eev_'+id+'_archives',JSON.stringify(b.archives||[]));
+        if(b.payments) localStorage.setItem('eev_'+id+'_payments',JSON.stringify(b.payments));
+        if(b.schedule) localStorage.setItem('eev_'+id+'_schedule',JSON.stringify(b.schedule));
+        loadCompanyData();
+        renderLogs();renderWorkersList();renderWorkerGrid();renderWorkerSelects();
+        renderPaymentsList();renderExport();populatePeriodDropdown();
+        showToast('Restored: '+(b.workers||[]).length+' workers, '+(b.logs||[]).length+' records ✓','success');
+      } else {
+        showToast('Backup format not recognised. Please download a new backup first.','error');
+      }
+    }catch(err){showToast('Failed: '+err.message,'error');console.error(err);}
   };
   reader.readAsBinaryString(file);
 }
+
 function mobileXLSXDownload(wb, fname){
   try{
     // Try writeFile first (works on desktop)
