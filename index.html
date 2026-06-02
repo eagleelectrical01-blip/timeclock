@@ -492,7 +492,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <button class="btn btn-green" onclick="downloadBackup()" style="width:100%;padding:11px;margin-bottom:14px;">&#11015; Download Backup File</button>
     <h3>&#128228; Restore from Backup</h3>
     <p>Select a previously downloaded backup file to restore all data.</p>
-    <input type="file" id="restoreFile" accept=".json" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px;font-family:'DM Sans',sans-serif;font-size:0.82rem;margin-bottom:10px;">
+    <input type="file" id="restoreFile" accept=".json,application/json" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px;font-family:'DM Sans',sans-serif;font-size:0.82rem;margin-bottom:10px;">
     <button class="btn btn-primary" onclick="restoreBackup()" style="width:100%;padding:11px;">&#11014; Restore from Backup</button>
   </div>
 </div>
@@ -2620,14 +2620,20 @@ function renderPaymentsList(){
   all.sort(function(a,b){return new Date(b.date)-new Date(a.date);});
   if(!all.length){el.innerHTML='<div class="empty-state"><p>No payments recorded this period.</p></div>';return;}
   el.innerHTML=all.map(function(p){
-    return '<div class="payment-item">'
+    return '<div class="payment-item" data-wid="'+p.workerId+'" data-pid="'+p.id+'">'
       +'<div class="pi"><div class="pn">'+p.workerName+' &mdash; '+p.note+'</div>'
       +'<div class="pm">'+new Date(p.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})+'</div></div>'
       +'<span class="mono" style="font-size:0.9rem;font-weight:700;color:#7DB8F7;">'+fmtMoney(p.amount)+'</span>'
-      +'<button class="btn-sm edit" style="margin-right:4px;" onclick="openEditPayment(\''+p.workerId+'\',\''+p.id+'\')">&#9998;</button>'
-      +'<button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="deletePayment(\''+p.workerId+'\',\''+p.id+'\')">&#215;</button>'
+      +'<button class="btn-sm edit" data-wid="'+p.workerId+'" data-pid="'+p.id+'" data-action="editpay" style="margin-right:4px;">✎</button>'
+      +'<button class="btn-danger" data-wid="'+p.workerId+'" data-pid="'+p.id+'" data-action="delpay" style="font-size:0.66rem;padding:4px 8px;">×</button>'
       +'</div>';
   }).join('');
+  el.querySelectorAll('[data-action="editpay"]').forEach(function(btn){
+    btn.addEventListener('click',function(){openEditPayment(this.dataset.wid,this.dataset.pid);});
+  });
+  el.querySelectorAll('[data-action="delpay"]').forEach(function(btn){
+    btn.addEventListener('click',function(){deletePayment(this.dataset.wid,this.dataset.pid);});
+  });
 }
 function deletePayment(wId,id){
   if(!confirm('Delete this payment?')) return;
@@ -2709,9 +2715,9 @@ function downloadBackup(){
   var fname=(co?co.name:currentCompanyId).replace(/\s+/g,'_')+'_backup_'+new Date().toLocaleDateString('en-ZA').replace(/\//g,'-')+'.json';
   var blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
   var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');a.href=url;a.download=fname;a.click();
-  URL.revokeObjectURL(url);
-  showToast('Backup downloaded ✓','success');
+  var a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  showToast('Backup saved: '+fname+' ✓ — Check your Downloads folder','success');
 }
 function restoreBackup(){
   var file=document.getElementById('restoreFile').files[0];
