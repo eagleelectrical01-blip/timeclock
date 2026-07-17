@@ -40,6 +40,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{--navy:#0D1B2A;--orange:#F5820A;--blue:#1A6FD4;--green:#2DC653;--dark:#080F17;--surface:#111D2C;--surface2:#162436;--border:rgba(255,255,255,0.07);--text:#E8EDF2;--muted:#6B8099;--red:#E53E3E;}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -625,6 +626,24 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <!-- SUPER TAB (unchanged) -->
   <div id="saSuperView" style="display:none;">
     <div class="admin-section">
+      <div class="admin-section-title">&#128247; Generate QR Code</div>
+      <div class="card">
+        <h3>&#128247; Workshop QR Code</h3>
+        <p>Generate a QR code for a company. Workers scan it to open the app. Print and post in the workshop.</p>
+        <div class="form-field" style="margin-bottom:12px;"><label>Select Company</label>
+          <select class="fs" id="qrCompanySelect"><option value="">-- Choose company --</option></select>
+        </div>
+        <button class="btn btn-primary" onclick="generateQR()" style="width:100%;padding:11px;margin-bottom:14px;">&#128247; Generate QR Code</button>
+        <div id="qrCodeDisplay" style="display:none;text-align:center;">
+          <div id="qrCodeCanvas" style="display:inline-block;background:#fff;padding:16px;border-radius:12px;margin-bottom:12px;"></div>
+          <div id="qrCompanyLabel" style="font-weight:700;font-size:0.9rem;margin-bottom:4px;"></div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;">Scan to open TimeClock app</div>
+          <button class="btn btn-green" onclick="downloadQR()" style="width:100%;padding:11px;">&#11015; Download QR Code (Print this)</button>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="admin-section">
       <div class="admin-section-title">&#127970; Register New Company</div>
       <div class="card">
         <div class="form-row">
@@ -832,6 +851,15 @@ tr:hover td{background:rgba(255,255,255,0.02);}
       <button class="btn btn-primary" onclick="saveEditPayment()">&#128190; Save</button>
     </div>
   </div>
+</div>
+
+<!-- GOODBYE SCREEN -->
+<div id="goodbyeScreen" style="display:none;position:fixed;inset:0;background:var(--dark);z-index:900;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;">
+  <div style="font-size:4rem;margin-bottom:16px;" id="goodbyeIcon">&#9989;</div>
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:3px;color:var(--green);margin-bottom:8px;" id="goodbyeTitle">Clocked In</div>
+  <div style="font-size:1rem;color:var(--text);margin-bottom:6px;" id="goodbyeWorker"></div>
+  <div style="font-size:0.85rem;color:var(--muted);margin-bottom:32px;" id="goodbyeTime"></div>
+  <div style="font-size:0.78rem;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;max-width:300px;">&#128274; You may now close this tab</div>
 </div>
 
 <div id="toastEl" class="toast"></div>
@@ -1528,7 +1556,21 @@ function closeFaceModal(){
 }
 function workerDone(){
   closeFaceModal();
-  doLogout();
+  showGoodbyeScreen();
+}
+function showGoodbyeScreen(){
+  document.getElementById('publicTabs').style.display='none';
+  document.getElementById('adminTabs').style.display='none';
+  document.getElementById('logoutBtn').style.display='none';
+  document.getElementById('trialBanner').style.display='none';
+  hideAllPages();
+  var gs=document.getElementById('goodbyeScreen');
+  gs.style.display='flex';
+  setTimeout(function(){
+    try{window.open('','_self');window.close();}catch(e){}
+    setTimeout(function(){try{window.close();}catch(e){}},500);
+  },3000);
+  setTimeout(function(){doLogout();},500);
 }
 function showFaceBtns(v){
   document.getElementById('faceCancelBtn').style.display=v.cancel?'block':'none';
@@ -2323,7 +2365,7 @@ function switchAdminTab(tab){
   if(tab==='workers'){renderWorkersList();}
   if(tab==='admin'){loadAdminPanel();}
   if(tab==='export'){renderExport();}
-  if(tab==='superadmin'){renderSuperAdmin();}
+  if(tab==='superadmin'){renderSuperAdmin();populateQRCompanySelect();}
 }
 
 function renderSuperAdmin(){
@@ -2864,6 +2906,45 @@ function mobileXLSXDownload(wb, fname){
     a.click();
     setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
   }
+}
+function generateQR(){
+  var coId=document.getElementById('qrCompanySelect').value;
+  if(!coId){showToast('Select a company first','error');return;}
+  var co=getCompany(coId);
+  if(!co){showToast('Company not found','error');return;}
+  var url=window.location.href.split('?')[0].split('#')[0];
+  document.getElementById('qrCodeCanvas').innerHTML='';
+  new QRCode(document.getElementById('qrCodeCanvas'),{text:url,width:220,height:220,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+  document.getElementById('qrCompanyLabel').textContent=co.name+' ('+co.id+')';
+  document.getElementById('qrCodeDisplay').style.display='block';
+  showToast('QR code generated ✓','success');
+}
+function downloadQR(){
+  var canvas=document.querySelector('#qrCodeCanvas canvas');
+  if(!canvas){showToast('Generate QR code first','error');return;}
+  var coId=document.getElementById('qrCompanySelect').value;
+  var co=getCompany(coId);
+  var coName=co?co.name:'TimeClock';
+  var p=document.createElement('canvas');p.width=400;p.height=480;
+  var ctx=p.getContext('2d');
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,400,480);
+  ctx.drawImage(canvas,90,30,220,220);
+  ctx.fillStyle='#0D1B2A';ctx.font='bold 22px sans-serif';ctx.textAlign='center';
+  ctx.fillText(coName,200,290);
+  ctx.font='18px sans-serif';ctx.fillStyle='#F5820A';ctx.fillText('Time Clock',200,318);
+  ctx.fillStyle='#444';ctx.font='14px sans-serif';ctx.fillText('Scan to Clock In / Clock Out',200,350);
+  ctx.fillStyle='#888';ctx.font='12px sans-serif';ctx.fillText('Eagle Electrical Ventures',200,380);
+  var a=document.createElement('a');
+  a.download=coName.replace(/\s+/g,'_')+'_QR.png';
+  a.href=p.toDataURL('image/png');
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  showToast('QR downloaded ✓ Print and post in workshop','success');
+}
+function populateQRCompanySelect(){
+  loadCompanies();
+  var sel=document.getElementById('qrCompanySelect');
+  if(!sel) return;
+  sel.innerHTML='<option value="">-- Choose company --</option>'+companies.map(function(co){return '<option value="'+co.id+'">'+(co.name||co.id)+' ('+co.id+')</option>';}).join('');
 }
 window.addEventListener('load',function(){
   loadSASettings();
