@@ -1110,10 +1110,7 @@ function enterWorkerMode(co){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
-  // Sync workers from Firebase (so any device gets latest worker list)
-  syncFromFirebase(co.id).then(function(ok){
-    if(ok){loadCompanyData();renderWorkerGrid();}
-  }).catch(function(){});
+  // Firebase sync on demand only
   document.getElementById('companyScreen').classList.add('hidden');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
   startClock(); loadFaceModels();
@@ -1126,10 +1123,7 @@ function enterAdminMode(co){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
-  // Sync from Firebase in background
-  syncFromFirebase(co.id).then(function(ok){
-    if(ok){loadCompanyData();renderLogs();renderWorkersList();renderWorkerGrid();renderWorkerSelects();renderPaymentsList();}
-  }).catch(function(){});
+  // Firebase sync disabled on login — use Pull from Cloud button manually
   document.getElementById('companyScreen').classList.add('hidden');
   document.getElementById('setPwScreen').classList.remove('open');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
@@ -3115,9 +3109,23 @@ async function fbSaveCompanies(){
 async function fbLoadCompanies(){
   try{
     var snap = await db.collection('companies').get();
-    var companies = snap.docs.map(function(d){return d.data();});
-    localStorage.setItem('eev_companies', JSON.stringify(companies));
-    return companies;
+    var fbCos = snap.docs.map(function(d){return d.data();}).filter(function(co){return co.id&&co.name;});
+    var localCos = JSON.parse(localStorage.getItem('eev_companies')||'[]');
+    // Only use Firebase data if it has valid companies
+    if(fbCos.length>0){
+      // Merge: Firebase is source of truth for company settings, but keep local if Firebase is empty
+      var merged = fbCos.map(function(fc){
+        var lc = localCos.find(function(l){return l.id===fc.id;});
+        return lc ? Object.assign({},fc,{password:lc.password,workerPin:lc.workerPin||fc.workerPin}) : fc;
+      });
+      // Add any local companies not in Firebase yet
+      localCos.forEach(function(lc){
+        if(!merged.find(function(m){return m.id===lc.id;})) merged.push(lc);
+      });
+      localStorage.setItem('eev_companies', JSON.stringify(merged));
+      return merged;
+    }
+    return localCos.length ? localCos : [];
   }catch(e){console.warn('fbLoadCompanies:',e.message);return null;}
 }
 
@@ -3216,10 +3224,10 @@ async function syncFromFirebase(companyId){
     var fbCos = await fbLoadCompanies();
     if(fbCos&&fbCos.length) loadCompanies();
 
-    // Workers (merge face data from local)
+    // Workers — only overwrite if Firebase has MORE workers
     var fbWorkers = await fbLoadWorkers(companyId);
-    if(fbWorkers&&fbWorkers.length){
-      var localWorkers = JSON.parse(localStorage.getItem('eev_'+companyId+'_workers')||'[]');
+    var localWorkers = JSON.parse(localStorage.getItem('eev_'+companyId+'_workers')||'[]');
+    if(fbWorkers&&fbWorkers.length>=localWorkers.length){
       var merged = fbWorkers.map(function(fw){
         var local = localWorkers.find(function(lw){return lw.id===fw.id;});
         return Object.assign({},fw,{
@@ -3230,15 +3238,19 @@ async function syncFromFirebase(companyId){
       localStorage.setItem('eev_'+companyId+'_workers', JSON.stringify(merged));
     }
 
-    // Logs
+    // Logs — only overwrite if Firebase has MORE logs
     var fbLogs = await fbLoadLogs(companyId);
-    if(fbLogs&&fbLogs.length){
+    var localLogs = JSON.parse(localStorage.getItem('eev_'+companyId+'_logs')||'[]');
+    if(fbLogs&&fbLogs.length>=localLogs.length){
       localStorage.setItem('eev_'+companyId+'_logs', JSON.stringify(fbLogs));
     }
 
     // Payments
     var fbPay = await fbLoadPayments(companyId);
-    if(fbPay) localStorage.setItem('eev_'+companyId+'_payments', JSON.stringify(fbPay));
+    var localPay = JSON.parse(localStorage.getItem('eev_'+companyId+'_payments')||'null');
+    if(fbPay&&(!localPay||Object.keys(fbPay).length>=Object.keys(localPay).length)){
+      localStorage.setItem('eev_'+companyId+'_payments', JSON.stringify(fbPay));
+    }
 
     // Sub data
     var fbSub = await fbLoadSubData(companyId);
