@@ -1883,6 +1883,7 @@ function completeClockAction(wIn){
     document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128308;</div><div class="rm">Clocked Out: '+w.name+'</div><div class="rd">'+timeStr+note+'<br>'+fmtHours(hrs)+otNote+' &nbsp;&#183;&nbsp; '+fmtMoney(wage)+'</div></div>';
   }
   saveCompanyData();
+  if(currentCompanyId&&currentCompanyId!=='__SA__'){var ll=logs.length?logs[logs.length-1]:null;if(ll)db.collection("companies").doc(currentCompanyId).collection("logs").doc(ll.id).set(ll).catch(function(){});db.collection("companies").doc(currentCompanyId).collection("workers").doc(w.id).update({clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null}).catch(function(){});}
   renderWorkerGrid();
   showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
 }
