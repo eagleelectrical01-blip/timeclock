@@ -1054,6 +1054,21 @@ function submitWorkerPin(){
     showWorkerStep2();
   });
 }
+function proceedWorkerLogin(w){
+  document.getElementById('workerPinScreen').style.display='none';
+  document.getElementById('companyScreen').classList.add('hidden');
+  updateHeaderLogo(); updateTrialBanner();
+  var ts=getTrialStatus();
+  if(ts.status==='expired'){checkExpired();return;}
+  startClock(); loadFaceModels();
+  document.getElementById('publicTabs').style.display='flex';
+  document.getElementById('logoutBtn').style.display='block';
+  document.getElementById('logoutBtn').textContent='Exit';
+  showPage('clock');
+  var action=w.clockedIn?'out':'in';
+  initClockAction(w.id,action);
+}
+
 function showWorkerStep1(){
   document.getElementById('workerStep1').style.display='block';
   document.getElementById('workerStep2').style.display='none';
