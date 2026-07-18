@@ -1891,12 +1891,16 @@ function processClockAction(descriptor){
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
-  if(best.id!==clockWorkerTarget.id){
-    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Best match: '+best.name+' (score: '+bestDist.toFixed(3)+')<br>Expected: '+clockWorkerTarget.name+'</div></div>';
+  // Match by name OR id (Firebase may have different id format than local)
+  var isMatch = best.id===clockWorkerTarget.id || 
+                best.name.toLowerCase()===clockWorkerTarget.name.toLowerCase();
+  if(!isMatch){
+    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Detected: '+best.name+' (score: '+bestDist.toFixed(3)+')<br>Expected: '+clockWorkerTarget.name+'</div></div>';
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
-  completeClockAction(best);
+  // Use clockWorkerTarget for the clock action (has correct local data)
+  completeClockAction(clockWorkerTarget);
 }
 function completeClockAction(wIn){
   let w=wIn; const now=new Date();
