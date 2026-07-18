@@ -41,6 +41,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
 :root{--navy:#0D1B2A;--orange:#F5820A;--blue:#1A6FD4;--green:#2DC653;--dark:#080F17;--surface:#111D2C;--surface2:#162436;--border:rgba(255,255,255,0.07);--text:#E8EDF2;--muted:#6B8099;--red:#E53E3E;}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -490,6 +492,14 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   </div>
 
   <div class="divider"></div>
+  <div class="divider"></div>
+  <div class="section-title">&#9729;&#65039; Cloud Sync</div>
+  <div class="card">
+    <h3>&#9729;&#65039; Sync with Cloud</h3>
+    <p>Pull latest data from the cloud (other devices). Your data is automatically pushed to cloud every time you save.</p>
+    <button class="btn btn-primary" onclick="syncFromFirebaseAndRefresh()" style="width:100%;padding:11px;margin-bottom:10px;">&#11015; Pull from Cloud</button>
+    <button class="btn btn-ghost" onclick="syncToFirebase().then(function(){showToast('Pushed to cloud ✓','success');})" style="width:100%;padding:11px;">&#11014; Push to Cloud</button>
+  </div>
   <div class="section-title">&#128190; Backup &amp; Restore</div>
   <div class="card">
     <h3>&#128190; Download Backup</h3>
@@ -897,6 +907,8 @@ function saveCompanyData(){
   localStorage.setItem(cKey('workers'), JSON.stringify(workers));
   localStorage.setItem(cKey('logs'),    JSON.stringify(logs));
   localStorage.setItem(cKey('ls'),      JSON.stringify(lsData));
+  // Async push to Firebase (non-blocking)
+  syncToFirebase().catch(function(e){console.warn("Firebase sync failed:",e.message);});
 }
 function loadSASettings(){
   saSettings = JSON.parse(localStorage.getItem(SA_SETTINGS_KEY)||'{}');
@@ -909,7 +921,10 @@ function saveSASettings(){ localStorage.setItem(SA_SETTINGS_KEY, JSON.stringify(
 function loadCompanies(){
   companies = JSON.parse(localStorage.getItem(COMPANIES_KEY)||'[]');
 }
-function saveCompanies(){ localStorage.setItem(COMPANIES_KEY, JSON.stringify(companies)); }
+function saveCompanies(){
+  localStorage.setItem(COMPANIES_KEY, JSON.stringify(companies));
+  fbSaveCompanies().catch(function(e){console.warn("fbSaveCompanies failed:",e.message);});
+}
 function getCompany(id){ return companies.find(c=>c.id===id); }
 function getSubData(id){
   const raw = localStorage.getItem('eev_sub_'+id);
@@ -1036,6 +1051,10 @@ function enterWorkerMode(co){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
+  // Sync workers from Firebase (so any device gets latest worker list)
+  syncFromFirebase(co.id).then(function(ok){
+    if(ok){loadCompanyData();renderWorkerGrid();}
+  }).catch(function(){});
   document.getElementById('companyScreen').classList.add('hidden');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
   startClock(); loadFaceModels();
@@ -1048,6 +1067,10 @@ function enterAdminMode(co){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
+  // Sync from Firebase in background
+  syncFromFirebase(co.id).then(function(ok){
+    if(ok){loadCompanyData();renderLogs();renderWorkersList();renderWorkerGrid();renderWorkerSelects();renderPaymentsList();}
+  }).catch(function(){});
   document.getElementById('companyScreen').classList.add('hidden');
   document.getElementById('setPwScreen').classList.remove('open');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
@@ -2666,7 +2689,11 @@ function paymentKey(){return cKey('payments');}
 function loadArchives(){if(!currentCompanyId||currentCompanyId==='__SA__') return [];return JSON.parse(localStorage.getItem(archiveKey())||'[]');}
 function saveArchives(a){localStorage.setItem(archiveKey(),JSON.stringify(a));}
 function loadPayments(){if(!currentCompanyId||currentCompanyId==='__SA__') return {};return JSON.parse(localStorage.getItem(paymentKey())||'{}'  );}
-function savePayments(p){localStorage.setItem(paymentKey(),JSON.stringify(p));}
+function savePayments(p){
+  localStorage.setItem(paymentKey(),JSON.stringify(p));
+  if(currentCompanyId&&currentCompanyId!=='__SA__')
+    fbSavePayments(currentCompanyId,p).catch(function(e){console.warn("fbSavePayments:",e.message);});
+}
 function getViewLogs(){if(!_viewingArchive) return logs;var a=loadArchives().find(function(x){return x.id===_viewingArchive;});return a?a.logs:[];}
 function populatePeriodDropdown(){
   var sel=document.getElementById('periodSelect');if(!sel) return;
@@ -2945,6 +2972,196 @@ function populateQRCompanySelect(){
   var sel=document.getElementById('qrCompanySelect');
   if(!sel) return;
   sel.innerHTML='<option value="">-- Choose company --</option>'+companies.map(function(co){return '<option value="'+co.id+'">'+(co.name||co.id)+' ('+co.id+')</option>';}).join('');
+}
+// ═══════════════════════════════════════
+// FIREBASE CONFIG & SYNC
+// ═══════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyC2653Xzy1BLaU6D2cqov5ENAaLk3IH9xI",
+  authDomain: "timeclock-pro-bb3a7.firebaseapp.com",
+  projectId: "timeclock-pro-bb3a7",
+  storageBucket: "timeclock-pro-bb3a7.firebasestorage.app",
+  messagingSenderId: "945550082849",
+  appId: "1:945550082849:web:37f0492dbbd7f0d70ff460"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Firestore collections:
+// companies/{companyId} — company record
+// companies/{companyId}/workers/{workerId} — workers
+// companies/{companyId}/logs/{logId} — attendance logs
+// companies/{companyId}/payments/{paymentId} — payments
+// companies/{companyId}/settings — schedule, ls, archives
+
+// ── Firebase sync helpers ─────────────────────────────────────────────────────
+var _fbSyncing = false;
+
+async function fbSaveCompanies(){
+  try{
+    var companies = JSON.parse(localStorage.getItem('eev_companies')||'[]');
+    for(var co of companies){
+      await db.collection('companies').doc(co.id).set({
+        id:co.id, name:co.name, password:co.password, workerPin:co.workerPin||'1234',
+        mustChangePw:co.mustChangePw||false, trialDays:co.trialDays||30,
+        createdAt:co.createdAt||new Date().toISOString()
+      },{merge:true});
+    }
+  }catch(e){console.warn('fbSaveCompanies:',e.message);}
+}
+
+async function fbLoadCompanies(){
+  try{
+    var snap = await db.collection('companies').get();
+    var companies = snap.docs.map(function(d){return d.data();});
+    localStorage.setItem('eev_companies', JSON.stringify(companies));
+    return companies;
+  }catch(e){console.warn('fbLoadCompanies:',e.message);return null;}
+}
+
+async function fbSaveWorkers(companyId, workers){
+  try{
+    var batch = db.batch();
+    // Clear existing workers and rewrite
+    var existing = await db.collection('companies').doc(companyId).collection('workers').get();
+    existing.docs.forEach(function(d){batch.delete(d.ref);});
+    workers.forEach(function(w){
+      var ref = db.collection('companies').doc(companyId).collection('workers').doc(w.id);
+      // Store without photo/descriptor (too large) — face data stays local only
+      batch.set(ref,{
+        id:w.id, name:w.name, title:w.title, rate:w.rate,
+        overtimeRate:w.overtimeRate||w.rate, clockedIn:w.clockedIn||false,
+        clockInTime:w.clockInTime||null
+      });
+    });
+    await batch.commit();
+  }catch(e){console.warn('fbSaveWorkers:',e.message);}
+}
+
+async function fbLoadWorkers(companyId){
+  try{
+    var snap = await db.collection('companies').doc(companyId).collection('workers').get();
+    return snap.docs.map(function(d){return d.data();});
+  }catch(e){console.warn('fbLoadWorkers:',e.message);return null;}
+}
+
+async function fbSaveLogs(companyId, logs){
+  try{
+    var batch = db.batch();
+    logs.slice(-500).forEach(function(l){ // last 500 logs
+      var ref = db.collection('companies').doc(companyId).collection('logs').doc(l.id);
+      batch.set(ref, l);
+    });
+    await batch.commit();
+  }catch(e){console.warn('fbSaveLogs:',e.message);}
+}
+
+async function fbLoadLogs(companyId){
+  try{
+    var snap = await db.collection('companies').doc(companyId).collection('logs')
+      .orderBy('clockIn','desc').limit(500).get();
+    return snap.docs.map(function(d){return d.data();});
+  }catch(e){console.warn('fbLoadLogs:',e.message);return null;}
+}
+
+async function fbSavePayments(companyId, payments){
+  try{
+    var ref = db.collection('companies').doc(companyId).collection('settings').doc('payments');
+    await ref.set({data: JSON.stringify(payments)});
+  }catch(e){console.warn('fbSavePayments:',e.message);}
+}
+
+async function fbLoadPayments(companyId){
+  try{
+    var doc = await db.collection('companies').doc(companyId).collection('settings').doc('payments').get();
+    return doc.exists ? JSON.parse(doc.data().data||'{}') : {};
+  }catch(e){console.warn('fbLoadPayments:',e.message);return null;}
+}
+
+async function fbSaveSubData(companyId, sub){
+  try{
+    await db.collection('companies').doc(companyId).collection('settings').doc('subscription').set(sub,{merge:true});
+  }catch(e){console.warn('fbSaveSubData:',e.message);}
+}
+
+async function fbLoadSubData(companyId){
+  try{
+    var doc = await db.collection('companies').doc(companyId).collection('settings').doc('subscription').get();
+    return doc.exists ? doc.data() : null;
+  }catch(e){console.warn('fbLoadSubData:',e.message);return null;}
+}
+
+// ── Full sync: push local data to Firebase ────────────────────────────────────
+async function syncToFirebase(){
+  if(!currentCompanyId||currentCompanyId==='__SA__') return;
+  if(_fbSyncing) return;
+  _fbSyncing=true;
+  try{
+    await fbSaveCompanies();
+    await fbSaveWorkers(currentCompanyId, workers);
+    await fbSaveLogs(currentCompanyId, logs);
+    await fbSavePayments(currentCompanyId, loadPayments());
+    var sub = getSubData(currentCompanyId);
+    if(sub) await fbSaveSubData(currentCompanyId, sub);
+  }finally{_fbSyncing=false;}
+}
+
+// ── Full sync: pull Firebase data to local ────────────────────────────────────
+async function syncFromFirebase(companyId){
+  try{
+    showToast('Syncing from cloud…','');
+    // Companies
+    var fbCos = await fbLoadCompanies();
+    if(fbCos&&fbCos.length) loadCompanies();
+
+    // Workers (merge face data from local)
+    var fbWorkers = await fbLoadWorkers(companyId);
+    if(fbWorkers&&fbWorkers.length){
+      var localWorkers = JSON.parse(localStorage.getItem('eev_'+companyId+'_workers')||'[]');
+      var merged = fbWorkers.map(function(fw){
+        var local = localWorkers.find(function(lw){return lw.id===fw.id;});
+        return Object.assign({},fw,{
+          photoURL: local?local.photoURL:null,
+          descriptor: local?local.descriptor:null
+        });
+      });
+      localStorage.setItem('eev_'+companyId+'_workers', JSON.stringify(merged));
+    }
+
+    // Logs
+    var fbLogs = await fbLoadLogs(companyId);
+    if(fbLogs&&fbLogs.length){
+      localStorage.setItem('eev_'+companyId+'_logs', JSON.stringify(fbLogs));
+    }
+
+    // Payments
+    var fbPay = await fbLoadPayments(companyId);
+    if(fbPay) localStorage.setItem('eev_'+companyId+'_payments', JSON.stringify(fbPay));
+
+    // Sub data
+    var fbSub = await fbLoadSubData(companyId);
+    if(fbSub) localStorage.setItem('eev_sub_'+companyId, JSON.stringify(fbSub));
+
+    loadCompanyData();
+    showToast('Cloud sync complete ✓','success');
+    return true;
+  }catch(e){
+    console.warn('syncFromFirebase:',e.message);
+    showToast('Offline — using local data','');
+    return false;
+  }
+}
+
+// ── Override saveCompanyData to also sync to Firebase ─────────────────────────
+var _origSaveCompanyData = null; // placeholder — patched after load
+
+async function syncFromFirebaseAndRefresh(){
+  if(!currentCompanyId||currentCompanyId==='__SA__'){showToast('Log in as Admin first','error');return;}
+  var ok=await syncFromFirebase(currentCompanyId);
+  if(ok){
+    renderLogs();renderWorkersList();renderWorkerGrid();renderWorkerSelects();
+    renderPaymentsList();renderExport();populatePeriodDropdown();
+  }
 }
 window.addEventListener('load',function(){
   loadSASettings();
