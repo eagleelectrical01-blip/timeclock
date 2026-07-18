@@ -1040,13 +1040,10 @@ function submitWorkerPin(){
   showToast('Loading workers…','');
   fbLoadWorkers(currentCompanyId).then(function(fbW){
     if(fbW&&fbW.length){
-      var local=JSON.parse(localStorage.getItem('eev_'+currentCompanyId+'_workers')||'[]');
-      workers=fbW.map(function(fw){
-        var lw=local.find(function(x){return x.id===fw.id;});
-        return Object.assign({},fw,{photoURL:lw?lw.photoURL:null,descriptor:lw?lw.descriptor:null});
-      });
+      // Firebase now has descriptor and photoURL — no local merge needed
+      workers=fbW;
       localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(workers));
-      console.log('Workers from Firebase:',workers.map(function(w){return w.name;}));
+      console.log('Workers from Firebase:',workers.map(function(w){return w.name+'('+( w.descriptor?'face ok':'NO FACE')+')'; }));
     }
     showWorkerStep2();
   }).catch(function(e){
@@ -1089,11 +1086,7 @@ function submitWorkerName(){
   showToast('Checking cloud…','');
   fbLoadWorkers(currentCompanyId).then(function(fbW){
     if(fbW&&fbW.length){
-      var local=JSON.parse(localStorage.getItem('eev_'+currentCompanyId+'_workers')||'[]');
-      workers=fbW.map(function(fw){
-        var lw=local.find(function(x){return x.id===fw.id;});
-        return Object.assign({},fw,{photoURL:lw?lw.photoURL:null,descriptor:lw?lw.descriptor:null});
-      });
+      workers=fbW;
       localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(workers));
     }
     var found=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
@@ -1215,7 +1208,9 @@ async function pushAllLocalDataToFirebase(){
           rate:w.rate||0,
           overtimeRate:w.overtimeRate||w.rate||0,
           clockedIn:w.clockedIn||false,
-          clockInTime:w.clockInTime||null
+          clockInTime:w.clockInTime||null,
+          descriptor:w.descriptor||null,
+          photoURL:w.photoURL||null
         });
       }
 
@@ -3209,16 +3204,17 @@ async function fbLoadCompanies(){
 async function fbSaveWorkers(companyId, workers){
   try{
     var batch = db.batch();
-    // Clear existing workers and rewrite
     var existing = await db.collection('companies').doc(companyId).collection('workers').get();
     existing.docs.forEach(function(d){batch.delete(d.ref);});
     workers.forEach(function(w){
       var ref = db.collection('companies').doc(companyId).collection('workers').doc(w.id);
-      // Store without photo/descriptor (too large) — face data stays local only
+      // Include descriptor (128 floats ~1KB) and photoURL for cross-device face recognition
       batch.set(ref,{
         id:w.id, name:w.name, title:w.title, rate:w.rate,
         overtimeRate:w.overtimeRate||w.rate, clockedIn:w.clockedIn||false,
-        clockInTime:w.clockInTime||null
+        clockInTime:w.clockInTime||null,
+        descriptor:w.descriptor||null,
+        photoURL:w.photoURL||null
       });
     });
     await batch.commit();
@@ -3301,18 +3297,11 @@ async function syncFromFirebase(companyId){
     var fbCos = await fbLoadCompanies();
     if(fbCos&&fbCos.length) loadCompanies();
 
-    // Workers — only overwrite if Firebase has MORE workers
+    // Workers — Firebase now has face data, just load directly
     var fbWorkers = await fbLoadWorkers(companyId);
     var localWorkers = JSON.parse(localStorage.getItem('eev_'+companyId+'_workers')||'[]');
     if(fbWorkers&&fbWorkers.length>=localWorkers.length){
-      var merged = fbWorkers.map(function(fw){
-        var local = localWorkers.find(function(lw){return lw.id===fw.id;});
-        return Object.assign({},fw,{
-          photoURL: local?local.photoURL:null,
-          descriptor: local?local.descriptor:null
-        });
-      });
-      localStorage.setItem('eev_'+companyId+'_workers', JSON.stringify(merged));
+      localStorage.setItem('eev_'+companyId+'_workers', JSON.stringify(fbWorkers));
     }
 
     // Logs — only overwrite if Firebase has MORE logs
