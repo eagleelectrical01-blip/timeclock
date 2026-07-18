@@ -1726,8 +1726,10 @@ function openReCaptureFace(){
 function initClockAction(workerId, action){
   const ts=getTrialStatus();
   if(ts.status==='expired'){checkExpired();return;}
-  const w=workers.find(x=>x.id===workerId);
+  var w=workers.find(function(x){return x.id===workerId;});
   if(!w){showToast('Worker not found','error');return;}
+  // Ensure descriptor is Float32Array for face-api comparison
+  if(w.descriptor&&Array.isArray(w.descriptor)) w=Object.assign({},w,{descriptor:new Float32Array(w.descriptor)});
   clockWorkerTarget=w; clockAction=action; faceMode='clock';
   document.getElementById('faceTitle').textContent=(action==='in'?'Clock In':'Clock Out')+': '+w.name;
   document.getElementById('faceSub').textContent='Look at camera to verify identity';
@@ -1819,7 +1821,7 @@ async function captureFace(){
   const opts=new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4});
   const det=await faceapi.detectSingleFace(video,opts).withFaceLandmarks(true).withFaceDescriptor();
   if(!det){showToast('No face detected \u2014 try again','error');return;}
-  capturedDescriptor=Array.from(det.descriptor);
+  capturedDescriptor=Array.from(det.descriptor); // plain array for Firebase storage
   const canvas=document.createElement('canvas');
   canvas.width=video.videoWidth; canvas.height=video.videoHeight;
   canvas.getContext('2d').drawImage(video,0,0);
@@ -1833,7 +1835,7 @@ async function captureFace(){
   else if(faceMode==='clock'){ processClockAction(det.descriptor); }
 }
 function processRegister(descriptor){
-  capturedDescriptor=Array.from(descriptor);
+  capturedDescriptor=Array.from(descriptor); // Store as plain array for Firebase
   document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128247;</div><div class="rm">Face captured!</div><div class="rd">Tap Register to save this worker.</div></div>';
   showFaceBtns({cancel:true,capture:false,register:true,tryAgain:false,done:false});
 }
@@ -1870,20 +1872,27 @@ function completeRegister(){
   showToast(name+' registered ✓','success');
 }
 function processClockAction(descriptor){
-  const threshold=0.52;
+  const threshold=0.62;
   let best=null,bestDist=999;
-  workers.forEach(w=>{
+  workers.forEach(function(w){
     if(!w.descriptor) return;
-    const dist=faceapi.euclideanDistance(descriptor,w.descriptor);
-    if(dist<bestDist){bestDist=dist;best=w;}
+    // Firebase stores descriptor as plain array — convert to Float32Array for face-api
+    var desc=w.descriptor;
+    if(Array.isArray(desc)) desc=new Float32Array(desc);
+    try{
+      var dist=faceapi.euclideanDistance(descriptor,desc);
+      if(dist<bestDist){bestDist=dist;best=w;}
+    }catch(e){console.warn("Distance calc error for",w.name,e.message);}
   });
-  if(!best||bestDist>threshold){
-    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Face not recognised</div><div class="rd">Score: '+(bestDist<999?bestDist.toFixed(3):'—')+'</div></div>';
+  // For single-worker company, be more lenient (threshold 0.75)
+  var effectiveThreshold = workers.filter(function(w){return w.descriptor;}).length===1 ? 0.75 : threshold;
+  if(!best||bestDist>effectiveThreshold){
+    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Face not recognised</div><div class="rd">Score: '+(bestDist<999?bestDist.toFixed(3):'—')+' (need below '+effectiveThreshold.toFixed(2)+')<br>'+(best?'Best match: '+best.name:'No face data found')+'</div></div>';
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
   if(best.id!==clockWorkerTarget.id){
-    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Detected: '+best.name+'</div></div>';
+    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Best match: '+best.name+' (score: '+bestDist.toFixed(3)+')<br>Expected: '+clockWorkerTarget.name+'</div></div>';
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
