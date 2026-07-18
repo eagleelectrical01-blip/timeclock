@@ -1137,46 +1137,87 @@ function enterAdminMode(co){
 }
 function enterCompanyApp(co){ enterWorkerMode(co); }
 async function pushAllLocalDataToFirebase(){
-  // Push all companies from localStorage to Firebase
-  var companies=JSON.parse(localStorage.getItem("eev_companies")||"[]");
-  if(!companies.length){showToast("No local companies to push","");return;}
-  showToast("Pushing all data to cloud…","");
-  try{
-    for(var co of companies){
+  var allKeys=Object.keys(localStorage);
+  var coList=JSON.parse(localStorage.getItem("eev_companies")||"[]");
+
+  // Debug: show what we found
+  console.log("localStorage keys:",allKeys);
+  console.log("Companies found:",coList.length,coList.map(function(x){return x.id;}));
+
+  if(!coList.length){
+    // Show all localStorage keys to help debug
+    var keyStr=allKeys.filter(function(k){return k.startsWith("eev_");}).join(", ");
+    showToast("No companies in localStorage. Keys found: "+(keyStr||"none"),"error");
+    alert("Debug info:\nTotal localStorage keys: "+allKeys.length+"\nEEV keys: "+(keyStr||"none")+"\n\nIf you see company keys here, the company list key may be different.");
+    return;
+  }
+
+  showToast("Pushing "+coList.length+" compan"+(coList.length===1?"y":"ies")+" to cloud...","");
+
+  var results=[];
+  for(var co of coList){
+    try{
+      // Step 1: Save company document
       await db.collection("companies").doc(co.id).set({
-        id:co.id,name:co.name||"",password:co.password||"",
-        workerPin:co.workerPin||"1234",mustChangePw:co.mustChangePw||false,
-        trialDays:co.trialDays||30,createdAt:co.createdAt||new Date().toISOString()
+        id:co.id,
+        name:co.name||"",
+        password:co.password||"",
+        workerPin:co.workerPin||"1234",
+        mustChangePw:co.mustChangePw||false,
+        trialDays:co.trialDays||30,
+        createdAt:co.createdAt||new Date().toISOString()
       });
-      var sub=JSON.parse(localStorage.getItem("eev_sub_"+co.id)||"null");
-      if(sub) await db.collection("companies").doc(co.id).collection("settings").doc("subscription").set(sub);
-      var workers2=JSON.parse(localStorage.getItem("eev_"+co.id+"_workers")||"[]");
-      for(var w of workers2){
+      console.log("Saved company:",co.id);
+
+      // Step 2: Workers
+      var wList=JSON.parse(localStorage.getItem("eev_"+co.id+"_workers")||"[]");
+      console.log("Workers for",co.id,":",wList.length);
+      for(var w of wList){
         await db.collection("companies").doc(co.id).collection("workers").doc(w.id).set({
-          id:w.id,name:w.name,title:w.title,rate:w.rate,
-          overtimeRate:w.overtimeRate||w.rate,clockedIn:w.clockedIn||false,
+          id:w.id,
+          name:w.name||"",
+          title:w.title||"",
+          rate:w.rate||0,
+          overtimeRate:w.overtimeRate||w.rate||0,
+          clockedIn:w.clockedIn||false,
           clockInTime:w.clockInTime||null
         });
       }
-      var logs2=JSON.parse(localStorage.getItem("eev_"+co.id+"_logs")||"[]");
-      var batch=db.batch();
-      var count=0;
-      for(var l of logs2){
-        var ref=db.collection("companies").doc(co.id).collection("logs").doc(l.id);
-        batch.set(ref,l);
-        count++;
-        if(count>=400){await batch.commit();batch=db.batch();count=0;}
+
+      // Step 3: Logs (batched)
+      var lList=JSON.parse(localStorage.getItem("eev_"+co.id+"_logs")||"[]");
+      console.log("Logs for",co.id,":",lList.length);
+      if(lList.length){
+        var b=db.batch(),cnt=0;
+        for(var l of lList){
+          b.set(db.collection("companies").doc(co.id).collection("logs").doc(l.id),l);
+          cnt++;
+          if(cnt>=400){await b.commit();b=db.batch();cnt=0;}
+        }
+        if(cnt>0) await b.commit();
       }
-      if(count>0) await batch.commit();
+
+      // Step 4: Payments
       var pay=JSON.parse(localStorage.getItem("eev_"+co.id+"_payments")||"{}");
       await db.collection("companies").doc(co.id).collection("settings").doc("payments").set({data:JSON.stringify(pay)});
+
+      // Step 5: Subscription
+      var sub=JSON.parse(localStorage.getItem("eev_sub_"+co.id)||"null");
+      if(sub) await db.collection("companies").doc(co.id).collection("settings").doc("subscription").set(sub);
+
+      results.push(co.id+": OK ("+wList.length+" workers, "+lList.length+" logs)");
+    }catch(e){
+      console.error("Push failed for",co.id,":",e);
+      results.push(co.id+": FAILED - "+e.message);
+      showToast("Push failed for "+co.id+": "+e.message,"error");
+      // Show alert with details
+      alert("Firebase push error for "+co.id+":\n"+e.message+"\n\nPlease check Firebase Console > Firestore > Rules and make sure test mode is enabled.");
+      return;
     }
-    showToast("All data pushed to cloud ✓ — "+companies.length+" compan"+(companies.length===1?"y":"ies")+" synced","success");
-    renderSuperAdmin();
-  }catch(e){
-    showToast("Push failed: "+e.message,"error");
-    console.error(e);
   }
+  showToast("Cloud push complete! "+results.join(" | "),"success");
+  alert("Push complete!\n"+results.join("\n"));
+  renderSuperAdmin();
 }
 
 function initSuperAdminUI(){
