@@ -654,6 +654,15 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     </div>
     <div class="divider"></div>
     <div class="admin-section">
+      <div class="admin-section-title">&#9729;&#65039; First Time Setup / Recovery</div>
+      <div class="card">
+        <h3>&#11014; Push All Local Data to Cloud</h3>
+        <p>If companies are missing from cloud after upgrading to v7, press this once to push all your local data to Firebase. Only needed once.</p>
+        <button class="btn btn-green" onclick="pushAllLocalDataToFirebase()" style="width:100%;padding:11px;">&#11014; Push All Data to Cloud Now</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="admin-section">
       <div class="admin-section-title">&#127970; Register New Company</div>
       <div class="card">
         <div class="form-row">
@@ -921,6 +930,20 @@ function saveSASettings(){ localStorage.setItem(SA_SETTINGS_KEY, JSON.stringify(
 function loadCompanies(){
   companies = JSON.parse(localStorage.getItem(COMPANIES_KEY)||'[]');
 }
+async function loadCompaniesWithFallback(){
+  loadCompanies();
+  if(!companies.length){
+    // Try Firebase
+    try{
+      var snap=await db.collection("companies").get();
+      if(!snap.empty){
+        companies=snap.docs.map(function(d){return d.data();}).filter(function(co){return co.id;});
+        localStorage.setItem(COMPANIES_KEY,JSON.stringify(companies));
+        showToast("Companies loaded from cloud ✓","success");
+      }
+    }catch(e){console.warn("Firebase company load failed:",e.message);}
+  }
+}
 function saveCompanies(){
   localStorage.setItem(COMPANIES_KEY, JSON.stringify(companies));
   fbSaveCompanies().catch(function(e){console.warn("fbSaveCompanies failed:",e.message);});
@@ -940,8 +963,23 @@ function workerLoginFlow(){
   const code=document.getElementById('companyCodeInput').value.trim().toUpperCase();
   if(!code){showToast('Enter your company code first','error');return;}
   loadCompanies();
-  const co=companies.find(c=>c.id===code);
-  if(!co){showToast('Company code not found','error');return;}
+  var co=companies.find(function(x){return x.id===code;});
+  if(!co){
+    // Try Firebase
+    showToast('Checking cloud…','');
+    db.collection("companies").doc(code).get().then(function(doc){
+      if(doc.exists&&doc.data().id){
+        companies.push(doc.data());
+        localStorage.setItem(COMPANIES_KEY,JSON.stringify(companies));
+        document.getElementById('workerPinInput').value="";
+        document.getElementById('workerPinScreen').style.display="flex";
+      } else {
+        showToast('Company code not found','error');
+      }
+    }).catch(function(){showToast('Company code not found','error');});
+    return;
+  }
+  currentCompanyId=code;
   currentCompanyId=code;
   document.getElementById('workerPinInput').value='';
   document.getElementById('workerPinScreen').style.display='flex';
@@ -950,8 +988,29 @@ function adminLoginFlow(){
   const code=document.getElementById('companyCodeInput').value.trim().toUpperCase();
   if(!code){showToast('Enter your company code first','error');return;}
   loadCompanies();
-  const co=companies.find(c=>c.id===code);
-  if(!co){showToast('Company code not found','error');return;}
+  var co=companies.find(function(x){return x.id===code;});
+  if(!co){
+    showToast('Checking cloud…','');
+    db.collection("companies").doc(code).get().then(function(doc){
+      if(doc.exists&&doc.data().id){
+        companies.push(doc.data());
+        localStorage.setItem(COMPANIES_KEY,JSON.stringify(companies));
+        currentCompanyId=code;
+        var co2=doc.data();
+        if(co2.mustChangePw){
+          document.getElementById("companyScreen").classList.add("hidden");
+          document.getElementById("setPwScreen").classList.add("open");
+        } else {
+          document.getElementById("adminPwScreenInput").value="";
+          document.getElementById("adminPwScreen").style.display="flex";
+        }
+      } else {
+        showToast('Company code not found','error');
+      }
+    }).catch(function(){showToast('Company code not found','error');});
+    return;
+  }
+  currentCompanyId=code;
   currentCompanyId=code;
   if(co.mustChangePw){
     document.getElementById('companyScreen').classList.add('hidden');
@@ -1083,6 +1142,49 @@ function enterAdminMode(co){
   renderWorkerSelects(); renderLSList();
 }
 function enterCompanyApp(co){ enterWorkerMode(co); }
+async function pushAllLocalDataToFirebase(){
+  // Push all companies from localStorage to Firebase
+  var companies=JSON.parse(localStorage.getItem("eev_companies")||"[]");
+  if(!companies.length){showToast("No local companies to push","");return;}
+  showToast("Pushing all data to cloud…","");
+  try{
+    for(var co of companies){
+      await db.collection("companies").doc(co.id).set({
+        id:co.id,name:co.name||"",password:co.password||"",
+        workerPin:co.workerPin||"1234",mustChangePw:co.mustChangePw||false,
+        trialDays:co.trialDays||30,createdAt:co.createdAt||new Date().toISOString()
+      });
+      var sub=JSON.parse(localStorage.getItem("eev_sub_"+co.id)||"null");
+      if(sub) await db.collection("companies").doc(co.id).collection("settings").doc("subscription").set(sub);
+      var workers2=JSON.parse(localStorage.getItem("eev_"+co.id+"_workers")||"[]");
+      for(var w of workers2){
+        await db.collection("companies").doc(co.id).collection("workers").doc(w.id).set({
+          id:w.id,name:w.name,title:w.title,rate:w.rate,
+          overtimeRate:w.overtimeRate||w.rate,clockedIn:w.clockedIn||false,
+          clockInTime:w.clockInTime||null
+        });
+      }
+      var logs2=JSON.parse(localStorage.getItem("eev_"+co.id+"_logs")||"[]");
+      var batch=db.batch();
+      var count=0;
+      for(var l of logs2){
+        var ref=db.collection("companies").doc(co.id).collection("logs").doc(l.id);
+        batch.set(ref,l);
+        count++;
+        if(count>=400){await batch.commit();batch=db.batch();count=0;}
+      }
+      if(count>0) await batch.commit();
+      var pay=JSON.parse(localStorage.getItem("eev_"+co.id+"_payments")||"{}");
+      await db.collection("companies").doc(co.id).collection("settings").doc("payments").set({data:JSON.stringify(pay)});
+    }
+    showToast("All data pushed to cloud ✓ — "+companies.length+" compan"+(companies.length===1?"y":"ies")+" synced","success");
+    renderSuperAdmin();
+  }catch(e){
+    showToast("Push failed: "+e.message,"error");
+    console.error(e);
+  }
+}
+
 function initSuperAdminUI(){
   document.getElementById('publicTabs').style.display='none';
   document.getElementById('adminTabs').style.display='flex';
