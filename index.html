@@ -1147,18 +1147,69 @@ function enterWorkerMode(co){
   document.getElementById('logoutBtn').textContent='\uD83D\uDD13 Exit';
   showPage('clock'); renderWorkerGrid();
 }
+var _fbLogsListener=null;
+var _fbWorkersListener=null;
+
+function stopFirebaseListeners(){
+  if(_fbLogsListener){_fbLogsListener();_fbLogsListener=null;}
+  if(_fbWorkersListener){_fbWorkersListener();_fbWorkersListener=null;}
+  console.log("Firebase listeners stopped");
+}
+
+function startFirebaseListeners(companyId){
+  stopFirebaseListeners();
+  try{
+    // Real-time log listener
+    _fbLogsListener=db.collection("companies").doc(companyId)
+      .collection("logs")
+      .orderBy("clockIn","desc")
+      .limit(500)
+      .onSnapshot(function(snap){
+        var fbLogs=snap.docs.map(function(d){return d.data();});
+        var localLogs=JSON.parse(localStorage.getItem("eev_"+companyId+"_logs")||"[]");
+        // Merge: all Firebase logs + any local-only logs
+        var merged=fbLogs.slice();
+        localLogs.forEach(function(ll){
+          if(!merged.find(function(fl){return fl.id===ll.id;})) merged.push(ll);
+        });
+        merged.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
+        localStorage.setItem("eev_"+companyId+"_logs",JSON.stringify(merged));
+        logs=merged;
+        if(adminIn) renderLogs();
+        console.log("Logs live update:",merged.length,"records");
+      },function(e){console.warn("Log listener error:",e.message);});
+
+    // Real-time worker status listener
+    _fbWorkersListener=db.collection("companies").doc(companyId)
+      .collection("workers")
+      .onSnapshot(function(snap){
+        var fbWorkers=snap.docs.map(function(d){return d.data();});
+        if(!fbWorkers.length) return;
+        var localWorkers=JSON.parse(localStorage.getItem("eev_"+companyId+"_workers")||"[]");
+        var merged=fbWorkers.map(function(fw){
+          var lw=localWorkers.find(function(x){return x.id===fw.id;});
+          return Object.assign({},fw,{
+            photoURL:fw.photoURL||(lw?lw.photoURL:null),
+            descriptor:fw.descriptor||(lw?lw.descriptor:null)
+          });
+        });
+        localStorage.setItem("eev_"+companyId+"_workers",JSON.stringify(merged));
+        workers=merged;
+        if(adminIn){renderWorkerGrid();renderWorkersList();}
+        console.log("Workers live update:",merged.length,"workers");
+      },function(e){console.warn("Worker listener error:",e.message);});
+    console.log("Firebase real-time listeners started for",companyId);
+  }catch(e){
+    console.warn("Could not start Firebase listeners:",e.message);
+  }
+}
+
 function enterAdminMode(co){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
-  // Pull from Firebase on admin login to get latest clock records from other phones
-  syncFromFirebase(co.id).then(function(ok){
-    if(ok){
-      loadCompanyData();
-      renderLogs();renderWorkersList();renderWorkerGrid();
-      renderWorkerSelects();renderPaymentsList();
-    }
-  }).catch(function(){});
+  // Start real-time Firebase listeners for live updates
+  startFirebaseListeners(co.id);
   document.getElementById('companyScreen').classList.add('hidden');
   document.getElementById('setPwScreen').classList.remove('open');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
@@ -2074,6 +2125,11 @@ function deleteWorker(id){
 // LOGS
 // ═══════════════════════════════════════
 function fmtMoney(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtHoursMin(h){
+  var hrs=Math.floor(h);
+  var min=Math.round((h-hrs)*60);
+  return hrs+'h '+(min<10?'0':'')+min+'m';
+}
 function fmtHours(h){ const hr=Math.floor(h),mn=Math.round((h-hr)*60); return hr+'h '+(mn<10?'0':'')+mn+'m'; }
 function getFilteredLogs(){
   let data=[...getViewLogs()];
