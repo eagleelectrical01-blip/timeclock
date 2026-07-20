@@ -1332,6 +1332,7 @@ function showExpiredLogin(){
   doLogout();
 }
 function doLogout(){
+  stopFirebaseListeners();
   adminIn=false; isSuperAdmin=false;
   document.getElementById('adminTabs').style.display='none';
   document.getElementById('publicTabs').style.display='none';
