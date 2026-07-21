@@ -1043,7 +1043,8 @@ function submitWorkerPin(){
       // Firebase now has descriptor and photoURL — no local merge needed
       workers=fbW;
       localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(workers));
-      console.log('Workers from Firebase:',workers.map(function(w){return w.name+'('+( w.descriptor?'face ok':'NO FACE')+')'; }));
+      var activeW=workers.filter(function(w){return w.clockedIn;});
+      console.log('Workers from Firebase:',workers.map(function(w){return w.name+'('+( w.descriptor?'face ok':'NO FACE')+')'+(w.clockedIn?' [IN: '+w.clockInTime+']':'')}));
     }
     showWorkerStep2();
   }).catch(function(e){
@@ -1904,8 +1905,29 @@ async function captureFace(){
   const video=document.getElementById('camVideo');
   if(!faceModelsLoaded){if(faceModelsLoading){showToast('Models still loading \u2014 wait a moment','error');}else{showToast('Face models failed \u2014 tap Retry in the banner','error');loadFaceModels();}return;}
   const opts=new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4});
-  const det=await faceapi.detectSingleFace(video,opts).withFaceLandmarks(true).withFaceDescriptor();
-  if(!det){showToast('No face detected \u2014 try again','error');return;}
+  var det;
+  try{
+    // Add timeout to prevent hanging
+    const detPromise=faceapi.detectSingleFace(video,opts).withFaceLandmarks(true).withFaceDescriptor();
+    const timeout=new Promise(function(_,reject){setTimeout(function(){reject(new Error('timeout'));},8000);});
+    det=await Promise.race([detPromise,timeout]);
+  }catch(e){
+    console.error('captureFace error:',e.message);
+    _autoCaptureDone=false;
+    if(faceMode==='clock'){
+      // Restart detect loop
+      startDetectLoop();
+    } else {
+      showToast('Detection failed \u2014 try again','error');
+    }
+    return;
+  }
+  if(!det){
+    _autoCaptureDone=false;
+    if(faceMode==='clock'){startDetectLoop();}
+    else{showToast('No face detected \u2014 try again','error');}
+    return;
+  }
   capturedDescriptor=Array.from(det.descriptor); // plain array for Firebase storage
   const canvas=document.createElement('canvas');
   canvas.width=video.videoWidth; canvas.height=video.videoHeight;
@@ -2009,8 +2031,28 @@ function completeClockAction(wIn){
     var wFreshOut=workers.find(function(x){return x.id===w.id||x.name===w.name;});
     if(wFreshOut) w=wFreshOut;
     if(!w.clockInTime){
-      document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#9888;</div><div class="rm">No clock-in found</div><div class="rd">This worker has no recorded clock-in time. Please ask Admin to add a manual entry.</div></div>';
-      showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
+      // Try fetching fresh from Firebase before giving up
+      showToast('Checking cloud for clock-in time…','');
+      fbLoadWorkers(currentCompanyId).then(function(fbW){
+        if(fbW&&fbW.length){
+          var fw=fbW.find(function(x){return x.id===w.id||x.name===w.name;});
+          if(fw&&fw.clockInTime){
+            w.clockInTime=fw.clockInTime;
+            // Update local workers array
+            var wi=workers.findIndex(function(x){return x.id===w.id||x.name===w.name;});
+            if(wi>=0) workers[wi].clockInTime=fw.clockInTime;
+            localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(workers));
+            // Retry clock-out
+            completeClockAction(w);
+            return;
+          }
+        }
+        document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#9888;</div><div class="rm">No clock-in found</div><div class="rd">You are not clocked in. Please clock in first.</div></div>';
+        showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
+      }).catch(function(){
+        document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#9888;</div><div class="rm">No clock-in found</div><div class="rd">You are not clocked in. Please clock in first.</div></div>';
+        showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
+      });
       return;
     }
     const inTime=new Date(w.clockInTime);
