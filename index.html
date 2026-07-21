@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Time Clock System v6.5</title>
+<title>Time Clock System v7.1</title>
 <script>
 (function(){
   const c=document.createElement('canvas');c.width=192;c.height=192;
@@ -1175,7 +1175,7 @@ function startFirebaseListeners(companyId){
         merged.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
         localStorage.setItem("eev_"+companyId+"_logs",JSON.stringify(merged));
         logs=merged;
-        if(adminIn) renderLogs();
+        if(adminIn){renderLogs();renderWorkerGrid();renderWorkerSelects();}
         console.log("Logs live update:",merged.length,"records");
       },function(e){console.warn("Log listener error:",e.message);});
 
