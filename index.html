@@ -23,9 +23,7 @@
   const ico=c.toDataURL('image/png');
   const fav=document.createElement('link');fav.rel='icon';fav.type='image/png';fav.sizes='192x192';fav.href=ico;document.head.appendChild(fav);
   const ati=document.createElement('link');ati.rel='apple-touch-icon';ati.sizes='192x192';ati.href=ico;document.head.appendChild(ati);
-  const manifest={name:'Time Clock System',short_name:'TimeClock',description:'Eagle Electrical Time Clock',start_url:'.',display:'standalone',orientation:'portrait',background_color:'#080F17',theme_color:'#0D1B2A',icons:[{src:ico,sizes:'192x192',type:'image/png',purpose:'any maskable'},{src:ico,sizes:'512x512',type:'image/png',purpose:'any maskable'}]};
-  const mb64=btoa(unescape(encodeURIComponent(JSON.stringify(manifest))));
-  const ml=document.createElement('link');ml.rel='manifest';ml.href='data:application/manifest+json;base64,'+mb64;document.head.appendChild(ml);
+  // PWA manifest disabled
   window._appIcon=ico;
 })();
 </script>
@@ -41,6 +39,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
 :root{--navy:#0D1B2A;--orange:#F5820A;--blue:#1A6FD4;--green:#2DC653;--dark:#080F17;--surface:#111D2C;--surface2:#162436;--border:rgba(255,255,255,0.07);--text:#E8EDF2;--muted:#6B8099;--red:#E53E3E;}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -490,6 +490,14 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   </div>
 
   <div class="divider"></div>
+  <div class="divider"></div>
+  <div class="section-title">&#9729;&#65039; Cloud Sync</div>
+  <div class="card">
+    <h3>&#9729;&#65039; Sync with Cloud</h3>
+    <p>Pull latest data from the cloud (other devices). Your data is automatically pushed to cloud every time you save.</p>
+    <button class="btn btn-primary" onclick="syncFromFirebaseAndRefresh()" style="width:100%;padding:11px;margin-bottom:10px;">&#11015; Pull from Cloud</button>
+    <button class="btn btn-ghost" onclick="syncToFirebase().then(function(){showToast('Pushed to cloud ✓','success');})" style="width:100%;padding:11px;">&#11014; Push to Cloud</button>
+  </div>
   <div class="section-title">&#128190; Backup &amp; Restore</div>
   <div class="card">
     <h3>&#128190; Download Backup</h3>
@@ -640,6 +648,15 @@ tr:hover td{background:rgba(255,255,255,0.02);}
           <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;">Scan to open TimeClock app</div>
           <button class="btn btn-green" onclick="downloadQR()" style="width:100%;padding:11px;">&#11015; Download QR Code (Print this)</button>
         </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="admin-section">
+      <div class="admin-section-title">&#9729;&#65039; First Time Setup / Recovery</div>
+      <div class="card">
+        <h3>&#11014; Push All Local Data to Cloud</h3>
+        <p>If companies are missing from cloud after upgrading to v7, press this once to push all your local data to Firebase. Only needed once.</p>
+        <button class="btn btn-green" onclick="pushAllLocalDataToFirebase()" style="width:100%;padding:11px;">&#11014; Push All Data to Cloud Now</button>
       </div>
     </div>
     <div class="divider"></div>
@@ -897,6 +914,8 @@ function saveCompanyData(){
   localStorage.setItem(cKey('workers'), JSON.stringify(workers));
   localStorage.setItem(cKey('logs'),    JSON.stringify(logs));
   localStorage.setItem(cKey('ls'),      JSON.stringify(lsData));
+  // Async push to Firebase (non-blocking)
+  syncToFirebase().catch(function(e){console.warn("Firebase sync failed:",e.message);});
 }
 function loadSASettings(){
   saSettings = JSON.parse(localStorage.getItem(SA_SETTINGS_KEY)||'{}');
@@ -909,7 +928,24 @@ function saveSASettings(){ localStorage.setItem(SA_SETTINGS_KEY, JSON.stringify(
 function loadCompanies(){
   companies = JSON.parse(localStorage.getItem(COMPANIES_KEY)||'[]');
 }
-function saveCompanies(){ localStorage.setItem(COMPANIES_KEY, JSON.stringify(companies)); }
+async function loadCompaniesWithFallback(){
+  loadCompanies();
+  if(!companies.length){
+    // Try Firebase
+    try{
+      var snap=await db.collection("companies").get();
+      if(!snap.empty){
+        companies=snap.docs.map(function(d){return d.data();}).filter(function(co){return co.id;});
+        localStorage.setItem(COMPANIES_KEY,JSON.stringify(companies));
+        showToast("Companies loaded from cloud ✓","success");
+      }
+    }catch(e){console.warn("Firebase company load failed:",e.message);}
+  }
+}
+function saveCompanies(){
+  localStorage.setItem(COMPANIES_KEY, JSON.stringify(companies));
+  fbSaveCompanies().catch(function(e){console.warn("fbSaveCompanies failed:",e.message);});
+}
 function getCompany(id){ return companies.find(c=>c.id===id); }
 function getSubData(id){
   const raw = localStorage.getItem('eev_sub_'+id);
@@ -925,8 +961,23 @@ function workerLoginFlow(){
   const code=document.getElementById('companyCodeInput').value.trim().toUpperCase();
   if(!code){showToast('Enter your company code first','error');return;}
   loadCompanies();
-  const co=companies.find(c=>c.id===code);
-  if(!co){showToast('Company code not found','error');return;}
+  var co=companies.find(function(x){return x.id===code;});
+  if(!co){
+    // Try Firebase
+    showToast('Checking cloud…','');
+    db.collection("companies").doc(code).get().then(function(doc){
+      if(doc.exists&&doc.data().id){
+        companies.push(doc.data());
+        localStorage.setItem(COMPANIES_KEY,JSON.stringify(companies));
+        document.getElementById('workerPinInput').value="";
+        document.getElementById('workerPinScreen').style.display="flex";
+      } else {
+        showToast('Company code not found','error');
+      }
+    }).catch(function(){showToast('Company code not found','error');});
+    return;
+  }
+  currentCompanyId=code;
   currentCompanyId=code;
   document.getElementById('workerPinInput').value='';
   document.getElementById('workerPinScreen').style.display='flex';
@@ -935,8 +986,29 @@ function adminLoginFlow(){
   const code=document.getElementById('companyCodeInput').value.trim().toUpperCase();
   if(!code){showToast('Enter your company code first','error');return;}
   loadCompanies();
-  const co=companies.find(c=>c.id===code);
-  if(!co){showToast('Company code not found','error');return;}
+  var co=companies.find(function(x){return x.id===code;});
+  if(!co){
+    showToast('Checking cloud…','');
+    db.collection("companies").doc(code).get().then(function(doc){
+      if(doc.exists&&doc.data().id){
+        companies.push(doc.data());
+        localStorage.setItem(COMPANIES_KEY,JSON.stringify(companies));
+        currentCompanyId=code;
+        var co2=doc.data();
+        if(co2.mustChangePw){
+          document.getElementById("companyScreen").classList.add("hidden");
+          document.getElementById("setPwScreen").classList.add("open");
+        } else {
+          document.getElementById("adminPwScreenInput").value="";
+          document.getElementById("adminPwScreen").style.display="flex";
+        }
+      } else {
+        showToast('Company code not found','error');
+      }
+    }).catch(function(){showToast('Company code not found','error');});
+    return;
+  }
+  currentCompanyId=code;
   currentCompanyId=code;
   if(co.mustChangePw){
     document.getElementById('companyScreen').classList.add('hidden');
@@ -965,8 +1037,35 @@ function submitWorkerPin(){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
-  showWorkerStep2();
+  showToast('Loading workers…','');
+  fbLoadWorkers(currentCompanyId).then(function(fbW){
+    if(fbW&&fbW.length){
+      // Firebase now has descriptor and photoURL — no local merge needed
+      workers=fbW;
+      localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(workers));
+      console.log('Workers from Firebase:',workers.map(function(w){return w.name+'('+( w.descriptor?'face ok':'NO FACE')+')'; }));
+    }
+    showWorkerStep2();
+  }).catch(function(e){
+    console.error('fbLoadWorkers:',e.message);
+    showWorkerStep2();
+  });
 }
+function proceedWorkerLogin(w){
+  document.getElementById('workerPinScreen').style.display='none';
+  document.getElementById('companyScreen').classList.add('hidden');
+  updateHeaderLogo(); updateTrialBanner();
+  var ts=getTrialStatus();
+  if(ts.status==='expired'){checkExpired();return;}
+  startClock(); loadFaceModels();
+  document.getElementById('publicTabs').style.display='flex';
+  document.getElementById('logoutBtn').style.display='block';
+  document.getElementById('logoutBtn').textContent='Exit';
+  showPage('clock');
+  var action=w.clockedIn?'out':'in';
+  initClockAction(w.id,action);
+}
+
 function showWorkerStep1(){
   document.getElementById('workerStep1').style.display='block';
   document.getElementById('workerStep2').style.display='none';
@@ -981,20 +1080,23 @@ function showWorkerStep2(){
 function submitWorkerName(){
   const name=document.getElementById('workerNameInput').value.trim();
   if(!name){showToast('Enter your name','error');return;}
-  const w=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
-  if(!w){showToast('Name not found — check spelling','error');return;}
-  document.getElementById('workerPinScreen').style.display='none';
-  document.getElementById('companyScreen').classList.add('hidden');
-  updateHeaderLogo(); updateTrialBanner();
-  const ts=getTrialStatus();
-  if(ts.status==='expired'){checkExpired();return;}
-  startClock(); loadFaceModels();
-  document.getElementById('publicTabs').style.display='flex';
-  document.getElementById('logoutBtn').style.display='block';
-  document.getElementById('logoutBtn').textContent='🔓 Exit';
-  showPage('clock');
-  const action=w.clockedIn?'out':'in';
-  initClockAction(w.id,action);
+  var w=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
+  if(w){proceedWorkerLogin(w);return;}
+  // Try Firebase one more time
+  showToast('Checking cloud…','');
+  fbLoadWorkers(currentCompanyId).then(function(fbW){
+    if(fbW&&fbW.length){
+      workers=fbW;
+      localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(workers));
+    }
+    var found=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
+    if(found){
+      proceedWorkerLogin(found);
+    } else {
+      var names=workers.map(function(x){return x.name;}).join(", ");
+      showToast('"'+name+'" not found. Available: '+(names||'none'),'error');
+    }
+  }).catch(function(){showToast('Name not found — check spelling','error');});
 }
 function submitAdminPwScreen(){
   const pw=document.getElementById('adminPwScreenInput').value;
@@ -1036,6 +1138,7 @@ function enterWorkerMode(co){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
+  // Firebase sync on demand only
   document.getElementById('companyScreen').classList.add('hidden');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
   startClock(); loadFaceModels();
@@ -1044,10 +1147,69 @@ function enterWorkerMode(co){
   document.getElementById('logoutBtn').textContent='\uD83D\uDD13 Exit';
   showPage('clock'); renderWorkerGrid();
 }
+var _fbLogsListener=null;
+var _fbWorkersListener=null;
+
+function stopFirebaseListeners(){
+  if(_fbLogsListener){_fbLogsListener();_fbLogsListener=null;}
+  if(_fbWorkersListener){_fbWorkersListener();_fbWorkersListener=null;}
+  console.log("Firebase listeners stopped");
+}
+
+function startFirebaseListeners(companyId){
+  stopFirebaseListeners();
+  try{
+    // Real-time log listener
+    _fbLogsListener=db.collection("companies").doc(companyId)
+      .collection("logs")
+      .orderBy("clockIn","desc")
+      .limit(500)
+      .onSnapshot(function(snap){
+        var fbLogs=snap.docs.map(function(d){return d.data();});
+        var localLogs=JSON.parse(localStorage.getItem("eev_"+companyId+"_logs")||"[]");
+        // Merge: all Firebase logs + any local-only logs
+        var merged=fbLogs.slice();
+        localLogs.forEach(function(ll){
+          if(!merged.find(function(fl){return fl.id===ll.id;})) merged.push(ll);
+        });
+        merged.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
+        localStorage.setItem("eev_"+companyId+"_logs",JSON.stringify(merged));
+        logs=merged;
+        if(adminIn) renderLogs();
+        console.log("Logs live update:",merged.length,"records");
+      },function(e){console.warn("Log listener error:",e.message);});
+
+    // Real-time worker status listener
+    _fbWorkersListener=db.collection("companies").doc(companyId)
+      .collection("workers")
+      .onSnapshot(function(snap){
+        var fbWorkers=snap.docs.map(function(d){return d.data();});
+        if(!fbWorkers.length) return;
+        var localWorkers=JSON.parse(localStorage.getItem("eev_"+companyId+"_workers")||"[]");
+        var merged=fbWorkers.map(function(fw){
+          var lw=localWorkers.find(function(x){return x.id===fw.id;});
+          return Object.assign({},fw,{
+            photoURL:fw.photoURL||(lw?lw.photoURL:null),
+            descriptor:fw.descriptor||(lw?lw.descriptor:null)
+          });
+        });
+        localStorage.setItem("eev_"+companyId+"_workers",JSON.stringify(merged));
+        workers=merged;
+        if(adminIn){renderWorkerGrid();renderWorkersList();}
+        console.log("Workers live update:",merged.length,"workers");
+      },function(e){console.warn("Worker listener error:",e.message);});
+    console.log("Firebase real-time listeners started for",companyId);
+  }catch(e){
+    console.warn("Could not start Firebase listeners:",e.message);
+  }
+}
+
 function enterAdminMode(co){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
+  // Start real-time Firebase listeners for live updates
+  startFirebaseListeners(co.id);
   document.getElementById('companyScreen').classList.add('hidden');
   document.getElementById('setPwScreen').classList.remove('open');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
@@ -1060,6 +1222,92 @@ function enterAdminMode(co){
   renderWorkerSelects(); renderLSList();
 }
 function enterCompanyApp(co){ enterWorkerMode(co); }
+async function pushAllLocalDataToFirebase(){
+  var allKeys=Object.keys(localStorage);
+  var coList=JSON.parse(localStorage.getItem("eev_companies")||"[]");
+
+  // Debug: show what we found
+  console.log("localStorage keys:",allKeys);
+  console.log("Companies found:",coList.length,coList.map(function(x){return x.id;}));
+
+  if(!coList.length){
+    // Show all localStorage keys to help debug
+    var keyStr=allKeys.filter(function(k){return k.startsWith("eev_");}).join(", ");
+    showToast("No companies in localStorage. Keys found: "+(keyStr||"none"),"error");
+    alert("Debug info:\nTotal localStorage keys: "+allKeys.length+"\nEEV keys: "+(keyStr||"none")+"\n\nIf you see company keys here, the company list key may be different.");
+    return;
+  }
+
+  showToast("Pushing "+coList.length+" compan"+(coList.length===1?"y":"ies")+" to cloud...","");
+
+  var results=[];
+  for(var co of coList){
+    try{
+      // Step 1: Save company document
+      await db.collection("companies").doc(co.id).set({
+        id:co.id,
+        name:co.name||"",
+        password:co.password||"",
+        workerPin:co.workerPin||"1234",
+        mustChangePw:co.mustChangePw||false,
+        trialDays:co.trialDays||30,
+        createdAt:co.createdAt||new Date().toISOString()
+      });
+      console.log("Saved company:",co.id);
+
+      // Step 2: Workers
+      var wList=JSON.parse(localStorage.getItem("eev_"+co.id+"_workers")||"[]");
+      console.log("Workers for",co.id,":",wList.length);
+      for(var w of wList){
+        await db.collection("companies").doc(co.id).collection("workers").doc(w.id).set({
+          id:w.id,
+          name:w.name||"",
+          title:w.title||"",
+          rate:w.rate||0,
+          overtimeRate:w.overtimeRate||w.rate||0,
+          clockedIn:w.clockedIn||false,
+          clockInTime:w.clockInTime||null,
+          descriptor:w.descriptor||null,
+          photoURL:w.photoURL||null
+        });
+      }
+
+      // Step 3: Logs (batched)
+      var lList=JSON.parse(localStorage.getItem("eev_"+co.id+"_logs")||"[]");
+      console.log("Logs for",co.id,":",lList.length);
+      if(lList.length){
+        var b=db.batch(),cnt=0;
+        for(var l of lList){
+          b.set(db.collection("companies").doc(co.id).collection("logs").doc(l.id),l);
+          cnt++;
+          if(cnt>=400){await b.commit();b=db.batch();cnt=0;}
+        }
+        if(cnt>0) await b.commit();
+      }
+
+      // Step 4: Payments
+      var pay=JSON.parse(localStorage.getItem("eev_"+co.id+"_payments")||"{}");
+      await db.collection("companies").doc(co.id).collection("settings").doc("payments").set({data:JSON.stringify(pay)});
+
+      // Step 5: Subscription
+      var sub=JSON.parse(localStorage.getItem("eev_sub_"+co.id)||"null");
+      if(sub) await db.collection("companies").doc(co.id).collection("settings").doc("subscription").set(sub);
+
+      results.push(co.id+": OK ("+wList.length+" workers, "+lList.length+" logs)");
+    }catch(e){
+      console.error("Push failed for",co.id,":",e);
+      results.push(co.id+": FAILED - "+e.message);
+      showToast("Push failed for "+co.id+": "+e.message,"error");
+      // Show alert with details
+      alert("Firebase push error for "+co.id+":\n"+e.message+"\n\nPlease check Firebase Console > Firestore > Rules and make sure test mode is enabled.");
+      return;
+    }
+  }
+  showToast("Cloud push complete! "+results.join(" | "),"success");
+  alert("Push complete!\n"+results.join("\n"));
+  renderSuperAdmin();
+}
+
 function initSuperAdminUI(){
   document.getElementById('publicTabs').style.display='none';
   document.getElementById('adminTabs').style.display='flex';
@@ -1135,6 +1383,7 @@ function showExpiredLogin(){
   doLogout();
 }
 function doLogout(){
+  stopFirebaseListeners();
   adminIn=false; isSuperAdmin=false;
   document.getElementById('adminTabs').style.display='none';
   document.getElementById('publicTabs').style.display='none';
@@ -1536,8 +1785,10 @@ function openReCaptureFace(){
 function initClockAction(workerId, action){
   const ts=getTrialStatus();
   if(ts.status==='expired'){checkExpired();return;}
-  const w=workers.find(x=>x.id===workerId);
+  var w=workers.find(function(x){return x.id===workerId;});
   if(!w){showToast('Worker not found','error');return;}
+  // Ensure descriptor is Float32Array for face-api comparison
+  if(w.descriptor&&Array.isArray(w.descriptor)) w=Object.assign({},w,{descriptor:new Float32Array(w.descriptor)});
   clockWorkerTarget=w; clockAction=action; faceMode='clock';
   document.getElementById('faceTitle').textContent=(action==='in'?'Clock In':'Clock Out')+': '+w.name;
   document.getElementById('faceSub').textContent='Look at camera to verify identity';
@@ -1629,7 +1880,7 @@ async function captureFace(){
   const opts=new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4});
   const det=await faceapi.detectSingleFace(video,opts).withFaceLandmarks(true).withFaceDescriptor();
   if(!det){showToast('No face detected \u2014 try again','error');return;}
-  capturedDescriptor=Array.from(det.descriptor);
+  capturedDescriptor=Array.from(det.descriptor); // plain array for Firebase storage
   const canvas=document.createElement('canvas');
   canvas.width=video.videoWidth; canvas.height=video.videoHeight;
   canvas.getContext('2d').drawImage(video,0,0);
@@ -1643,7 +1894,7 @@ async function captureFace(){
   else if(faceMode==='clock'){ processClockAction(det.descriptor); }
 }
 function processRegister(descriptor){
-  capturedDescriptor=Array.from(descriptor);
+  capturedDescriptor=Array.from(descriptor); // Store as plain array for Firebase
   document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128247;</div><div class="rm">Face captured!</div><div class="rd">Tap Register to save this worker.</div></div>';
   showFaceBtns({cancel:true,capture:false,register:true,tryAgain:false,done:false});
 }
@@ -1680,36 +1931,47 @@ function completeRegister(){
   showToast(name+' registered ✓','success');
 }
 function processClockAction(descriptor){
-  const threshold=0.52;
+  const threshold=0.62;
   let best=null,bestDist=999;
-  workers.forEach(w=>{
+  workers.forEach(function(w){
     if(!w.descriptor) return;
-    const dist=faceapi.euclideanDistance(descriptor,w.descriptor);
-    if(dist<bestDist){bestDist=dist;best=w;}
+    // Firebase stores descriptor as plain array — convert to Float32Array for face-api
+    var desc=w.descriptor;
+    if(Array.isArray(desc)) desc=new Float32Array(desc);
+    try{
+      var dist=faceapi.euclideanDistance(descriptor,desc);
+      if(dist<bestDist){bestDist=dist;best=w;}
+    }catch(e){console.warn("Distance calc error for",w.name,e.message);}
   });
-  if(!best||bestDist>threshold){
-    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Face not recognised</div><div class="rd">Score: '+(bestDist<999?bestDist.toFixed(3):'—')+'</div></div>';
+  // For single-worker company, be more lenient (threshold 0.75)
+  var effectiveThreshold = workers.filter(function(w){return w.descriptor;}).length===1 ? 0.75 : threshold;
+  if(!best||bestDist>effectiveThreshold){
+    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Face not recognised</div><div class="rd">Score: '+(bestDist<999?bestDist.toFixed(3):'—')+' (need below '+effectiveThreshold.toFixed(2)+')<br>'+(best?'Best match: '+best.name:'No face data found')+'</div></div>';
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
-  if(best.id!==clockWorkerTarget.id){
-    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Detected: '+best.name+'</div></div>';
+  // Match by name OR id (Firebase may have different id format than local)
+  var isMatch = best.id===clockWorkerTarget.id || 
+                best.name.toLowerCase()===clockWorkerTarget.name.toLowerCase();
+  if(!isMatch){
+    document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Detected: '+best.name+' (score: '+bestDist.toFixed(3)+')<br>Expected: '+clockWorkerTarget.name+'</div></div>';
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
-  completeClockAction(best);
+  // Use clockWorkerTarget for the clock action (has correct local data)
+  completeClockAction(clockWorkerTarget);
 }
 function completeClockAction(wIn){
   let w=wIn; const now=new Date();
   if(clockAction==='in'){
     const rounded=applyClockInRounding(now);
     const wasRounded=rounded.getTime()!==now.getTime();
-    // Reload to get fresh array reference, then find and update the worker
-    loadCompanyData();
-    const wFresh=workers.find(function(x){return x.id===w.id;});
-    const ww=wFresh||w;
-    ww.clockedIn=true; ww.clockInTime=rounded.toISOString();
-    w=ww;
+    // Update worker in memory
+    w.clockedIn=true; w.clockInTime=rounded.toISOString();
+    // Also update in workers array if present
+    var wIdx=workers.findIndex(function(x){return x.id===w.id||x.name===w.name;});
+    if(wIdx>=0){workers[wIdx].clockedIn=true;workers[wIdx].clockInTime=rounded.toISOString();}
+    else{workers.push(w);}
     const timeStr=rounded.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
     const note=wasRounded?' <span style="font-size:0.65rem;color:#FDBA74;">(rounded from '+now.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+')</span>':'';
     document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128994;</div><div class="rm">Clocked In: '+w.name+'</div><div class="rd">'+timeStr+note+'</div></div>';
@@ -1717,9 +1979,8 @@ function completeClockAction(wIn){
     const rawOut=now;
     const rounded=applyClockOutRounding(rawOut);
     const wasRounded=rounded.getTime()!==rawOut.getTime();
-    // Reload fresh worker reference to avoid stale object bug
-    loadCompanyData();
-    const wFreshOut=workers.find(function(x){return x.id===w.id;});
+    // Find worker in memory array (match by id or name)
+    var wFreshOut=workers.find(function(x){return x.id===w.id||x.name===w.name;});
     if(wFreshOut) w=wFreshOut;
     if(!w.clockInTime){
       document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#9888;</div><div class="rm">No clock-in found</div><div class="rd">This worker has no recorded clock-in time. Please ask Admin to add a manual entry.</div></div>';
@@ -1763,7 +2024,30 @@ function completeClockAction(wIn){
     const otNote=otHrs>0?' &nbsp;&#183;&nbsp; OT: '+fmtHours(otHrs):'';
     document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128308;</div><div class="rm">Clocked Out: '+w.name+'</div><div class="rd">'+timeStr+note+'<br>'+fmtHours(hrs)+otNote+' &nbsp;&#183;&nbsp; '+fmtMoney(wage)+'</div></div>';
   }
-  saveCompanyData();
+  // Save to localStorage
+  localStorage.setItem('eev_'+currentCompanyId+'_workers', JSON.stringify(workers));
+  localStorage.setItem('eev_'+currentCompanyId+'_logs', JSON.stringify(logs));
+  // Push DIRECTLY to Firebase regardless of local state
+  if(currentCompanyId&&currentCompanyId!=='__SA__'){
+    var ll=logs.length?logs[logs.length-1]:null;
+    if(ll){
+      db.collection("companies").doc(currentCompanyId).collection("logs").doc(ll.id)
+        .set(ll)
+        .then(function(){console.log("Log pushed to Firebase:",ll.id);})
+        .catch(function(e){console.error("Log push failed:",e.message);});
+    }
+    db.collection("companies").doc(currentCompanyId).collection("workers").doc(w.id)
+      .set({
+        id:w.id,name:w.name,title:w.title||"",rate:w.rate||0,
+        overtimeRate:w.overtimeRate||w.rate||0,
+        clockedIn:w.clockedIn||false,
+        clockInTime:w.clockInTime||null,
+        descriptor:w.descriptor||null,
+        photoURL:w.photoURL||null
+      },{merge:true})
+      .then(function(){console.log("Worker status pushed:",w.name,w.clockedIn);})
+      .catch(function(e){console.error("Worker push failed:",e.message);});
+  }
   renderWorkerGrid();
   showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
 }
@@ -1841,6 +2125,11 @@ function deleteWorker(id){
 // LOGS
 // ═══════════════════════════════════════
 function fmtMoney(n){ return 'R'+Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtHoursMin(h){
+  var hrs=Math.floor(h);
+  var min=Math.round((h-hrs)*60);
+  return hrs+'h '+(min<10?'0':'')+min+'m';
+}
 function fmtHours(h){ const hr=Math.floor(h),mn=Math.round((h-hr)*60); return hr+'h '+(mn<10?'0':'')+mn+'m'; }
 function getFilteredLogs(){
   let data=[...getViewLogs()];
@@ -2666,7 +2955,11 @@ function paymentKey(){return cKey('payments');}
 function loadArchives(){if(!currentCompanyId||currentCompanyId==='__SA__') return [];return JSON.parse(localStorage.getItem(archiveKey())||'[]');}
 function saveArchives(a){localStorage.setItem(archiveKey(),JSON.stringify(a));}
 function loadPayments(){if(!currentCompanyId||currentCompanyId==='__SA__') return {};return JSON.parse(localStorage.getItem(paymentKey())||'{}'  );}
-function savePayments(p){localStorage.setItem(paymentKey(),JSON.stringify(p));}
+function savePayments(p){
+  localStorage.setItem(paymentKey(),JSON.stringify(p));
+  if(currentCompanyId&&currentCompanyId!=='__SA__')
+    fbSavePayments(currentCompanyId,p).catch(function(e){console.warn("fbSavePayments:",e.message);});
+}
 function getViewLogs(){if(!_viewingArchive) return logs;var a=loadArchives().find(function(x){return x.id===_viewingArchive;});return a?a.logs:[];}
 function populatePeriodDropdown(){
   var sel=document.getElementById('periodSelect');if(!sel) return;
@@ -2946,6 +3239,209 @@ function populateQRCompanySelect(){
   if(!sel) return;
   sel.innerHTML='<option value="">-- Choose company --</option>'+companies.map(function(co){return '<option value="'+co.id+'">'+(co.name||co.id)+' ('+co.id+')</option>';}).join('');
 }
+// ═══════════════════════════════════════
+// FIREBASE CONFIG & SYNC
+// ═══════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyC2653Xzy1BLaU6D2cqov5ENAaLk3IH9xI",
+  authDomain: "timeclock-pro-bb3a7.firebaseapp.com",
+  projectId: "timeclock-pro-bb3a7",
+  storageBucket: "timeclock-pro-bb3a7.firebasestorage.app",
+  messagingSenderId: "945550082849",
+  appId: "1:945550082849:web:37f0492dbbd7f0d70ff460"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Firestore collections:
+// companies/{companyId} — company record
+// companies/{companyId}/workers/{workerId} — workers
+// companies/{companyId}/logs/{logId} — attendance logs
+// companies/{companyId}/payments/{paymentId} — payments
+// companies/{companyId}/settings — schedule, ls, archives
+
+// ── Firebase sync helpers ─────────────────────────────────────────────────────
+var _fbSyncing = false;
+
+async function fbSaveCompanies(){
+  try{
+    var companies = JSON.parse(localStorage.getItem('eev_companies')||'[]');
+    for(var co of companies){
+      await db.collection('companies').doc(co.id).set({
+        id:co.id, name:co.name, password:co.password, workerPin:co.workerPin||'1234',
+        mustChangePw:co.mustChangePw||false, trialDays:co.trialDays||30,
+        createdAt:co.createdAt||new Date().toISOString()
+      },{merge:true});
+    }
+  }catch(e){console.warn('fbSaveCompanies:',e.message);}
+}
+
+async function fbLoadCompanies(){
+  try{
+    var snap = await db.collection('companies').get();
+    var fbCos = snap.docs.map(function(d){return d.data();}).filter(function(co){return co.id&&co.name;});
+    var localCos = JSON.parse(localStorage.getItem('eev_companies')||'[]');
+    // Only use Firebase data if it has valid companies
+    if(fbCos.length>0){
+      // Merge: Firebase is source of truth for company settings, but keep local if Firebase is empty
+      var merged = fbCos.map(function(fc){
+        var lc = localCos.find(function(l){return l.id===fc.id;});
+        return lc ? Object.assign({},fc,{password:lc.password,workerPin:lc.workerPin||fc.workerPin}) : fc;
+      });
+      // Add any local companies not in Firebase yet
+      localCos.forEach(function(lc){
+        if(!merged.find(function(m){return m.id===lc.id;})) merged.push(lc);
+      });
+      localStorage.setItem('eev_companies', JSON.stringify(merged));
+      return merged;
+    }
+    return localCos.length ? localCos : [];
+  }catch(e){console.warn('fbLoadCompanies:',e.message);return null;}
+}
+
+async function fbSaveWorkers(companyId, workers){
+  try{
+    var batch = db.batch();
+    var existing = await db.collection('companies').doc(companyId).collection('workers').get();
+    existing.docs.forEach(function(d){batch.delete(d.ref);});
+    workers.forEach(function(w){
+      var ref = db.collection('companies').doc(companyId).collection('workers').doc(w.id);
+      // Include descriptor (128 floats ~1KB) and photoURL for cross-device face recognition
+      batch.set(ref,{
+        id:w.id, name:w.name, title:w.title, rate:w.rate,
+        overtimeRate:w.overtimeRate||w.rate, clockedIn:w.clockedIn||false,
+        clockInTime:w.clockInTime||null,
+        descriptor:w.descriptor||null,
+        photoURL:w.photoURL||null
+      });
+    });
+    await batch.commit();
+  }catch(e){console.warn('fbSaveWorkers:',e.message);}
+}
+
+async function fbLoadWorkers(companyId){
+  try{
+    var snap = await db.collection('companies').doc(companyId).collection('workers').get();
+    return snap.docs.map(function(d){return d.data();});
+  }catch(e){console.warn('fbLoadWorkers:',e.message);return null;}
+}
+
+async function fbSaveLogs(companyId, logs){
+  try{
+    var batch = db.batch();
+    logs.slice(-500).forEach(function(l){ // last 500 logs
+      var ref = db.collection('companies').doc(companyId).collection('logs').doc(l.id);
+      batch.set(ref, l);
+    });
+    await batch.commit();
+  }catch(e){console.warn('fbSaveLogs:',e.message);}
+}
+
+async function fbLoadLogs(companyId){
+  try{
+    var snap = await db.collection('companies').doc(companyId).collection('logs')
+      .orderBy('clockIn','desc').limit(500).get();
+    return snap.docs.map(function(d){return d.data();});
+  }catch(e){console.warn('fbLoadLogs:',e.message);return null;}
+}
+
+async function fbSavePayments(companyId, payments){
+  try{
+    var ref = db.collection('companies').doc(companyId).collection('settings').doc('payments');
+    await ref.set({data: JSON.stringify(payments)});
+  }catch(e){console.warn('fbSavePayments:',e.message);}
+}
+
+async function fbLoadPayments(companyId){
+  try{
+    var doc = await db.collection('companies').doc(companyId).collection('settings').doc('payments').get();
+    return doc.exists ? JSON.parse(doc.data().data||'{}') : {};
+  }catch(e){console.warn('fbLoadPayments:',e.message);return null;}
+}
+
+async function fbSaveSubData(companyId, sub){
+  try{
+    await db.collection('companies').doc(companyId).collection('settings').doc('subscription').set(sub,{merge:true});
+  }catch(e){console.warn('fbSaveSubData:',e.message);}
+}
+
+async function fbLoadSubData(companyId){
+  try{
+    var doc = await db.collection('companies').doc(companyId).collection('settings').doc('subscription').get();
+    return doc.exists ? doc.data() : null;
+  }catch(e){console.warn('fbLoadSubData:',e.message);return null;}
+}
+
+// ── Full sync: push local data to Firebase ────────────────────────────────────
+async function syncToFirebase(){
+  if(!currentCompanyId||currentCompanyId==='__SA__') return;
+  if(_fbSyncing) return;
+  _fbSyncing=true;
+  try{
+    await fbSaveCompanies();
+    await fbSaveWorkers(currentCompanyId, workers);
+    await fbSaveLogs(currentCompanyId, logs);
+    await fbSavePayments(currentCompanyId, loadPayments());
+    var sub = getSubData(currentCompanyId);
+    if(sub) await fbSaveSubData(currentCompanyId, sub);
+  }finally{_fbSyncing=false;}
+}
+
+// ── Full sync: pull Firebase data to local ────────────────────────────────────
+async function syncFromFirebase(companyId){
+  try{
+    showToast('Syncing from cloud…','');
+    // Companies
+    var fbCos = await fbLoadCompanies();
+    if(fbCos&&fbCos.length) loadCompanies();
+
+    // Workers — Firebase now has face data, just load directly
+    var fbWorkers = await fbLoadWorkers(companyId);
+    var localWorkers = JSON.parse(localStorage.getItem('eev_'+companyId+'_workers')||'[]');
+    if(fbWorkers&&fbWorkers.length>=localWorkers.length){
+      localStorage.setItem('eev_'+companyId+'_workers', JSON.stringify(fbWorkers));
+    }
+
+    // Logs — only overwrite if Firebase has MORE logs
+    var fbLogs = await fbLoadLogs(companyId);
+    var localLogs = JSON.parse(localStorage.getItem('eev_'+companyId+'_logs')||'[]');
+    if(fbLogs&&fbLogs.length>=localLogs.length){
+      localStorage.setItem('eev_'+companyId+'_logs', JSON.stringify(fbLogs));
+    }
+
+    // Payments
+    var fbPay = await fbLoadPayments(companyId);
+    var localPay = JSON.parse(localStorage.getItem('eev_'+companyId+'_payments')||'null');
+    if(fbPay&&(!localPay||Object.keys(fbPay).length>=Object.keys(localPay).length)){
+      localStorage.setItem('eev_'+companyId+'_payments', JSON.stringify(fbPay));
+    }
+
+    // Sub data
+    var fbSub = await fbLoadSubData(companyId);
+    if(fbSub) localStorage.setItem('eev_sub_'+companyId, JSON.stringify(fbSub));
+
+    loadCompanyData();
+    showToast('Cloud sync complete ✓','success');
+    return true;
+  }catch(e){
+    console.warn('syncFromFirebase:',e.message);
+    showToast('Offline — using local data','');
+    return false;
+  }
+}
+
+// ── Override saveCompanyData to also sync to Firebase ─────────────────────────
+var _origSaveCompanyData = null; // placeholder — patched after load
+
+async function syncFromFirebaseAndRefresh(){
+  if(!currentCompanyId||currentCompanyId==='__SA__'){showToast('Log in as Admin first','error');return;}
+  var ok=await syncFromFirebase(currentCompanyId);
+  if(ok){
+    renderLogs();renderWorkersList();renderWorkerGrid();renderWorkerSelects();
+    renderPaymentsList();renderExport();populatePeriodDropdown();
+  }
+}
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();});
 window.addEventListener('load',function(){
   loadSASettings();
   loadCompanies();
