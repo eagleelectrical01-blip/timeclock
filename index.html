@@ -1592,17 +1592,28 @@ function registerNewCompany(){
 }
 function renderSuperAdminCompanyList(){
   loadCompanies();
-  const el=document.getElementById('saCompaniesList');
+  var el=document.getElementById('saCompaniesList');
   if(!companies.length){el.innerHTML='<div class="empty-state"><div class="icon">&#127970;</div><p>No companies registered yet.</p></div>';return;}
   el.innerHTML=companies.map(function(co){
-    const sub=getSubData(co.id);
-    const trialDays=co.trialDays||30;
+    var sub=getSubData(co.id);
+    var trialDays=co.trialDays||30;
     var tag;
-    if(sub&&sub.subscribed&&sub.subExpiry){const left=Math.ceil((new Date(sub.subExpiry)-new Date())/86400000);tag=left>0?'<span class="tag-active">Active &mdash; '+left+'d left</span>':'<span class="tag-expired">Expired</span>';}else if(sub){const elapsed=(new Date()-new Date(sub.trialStart))/86400000;const left=Math.ceil(trialDays-elapsed);tag=left>0?'<span class="tag-trial">Trial &mdash; '+left+'d left</span>':'<span class="tag-expired">Expired</span>';}else{tag='<span class="tag-expired">No data</span>';}
-    return '<div class="alr" style="flex-direction:column;align-items:flex-start;"><div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap;"><div class="alr-info"><div class="alr-name">'+co.name+' &nbsp;<code style="font-size:0.72rem;color:var(--orange);">'+co.id+'</code> '+tag+(co.mustChangePw?' <span style="font-size:0.64rem;color:#FDBA74;background:rgba(245,130,10,0.1);padding:2px 6px;border-radius:4px;">Temp PW</span>':'')+'</div><div class="alr-meta">Password: <code>'+co.password+'</code> &nbsp;&#183;&nbsp; PIN: <code>'+(co.workerPin||'1234')+'</code> &nbsp;&#183;&nbsp; Trial: '+trialDays+'d</div></div></div><div class="alr-btns" style="margin-top:8px;"><button class="btn-sm edit" onclick="saEditCompany(\''+co.id+'\')">&#9998; Edit</button><button class="btn-danger" onclick="saDeleteCompany(\''+co.id+'\')">Delete</button></div></div>';
+    if(sub&&sub.subscribed&&sub.subExpiry){var left=Math.ceil((new Date(sub.subExpiry)-new Date())/86400000);tag=left>0?'<span class="tag-active">Active &mdash; '+left+'d left</span>':'<span class="tag-expired">Expired</span>';}
+    else if(sub){var elapsed=(new Date()-new Date(sub.trialStart))/86400000;var left=Math.ceil(trialDays-elapsed);tag=left>0?'<span class="tag-trial">Trial &mdash; '+left+'d left</span>':'<span class="tag-expired">Expired</span>';}
+    else{tag='<span class="tag-expired">No data</span>';}
+    var tempPw=co.mustChangePw?'<span style="font-size:0.64rem;color:#FDBA74;background:rgba(245,130,10,0.1);padding:2px 6px;border-radius:4px;">Temp PW</span>':'';
+    return '<div class="alr" style="flex-direction:column;align-items:flex-start;">'
+      +'<div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap;">'
+      +'<div class="alr-info"><div class="alr-name">'+co.name+' &nbsp;<code style="font-size:0.72rem;color:var(--orange);">'+co.id+'</code> '+tag+' '+tempPw+'</div>'
+      +'<div class="alr-meta">Password: <code>'+co.password+'</code> &nbsp;&#183;&nbsp; PIN: <code>'+(co.workerPin||'1234')+'</code> &nbsp;&#183;&nbsp; Trial: '+trialDays+'d</div></div></div>'
+      +'<div class="alr-btns" style="margin-top:8px;">'
+      +'<button class="btn-sm edit" data-coid="'+co.id+'" data-action="editco">&#9998; Edit</button>'
+      +'<button class="btn-danger" data-coid="'+co.id+'" data-action="delco">Delete</button>'
+      +'</div></div>';
   }).join('');
+  el.querySelectorAll('[data-action="editco"]').forEach(function(b){b.addEventListener('click',function(){saEditCompany(this.dataset.coid);});});
+  el.querySelectorAll('[data-action="delco"]').forEach(function(b){b.addEventListener('click',function(){saDeleteCompany(this.dataset.coid);});});
 }
-
 function saActivateSub(id,months){
   const sub=getSubData(id)||{trialStart:new Date().toISOString()};
   sub.subscribed=true;
@@ -1836,6 +1847,7 @@ function handleFaceDone(){
   if(adminIn){closeFaceModal();}else{workerDone();}
 }
 function resetFaceModal(){
+  _autoCaptureDone=false;
   document.getElementById('snapPreview').style.display='none';
   document.getElementById('faceResult').innerHTML='';
   showFaceBtns({cancel:true,capture:true,register:false,tryAgain:false,done:false});
@@ -1855,26 +1867,38 @@ function stopCamera(){
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
   const v=document.getElementById('camVideo'); v.srcObject=null;
 }
+var _autoCaptureDone=false;
 function startDetectLoop(){
   const video=document.getElementById('camVideo');
   const canvas=document.getElementById('camCanvas');
   const oval=document.getElementById('faceOval');
   const statusTxt=document.getElementById('faceStatusTxt');
+  _autoCaptureDone=false;
   if(detectInterval) clearInterval(detectInterval);
-  detectInterval=setInterval(async()=>{
+  detectInterval=setInterval(async function(){
     if(!faceModelsLoaded||!stream) return;
-    const opts=new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4});
-    const det=await faceapi.detectSingleFace(video,opts);
+    if(_autoCaptureDone) return;
+    var opts=new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4});
+    var det=await faceapi.detectSingleFace(video,opts);
     canvas.width=video.videoWidth; canvas.height=video.videoHeight;
-    const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+    var ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
     if(det){
       oval.style.borderColor='rgba(45,198,83,0.9)';
-      statusTxt.textContent='Face detected \u2014 tap Capture';
+      if(faceMode==='clock'){
+        // Auto-capture in clock mode
+        _autoCaptureDone=true;
+        if(detectInterval){clearInterval(detectInterval);detectInterval=null;}
+        statusTxt.textContent='Verifying...';
+        captureFace();
+      } else {
+        statusTxt.textContent='Face detected \u2014 tap Capture';
+      }
     } else {
       oval.style.borderColor='rgba(245,130,10,0.7)';
       statusTxt.textContent='Detecting face...';
+      _autoCaptureDone=false;
     }
-  },300);
+  },400);
 }
 async function captureFace(){
   const video=document.getElementById('camVideo');
@@ -2070,15 +2094,28 @@ function renderWorkerGrid(){
   if(!workers.length){ el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers added yet.<br>Contact your admin to add workers.</p></div>'; return; }
   const ts=getTrialStatus();
   const expired=ts.status==='expired';
-  el.innerHTML=workers.map(w=>{
-    const since=w.clockedIn&&w.clockInTime?timeSince(w.clockInTime):'Not clocked in';
-    return '<div class="worker-card '+(w.clockedIn?'clocked-in':'')+'">'+(w.photoURL?'<img src="'+w.photoURL+'" class="w-avatar-img" style="'+(w.clockedIn?'border-color:var(--green)':'')+'">':'<div class="w-avatar-ph" style="'+(w.clockedIn?'border-color:var(--green);':'')+'">'+initials(w.name)+'</div>')+'<div class="wi"><div class="wn">'+w.name+'</div><div class="wr">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr</div><div class="ws '+(w.clockedIn?'in':'out')+'">'+(w.clockedIn?'&#128994; '+since:'&#9898; '+since)+'</div></div><button class="cbtn '+(w.clockedIn?'out':'in')+'" onclick="initClockAction(\''+w.id+'\',\''+(w.clockedIn?'out':'in')+'\')" '+(expired?'disabled':'')+'>'+  (w.clockedIn?'Clock Out':'Clock In')+'</button></div>';
+  el.innerHTML=workers.map(function(w){
+    var since=w.clockedIn&&w.clockInTime?timeSince(w.clockInTime):'Not clocked in';
+    var act=w.clockedIn?'out':'in';
+    return '<div class="worker-card '+(w.clockedIn?'clocked-in':'')+'">'+(w.photoURL?'<img src="'+w.photoURL+'" class="w-avatar-img" style="'+(w.clockedIn?'border-color:var(--green)':'')+'">':'<div class="w-avatar-ph" style="'+(w.clockedIn?'border-color:var(--green);':'')+'">'+initials(w.name)+'</div>')+'<div class="wi"><div class="wn">'+w.name+'</div><div class="wr">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr</div><div class="ws '+(w.clockedIn?'in':'out')+'">'+(w.clockedIn?'&#128994; '+since:'&#9898; '+since)+'</div></div><button class="cbtn '+act+'" data-wid="'+w.id+'" data-act="'+act+'" '+(expired?'disabled':'')+'>'+( w.clockedIn?'Clock Out':'Clock In')+'</button></div>';
   }).join('');
+  el.querySelectorAll('.cbtn').forEach(function(b){b.addEventListener('click',function(){if(!this.disabled) initClockAction(this.dataset.wid,this.dataset.act);});});
 }
 function renderWorkersList(){
   const el=document.getElementById('workersList');
   if(!workers.length){ el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers registered yet.</p></div>'; return; }
-  el.innerHTML=workers.map(w=>'<div class="wlc">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--green);">':'<div class="w-avatar-ph" style="width:40px;height:40px;font-size:0.9rem;">'+initials(w.name)+'</div>')+'<div class="info"><div class="nm">'+w.name+'</div><div class="mt">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr &middot; OT: '+fmtMoney(w.overtimeRate||w.rate*1.5)+'/hr</div></div><div style="display:flex;gap:6px;"><button class="btn-sm edit" onclick="openEditWorker(\''+w.id+'\')">Edit</button><button class="btn-danger" onclick="deleteWorker(\''+w.id+'\')">Delete</button></div></div>').join('');
+  el.innerHTML=workers.map(function(w){
+    return '<div class="wlc">'
+      +(w.photoURL?'<img src="'+w.photoURL+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--green);">':'<div class="w-avatar-ph" style="width:40px;height:40px;font-size:0.9rem;">'+initials(w.name)+'</div>')
+      +'<div class="info"><div class="nm">'+w.name+(w.clockedIn?' <span class="tag-active">In</span>':'')+'</div>'
+      +'<div class="mt">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr &middot; OT: '+fmtMoney(w.overtimeRate||w.rate*1.5)+'/hr</div></div>'
+      +'<div style="display:flex;gap:6px;">'
+      +'<button class="btn-sm edit" data-wid="'+w.id+'" data-action="editw">&#9998; Edit</button>'
+      +'<button class="btn-danger" data-wid="'+w.id+'" data-action="delw">&#215;</button>'
+      +'</div></div>';
+  }).join('');
+  el.querySelectorAll('[data-action="editw"]').forEach(function(b){b.addEventListener('click',function(){openEditWorker(this.dataset.wid);});});
+  el.querySelectorAll('[data-action="delw"]').forEach(function(b){b.addEventListener('click',function(){deleteWorker(this.dataset.wid);});});
 }
 function renderWorkerSelects(){
   const selects=['filterWorker','manWorker','lsWorker','payWorker'];
@@ -2173,7 +2210,7 @@ function renderLogs(){
       +'<td class="mono">—</td>'
       +'<td class="mono">—</td>'
       +'<td><span class="badge in">Active</span></td>'
-      +'<td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditActiveLog(\''+w.id+'\')" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="clearActiveClockIn(\''+w.id+'\')">×</button></td>'
+      +'<td style="white-space:nowrap;"><button class="btn-sm edit" data-wid="'+w.id+'" data-action="editactive" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" data-wid="'+w.id+'" data-action="clearactive">×</button></td>'
       +'</tr>';
   }).join('');
   if(!data.length&&!activeRows){body.innerHTML='<tr><td colspan="9" class="no-records">No records found</td></tr>';document.getElementById('logTotals').innerHTML='';return;}
@@ -2740,8 +2777,10 @@ function renderSALogs(){
     var din=new Date(l.clockIn),dout=l.clockOut?new Date(l.clockOut):null;
     var complete=!!l.clockOut;
     var otHrs=l.overtimeHours||0;
-    return '<tr><td>'+l.workerName+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono">'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'Active')+'</td><td class="mono">'+(complete?fmtHours(l.hoursWorked):'—')+'</td><td class="mono" style="color:'+(otHrs>0?'var(--orange)':'var(--muted)')+'">'+(complete&&otHrs>0?fmtHours(otHrs):'—')+'</td><td class="mono green">'+(complete?fmtMoney(l.wage):'—')+'</td><td><span class="badge '+(complete?'complete':'in')+'">'+(complete?'Done':'Active')+'</span></td><td style="white-space:nowrap;"><button class="btn-sm edit" onclick="saEditLog(\''+l.id+'\')" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="saDeleteLog(\''+l.id+'\')">×</button></td></tr>';
+    return '<tr><td>'+l.workerName+'</td><td>'+din.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+'</td><td class="mono">'+din.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+'</td><td class="mono">'+(dout?dout.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'Active')+'</td><td class="mono">'+(complete?fmtHours(l.hoursWorked):'—')+'</td><td class="mono" style="color:'+(otHrs>0?'var(--orange)':'var(--muted)')+'">'+(complete&&otHrs>0?fmtHours(otHrs):'—')+'</td><td class="mono green">'+(complete?fmtMoney(l.wage):'—')+'</td><td><span class="badge '+(complete?'complete':'in')+'">'+(complete?'Done':'Active')+'</span></td><td style="white-space:nowrap;"><button class="btn-sm edit" data-lid="'+l.id+'" data-action="editsl" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" data-lid="'+l.id+'" data-action="delsl">×</button></td></tr>';
   }).join('');
+  var slBody=document.getElementById('saLogBody');
+  if(slBody){slBody.querySelectorAll('[data-action="editsl"]').forEach(function(b){b.addEventListener('click',function(){saEditLog(this.dataset.lid);});});slBody.querySelectorAll('[data-action="delsl"]').forEach(function(b){b.addEventListener('click',function(){saDeleteLog(this.dataset.lid);});});}
   var totals=data.filter(function(l){return l.clockOut;});
   var tot=document.getElementById('saLogTotals');
   if(!totals.length){tot.innerHTML='';return;}
@@ -2785,7 +2824,10 @@ function renderSAWorkers(){
   var d=getSACoData();
   var el=document.getElementById('saWorkersList2');
   if(!d.workers.length){el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers registered.</p></div>';return;}
-  el.innerHTML=d.workers.map(function(w){return '<div class="wlc">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--green);">':'<div class="w-avatar-ph" style="width:40px;height:40px;font-size:0.9rem;">'+initials(w.name)+'</div>')+'<div class="info"><div class="nm">'+w.name+(w.clockedIn?' <span class="tag-active">In</span>':'')+'</div><div class="mt">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr</div></div><div style="display:flex;gap:6px;"><button class="btn-sm edit" onclick="saEditWorker(\''+w.id+'\')">✎ Edit</button><button class="btn-danger" onclick="saDeleteWorker2(\''+w.id+'\')">×</button></div></div>';}).join('');
+  var saWHtml=d.workers.map(function(w){return '<div class="wlc">'+(w.photoURL?'<img src="'+w.photoURL+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--green);">':'<div class="w-avatar-ph" style="width:40px;height:40px;font-size:0.9rem;">'+initials(w.name)+'</div>')+'<div class="info"><div class="nm">'+w.name+(w.clockedIn?' <span class="tag-active">In</span>':'')+'</div><div class="mt">'+w.title+' &middot; '+fmtMoney(w.rate)+'/hr</div></div><div style="display:flex;gap:6px;"><button class="btn-sm edit" data-wid="'+w.id+'" data-action="saw">✎ Edit</button><button class="btn-danger" data-wid="'+w.id+'" data-action="sdw">×</button></div></div>';}).join('');
+  el.innerHTML=saWHtml;
+  el.querySelectorAll('[data-action="saw"]').forEach(function(b){b.addEventListener('click',function(){saEditWorker(this.dataset.wid);});});
+  el.querySelectorAll('[data-action="sdw"]').forEach(function(b){b.addEventListener('click',function(){saDeleteWorker2(this.dataset.wid);});});
 }
 
 function saOpenRegisterFace(){
