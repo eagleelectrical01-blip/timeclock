@@ -1791,8 +1791,10 @@ function initClockAction(workerId, action){
   if(w.descriptor&&Array.isArray(w.descriptor)) w=Object.assign({},w,{descriptor:new Float32Array(w.descriptor)});
   clockWorkerTarget=w; clockAction=action; faceMode='clock';
   document.getElementById('faceTitle').textContent=(action==='in'?'Clock In':'Clock Out')+': '+w.name;
-  document.getElementById('faceSub').textContent='Look at camera to verify identity';
+  document.getElementById('faceSub').textContent='Hold still — auto-detecting your face';
   resetFaceModal(); openFaceModal();
+  // Hide Capture button in clock mode - auto-captures when face detected
+  document.getElementById('capBtn').style.display='none';
 }
 function openFaceModal(){
   document.getElementById('faceModal').classList.add('open');
@@ -2050,6 +2052,8 @@ function completeClockAction(wIn){
   }
   renderWorkerGrid();
   showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
+  // Auto-proceed to goodbye after 2.5 seconds
+  setTimeout(function(){if(typeof handleFaceDone==='function') handleFaceDone();},2500);
 }
 
 // ═══════════════════════════════════════
