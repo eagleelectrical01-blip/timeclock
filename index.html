@@ -655,6 +655,15 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     </div>
     <div class="divider"></div>
     <div class="admin-section">
+      <div class="admin-section-title">&#9729;&#65039; First Time Setup</div>
+      <div class="card">
+        <h3>&#11014; Push All Data to Cloud</h3>
+        <p>Press this once to push all your companies, workers and logs to Firebase so staff phones can find them.</p>
+        <button class="btn btn-green" onclick="pushAllLocalDataToFirebase()" style="width:100%;padding:11px;">&#11014; Push All Data to Cloud Now</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="admin-section">
       <div class="admin-section-title">&#127970; Register New Company</div>
       <div class="card">
         <div class="form-row">
@@ -937,7 +946,19 @@ function workerLoginFlow(){
   if(!code){showToast('Enter your company code first','error');return;}
   loadCompanies();
   const co=companies.find(c=>c.id===code);
-  if(!co){showToast('Company code not found','error');return;}
+  if(!co){
+    showToast('Checking cloud...','');
+    db.collection("companies").doc(code).get().then(function(doc){
+      if(doc.exists&&doc.data()&&doc.data().id){
+        companies.push(doc.data());
+        localStorage.setItem('eev_companies',JSON.stringify(companies));
+        currentCompanyId=code;
+        document.getElementById('workerPinInput').value="";
+        document.getElementById('workerPinScreen').style.display="flex";
+      }else{showToast('Company code not found','error');}
+    }).catch(function(e){showToast('Cannot reach cloud: '+e.message,'error');});
+    return;
+  }
   currentCompanyId=code;
   document.getElementById('workerPinInput').value='';
   document.getElementById('workerPinScreen').style.display='flex';
@@ -947,7 +968,19 @@ function adminLoginFlow(){
   if(!code){showToast('Enter your company code first','error');return;}
   loadCompanies();
   const co=companies.find(c=>c.id===code);
-  if(!co){showToast('Company code not found','error');return;}
+  if(!co){
+    showToast('Checking cloud...','');
+    db.collection("companies").doc(code).get().then(function(doc){
+      if(doc.exists&&doc.data()&&doc.data().id){
+        companies.push(doc.data());
+        localStorage.setItem('eev_companies',JSON.stringify(companies));
+        currentCompanyId=code;
+        document.getElementById('workerPinInput').value="";
+        document.getElementById('workerPinScreen').style.display="flex";
+      }else{showToast('Company code not found','error');}
+    }).catch(function(e){showToast('Cannot reach cloud: '+e.message,'error');});
+    return;
+  }
   currentCompanyId=code;
   if(co.mustChangePw){
     document.getElementById('companyScreen').classList.add('hidden');
@@ -3104,6 +3137,32 @@ function startFirebaseListeners(companyId){
 function stopFirebaseListeners(){
   if(_fbLL){_fbLL();_fbLL=null;}
   if(_fbWL){_fbWL();_fbWL=null;}
+}
+
+async function pushAllLocalDataToFirebase(){
+  var coList=JSON.parse(localStorage.getItem("eev_companies")||"[]");
+  if(!coList.length){showToast("No companies found — register a company first","error");return;}
+  showToast("Pushing to cloud...","");
+  var results=[];
+  for(var co of coList){
+    try{
+      await db.collection("companies").doc(co.id).set({id:co.id,name:co.name||"",password:co.password||"",workerPin:co.workerPin||"1234",mustChangePw:co.mustChangePw||false,trialDays:co.trialDays||30,createdAt:co.createdAt||new Date().toISOString()});
+      var wList=JSON.parse(localStorage.getItem("eev_"+co.id+"_workers")||"[]");
+      for(var w of wList){
+        await db.collection("companies").doc(co.id).collection("workers").doc(w.id).set({id:w.id,name:w.name||"",title:w.title||"",rate:w.rate||0,overtimeRate:w.overtimeRate||w.rate||0,clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null,descriptor:w.descriptor||null,photoURL:w.photoURL||null});
+      }
+      var lList=JSON.parse(localStorage.getItem("eev_"+co.id+"_logs")||"[]");
+      var b=db.batch(),cnt=0;
+      for(var l of lList){b.set(db.collection("companies").doc(co.id).collection("logs").doc(l.id),l);cnt++;if(cnt>=400){await b.commit();b=db.batch();cnt=0;}}
+      if(cnt>0) await b.commit();
+      results.push(co.name+": OK ("+wList.length+" workers, "+lList.length+" logs)");
+    }catch(e){
+      showToast("Push failed: "+e.message,"error");
+      alert("Firebase error:\n"+e.message+"\n\nMake sure Firebase Firestore Rules are set to test mode."); return;
+    }
+  }
+  showToast("Done! "+results.join(" | "),"success");
+  alert("Push complete!\n"+results.join("\n"));
 }
 
 window.addEventListener('load',function(){
