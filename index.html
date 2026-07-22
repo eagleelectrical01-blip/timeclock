@@ -1009,7 +1009,32 @@ function submitWorkerPin(){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
-  loadJobSiteFromFirebase(currentCompanyId).then(function(){showWorkerStep2();}).catch(function(){loadJobSite();showWorkerStep2();});
+  // Fetch workers from Firebase (needed on other phones)
+  showToast('Loading...','');
+  var coId=currentCompanyId;
+  Promise.all([
+    db.collection("companies").doc(coId).collection("workers").get(),
+    loadJobSiteFromFirebase(coId)
+  ]).then(function(results){
+    var snap=results[0];
+    if(!snap.empty){
+      var fbWorkers=snap.docs.map(function(d){return d.data();});
+      // Merge face data from local into Firebase workers
+      var local=JSON.parse(localStorage.getItem("eev_"+coId+"_workers")||"[]");
+      var merged=fbWorkers.map(function(fw){
+        var lw=local.find(function(x){return x.id===fw.id;});
+        return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});
+      });
+      localStorage.setItem("eev_"+coId+"_workers",JSON.stringify(merged));
+      workers=merged;
+      console.log("Workers from Firebase:",workers.map(function(w){return w.name;}));
+    }
+    showWorkerStep2();
+  }).catch(function(e){
+    console.error("Firebase load failed:",e.message);
+    loadJobSite();
+    showWorkerStep2();
+  });
 }
 function showWorkerStep1(){
   document.getElementById('workerStep1').style.display='block';
@@ -1025,8 +1050,28 @@ function showWorkerStep2(){
 function submitWorkerName(){
   const name=document.getElementById('workerNameInput').value.trim();
   if(!name){showToast('Enter your name','error');return;}
-  const w=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
-  if(!w){showToast('Name not found — check spelling','error');return;}
+  var w=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
+  if(!w){
+    // Try Firebase one more time
+    showToast('Checking cloud...','');
+    db.collection("companies").doc(currentCompanyId).collection("workers").get().then(function(snap){
+      if(!snap.empty){
+        var fbW=snap.docs.map(function(d){return d.data();});
+        var local=JSON.parse(localStorage.getItem("eev_"+currentCompanyId+"_workers")||"[]");
+        workers=fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
+        localStorage.setItem("eev_"+currentCompanyId+"_workers",JSON.stringify(workers));
+      }
+      var found=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
+      if(found){proceedWorkerLogin(found);}
+      else{showToast('Name not found. Available: '+workers.map(function(x){return x.name;}).join(', '),'error');}
+    }).catch(function(){
+      showToast('Name not found — check spelling','error');
+    });
+    return;
+  }
+  proceedWorkerLogin(w);
+}
+function proceedWorkerLogin(w){
   document.getElementById('workerPinScreen').style.display='none';
   document.getElementById('companyScreen').classList.add('hidden');
   updateHeaderLogo(); updateTrialBanner();
@@ -1586,6 +1631,8 @@ function initClockAction(workerId, action){
   if(ts.status==='expired'){checkExpired();return;}
   const w=workers.find(x=>x.id===workerId);
   if(!w){showToast('Worker not found','error');return;}
+  // Convert descriptor from plain array (Firebase) to Float32Array for face-api
+  if(w.descriptor&&Array.isArray(w.descriptor)) w=Object.assign({},w,{descriptor:new Float32Array(w.descriptor)});
   clockWorkerTarget=w; clockAction=action; faceMode='clock';
   document.getElementById('faceTitle').textContent=(action==='in'?'Clock In':'Clock Out')+': '+w.name;
   document.getElementById('faceSub').textContent='Look at camera to verify identity';
@@ -1740,7 +1787,8 @@ function processClockAction(descriptor){
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
-  if(best.id!==clockWorkerTarget.id){
+  var isMatch=best.id===clockWorkerTarget.id||best.name.toLowerCase()===clockWorkerTarget.name.toLowerCase();
+  if(!isMatch){
     document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Detected: '+best.name+'</div></div>';
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
