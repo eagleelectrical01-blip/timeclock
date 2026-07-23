@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Time Clock System v6.5</title>
+<title>Time Clock System v9</title>
 <script>
 (function(){
   const c=document.createElement('canvas');c.width=192;c.height=192;
@@ -40,6 +40,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{--navy:#0D1B2A;--orange:#F5820A;--blue:#1A6FD4;--green:#2DC653;--dark:#080F17;--surface:#111D2C;--surface2:#162436;--border:rgba(255,255,255,0.07);--text:#E8EDF2;--muted:#6B8099;--red:#E53E3E;}
@@ -644,6 +646,15 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     </div>
     <div class="divider"></div>
     <div class="admin-section">
+      <div class="admin-section-title">&#9729;&#65039; Cloud Sync</div>
+      <div class="card">
+        <h3>&#11014; Push All Data to Cloud</h3>
+        <p>First time setup: push all companies, workers and logs to Firebase so all phones sync.</p>
+        <button class="btn btn-green" id="pushAllBtn" onclick="doPushAll()" style="width:100%;padding:11px;">&#11014; Push All Data to Cloud Now</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="admin-section">
       <div class="admin-section-title">&#127970; Register New Company</div>
       <div class="card">
         <div class="form-row">
@@ -897,6 +908,11 @@ function saveCompanyData(){
   localStorage.setItem(cKey('workers'), JSON.stringify(workers));
   localStorage.setItem(cKey('logs'),    JSON.stringify(logs));
   localStorage.setItem(cKey('ls'),      JSON.stringify(lsData));
+  // Push latest log to Firebase
+  if(window.fbPushLog&&logs.length){
+    var last=logs[logs.length-1];
+    window.fbPushLog(currentCompanyId,last);
+  }
 }
 function loadSASettings(){
   saSettings = JSON.parse(localStorage.getItem(SA_SETTINGS_KEY)||'{}');
@@ -926,7 +942,17 @@ function workerLoginFlow(){
   if(!code){showToast('Enter your company code first','error');return;}
   loadCompanies();
   const co=companies.find(c=>c.id===code);
-  if(!co){showToast('Company code not found','error');return;}
+  if(!co){
+    showToast('Checking cloud...','');
+    lookupCompanyFromFirebase(code,function(found){
+      currentCompanyId=code;
+      document.getElementById('workerPinInput').value='';
+      document.getElementById('workerPinScreen').style.display='flex';
+    },function(){
+      showToast('Company code not found','error');
+    });
+    return;
+  }
   currentCompanyId=code;
   document.getElementById('workerPinInput').value='';
   document.getElementById('workerPinScreen').style.display='flex';
@@ -965,7 +991,31 @@ function submitWorkerPin(){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
-  showWorkerStep2();
+  // Load workers from Firebase if none locally
+  if(!workers.length&&window.fbLoadWorkers){
+    showToast('Loading...','');
+    window.fbLoadWorkers(currentCompanyId).then(function(fbW){
+      if(fbW&&fbW.length){
+        var local=JSON.parse(localStorage.getItem('eev_'+currentCompanyId+'_workers')||'[]');
+        var merged=fbW.map(function(fw){
+          var lw=local.find(function(x){return x.id===fw.id;});
+          return Object.assign({},fw,{
+            descriptor:fw.descriptor||(lw?lw.descriptor:null),
+            photoURL:fw.photoURL||(lw?lw.photoURL:null)
+          });
+        });
+        localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(merged));
+        while(workers.length) workers.pop();
+        merged.forEach(function(w){workers.push(w);});
+      }
+      showWorkerStep2();
+    }).catch(function(e){
+      console.warn('Firebase workers load failed:',e.message);
+      showWorkerStep2();
+    });
+  } else {
+    showWorkerStep2();
+  }
 }
 function showWorkerStep1(){
   document.getElementById('workerStep1').style.display='block';
@@ -982,7 +1032,32 @@ function submitWorkerName(){
   const name=document.getElementById('workerNameInput').value.trim();
   if(!name){showToast('Enter your name','error');return;}
   const w=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
-  if(!w){showToast('Name not found — check spelling','error');return;}
+  if(!w){
+    if(window.fbLoadWorkers&&currentCompanyId){
+      showToast('Checking cloud...','');
+      window.fbLoadWorkers(currentCompanyId).then(function(fbW){
+        if(fbW&&fbW.length){
+          var local=JSON.parse(localStorage.getItem('eev_'+currentCompanyId+'_workers')||'[]');
+          var merged=fbW.map(function(fw){
+            var lw=local.find(function(x){return x.id===fw.id;});
+            return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});
+          });
+          localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(merged));
+          while(workers.length) workers.pop();
+          merged.forEach(function(ww){workers.push(ww);});
+        }
+        var found=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
+        if(found){continueWorkerLogin(found);}
+        else{showToast('Name not found. Available: '+workers.map(function(x){return x.name;}).join(', '),'error');}
+      }).catch(function(){showToast('Name not found — check spelling','error');});
+    } else {
+      showToast('Name not found — check spelling','error');
+    }
+    return;
+  }
+  continueWorkerLogin(w);
+}
+function continueWorkerLogin(w){
   document.getElementById('workerPinScreen').style.display='none';
   document.getElementById('companyScreen').classList.add('hidden');
   updateHeaderLogo(); updateTrialBanner();
@@ -1048,6 +1123,8 @@ function enterAdminMode(co){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
+  // Start real-time Firebase listeners
+  if(window.fbStartListeners) window.fbStartListeners(co.id);
   document.getElementById('companyScreen').classList.add('hidden');
   document.getElementById('setPwScreen').classList.remove('open');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
@@ -1135,6 +1212,7 @@ function showExpiredLogin(){
   doLogout();
 }
 function doLogout(){
+  if(window.fbStopListeners) window.fbStopListeners();
   adminIn=false; isSuperAdmin=false;
   document.getElementById('adminTabs').style.display='none';
   document.getElementById('publicTabs').style.display='none';
@@ -1538,6 +1616,8 @@ function initClockAction(workerId, action){
   if(ts.status==='expired'){checkExpired();return;}
   const w=workers.find(x=>x.id===workerId);
   if(!w){showToast('Worker not found','error');return;}
+  // Convert descriptor from plain array (Firebase) to Float32Array for face-api
+  if(w.descriptor&&Array.isArray(w.descriptor)) w=Object.assign({},w,{descriptor:new Float32Array(w.descriptor)});
   clockWorkerTarget=w; clockAction=action; faceMode='clock';
   document.getElementById('faceTitle').textContent=(action==='in'?'Clock In':'Clock Out')+': '+w.name;
   document.getElementById('faceSub').textContent='Look at camera to verify identity';
@@ -1682,9 +1762,10 @@ function completeRegister(){
 function processClockAction(descriptor){
   const threshold=0.52;
   let best=null,bestDist=999;
-  workers.forEach(w=>{
+  workers.forEach(function(w){
     if(!w.descriptor) return;
-    const dist=faceapi.euclideanDistance(descriptor,w.descriptor);
+    var desc=Array.isArray(w.descriptor)?new Float32Array(w.descriptor):w.descriptor;
+    const dist=faceapi.euclideanDistance(descriptor,desc);
     if(dist<bestDist){bestDist=dist;best=w;}
   });
   if(!best||bestDist>threshold){
@@ -1692,7 +1773,8 @@ function processClockAction(descriptor){
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
-  if(best.id!==clockWorkerTarget.id){
+  var isMatch=best.id===clockWorkerTarget.id||best.name.toLowerCase()===clockWorkerTarget.name.toLowerCase();
+  if(!isMatch){
     document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Detected: '+best.name+'</div></div>';
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
@@ -1764,6 +1846,10 @@ function completeClockAction(wIn){
     document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128308;</div><div class="rm">Clocked Out: '+w.name+'</div><div class="rd">'+timeStr+note+'<br>'+fmtHours(hrs)+otNote+' &nbsp;&#183;&nbsp; '+fmtMoney(wage)+'</div></div>';
   }
   saveCompanyData();
+  // Push worker clockedIn status to Firebase immediately
+  if(window.fbPushWorkerStatus&&currentCompanyId&&currentCompanyId!=='__SA__'){
+    window.fbPushWorkerStatus(currentCompanyId,w);
+  }
   renderWorkerGrid();
   showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
 }
@@ -2946,6 +3032,41 @@ function populateQRCompanySelect(){
   if(!sel) return;
   sel.innerHTML='<option value="">-- Choose company --</option>'+companies.map(function(co){return '<option value="'+co.id+'">'+(co.name||co.id)+' ('+co.id+')</option>';}).join('');
 }
+async function doPushAll(){
+  var btn=document.getElementById("pushAllBtn");
+  if(btn){btn.textContent="Pushing...";btn.disabled=true;}
+  if(!window.fbPushAll){alert("Firebase not ready — wait a moment and try again");if(btn){btn.textContent="↑ Push All Data to Cloud Now";btn.disabled=false;}return;}
+  var cos=JSON.parse(localStorage.getItem("eev_companies")||"[]");
+  if(!cos.length){alert("No companies found. Register a company first.");if(btn){btn.textContent="↑ Push All Data to Cloud Now";btn.disabled=false;}return;}
+  var results=[];
+  for(var co of cos){
+    try{
+      var msg=await window.fbPushAll(co.id);
+      results.push(co.name+": "+msg);
+    }catch(e){
+      results.push(co.name+": FAILED - "+e.message);
+    }
+  }
+  alert("Push complete!\n"+results.join("\n"));
+  if(btn){btn.innerHTML="&#11014; Push All Data to Cloud Now";btn.disabled=false;}
+}
+
+function lookupCompanyFromFirebase(code, onFound, onNotFound){
+  if(!window.fbLoadCompany){onNotFound();return;}
+  window.fbLoadCompany(code).then(function(co){
+    if(co&&co.id){
+      var cos=JSON.parse(localStorage.getItem("eev_companies")||"[]");
+      if(!cos.find(function(x){return x.id===co.id;})){
+        cos.push(co);
+        localStorage.setItem("eev_companies",JSON.stringify(cos));
+      }
+      onFound(co);
+    } else {
+      onNotFound();
+    }
+  }).catch(function(){onNotFound();});
+}
+
 window.addEventListener('load',function(){
   loadSASettings();
   loadCompanies();
@@ -2954,6 +3075,174 @@ window.addEventListener('load',function(){
   // Start loading face models immediately in background
   loadFaceModels();
 });
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// FIREBASE SYNC — runs after all other scripts loaded
+// ═══════════════════════════════════════════════════════
+(function(){
+  try{
+    var fbConfig={
+      apiKey:"AIzaSyArvw64h0aPZgbQ4jwAG9o69TYchgArhQ",
+      authDomain:"timeclock-eagle.firebaseapp.com",
+      projectId:"timeclock-eagle",
+      storageBucket:"timeclock-eagle.firebasestorage.app",
+      messagingSenderId:"81982976069",
+      appId:"1:81982976069:web:9a05aeedc1489471f5b32c"
+    };
+    firebase.initializeApp(fbConfig);
+    var db=firebase.firestore();
+    window._fbdb=db; // expose globally
+    console.log("Firebase ready");
+  }catch(e){
+    console.warn("Firebase init failed:",e.message);
+    window._fbdb=null;
+  }
+
+  // ── Helper: push a single log record to Firebase ──────────────────────────
+  window.fbPushLog=function(companyId, logRecord){
+    if(!window._fbdb) return;
+    window._fbdb.collection("companies").doc(companyId)
+      .collection("logs").doc(logRecord.id)
+      .set(logRecord)
+      .then(function(){console.log("Log pushed:",logRecord.id);})
+      .catch(function(e){console.warn("Log push failed:",e.message);});
+  };
+
+  // ── Helper: push worker status (clockedIn/clockInTime) ───────────────────
+  window.fbPushWorkerStatus=function(companyId, worker){
+    if(!window._fbdb) return;
+    window._fbdb.collection("companies").doc(companyId)
+      .collection("workers").doc(worker.id)
+      .set({
+        id:worker.id, name:worker.name,
+        clockedIn:worker.clockedIn||false,
+        clockInTime:worker.clockInTime||null
+      },{merge:true})
+      .catch(function(e){console.warn("Worker push failed:",e.message);});
+  };
+
+  // ── Helper: push full company data (called by Push All button) ────────────
+  window.fbPushAll=async function(companyId){
+    if(!window._fbdb){alert("Firebase not ready");return;}
+    var db=window._fbdb;
+    try{
+      // Companies list
+      var cos=JSON.parse(localStorage.getItem("eev_companies")||"[]");
+      for(var co of cos){
+        await db.collection("companies").doc(co.id).set({
+          id:co.id,name:co.name||"",password:co.password||"",
+          workerPin:co.workerPin||"1234",trialDays:co.trialDays||30,
+          createdAt:co.createdAt||new Date().toISOString()
+        });
+      }
+      // Workers (with face descriptors for cross-device face scan)
+      var ws=JSON.parse(localStorage.getItem("eev_"+companyId+"_workers")||"[]");
+      for(var w of ws){
+        await db.collection("companies").doc(companyId).collection("workers").doc(w.id).set({
+          id:w.id,name:w.name,title:w.title||"",rate:w.rate||0,
+          overtimeRate:w.overtimeRate||w.rate||0,
+          clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null,
+          descriptor:w.descriptor||null,photoURL:w.photoURL||null
+        });
+      }
+      // Logs
+      var ls=JSON.parse(localStorage.getItem("eev_"+companyId+"_logs")||"[]");
+      var b=db.batch(),cnt=0;
+      for(var l of ls){
+        b.set(db.collection("companies").doc(companyId).collection("logs").doc(l.id),l);
+        if(++cnt>=400){await b.commit();b=db.batch();cnt=0;}
+      }
+      if(cnt>0) await b.commit();
+      return "OK: "+ws.length+" workers, "+ls.length+" logs";
+    }catch(e){
+      throw e;
+    }
+  };
+
+  // ── Helper: load workers from Firebase (for other phones) ─────────────────
+  window.fbLoadWorkers=function(companyId){
+    if(!window._fbdb) return Promise.resolve([]);
+    return window._fbdb.collection("companies").doc(companyId)
+      .collection("workers").get()
+      .then(function(snap){
+        return snap.docs.map(function(d){return d.data();});
+      });
+  };
+
+  // ── Helper: load company from Firebase ────────────────────────────────────
+  window.fbLoadCompany=function(companyId){
+    if(!window._fbdb) return Promise.resolve(null);
+    return window._fbdb.collection("companies").doc(companyId).get()
+      .then(function(doc){return doc.exists?doc.data():null;});
+  };
+
+  // ── Admin real-time listener: auto-updates logs when any phone clocks in ──
+  window._fbLogsUnsub=null;
+  window._fbWorkersUnsub=null;
+
+  window.fbStartListeners=function(companyId){
+    window.fbStopListeners();
+    if(!window._fbdb) return;
+    var db=window._fbdb;
+
+    window._fbLogsUnsub=db.collection("companies").doc(companyId)
+      .collection("logs").orderBy("clockIn","desc").limit(500)
+      .onSnapshot(function(snap){
+        var fbLogs=snap.docs.map(function(d){return d.data();});
+        var local=JSON.parse(localStorage.getItem("eev_"+companyId+"_logs")||"[]");
+        // Merge: Firebase + any local-only records
+        var merged=fbLogs.slice();
+        local.forEach(function(l){
+          if(!merged.find(function(f){return f.id===l.id;})) merged.push(l);
+        });
+        merged.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
+        localStorage.setItem("eev_"+companyId+"_logs",JSON.stringify(merged));
+        logs=merged;
+        if(typeof adminIn!=="undefined"&&adminIn){
+          if(typeof renderLogs==="function") renderLogs();
+          if(typeof renderWorkerSelects==="function") renderWorkerSelects();
+        }
+        console.log("Live update: "+merged.length+" logs");
+      },function(e){console.warn("Log listener:",e.message);});
+
+    window._fbWorkersUnsub=db.collection("companies").doc(companyId)
+      .collection("workers")
+      .onSnapshot(function(snap){
+        var fbW=snap.docs.map(function(d){return d.data();});
+        var local=JSON.parse(localStorage.getItem("eev_"+companyId+"_workers")||"[]");
+        // Merge: keep local face data, update status from Firebase
+        var merged=local.map(function(lw){
+          var fw=fbW.find(function(x){return x.id===lw.id;});
+          return fw?Object.assign({},lw,{clockedIn:fw.clockedIn,clockInTime:fw.clockInTime}):lw;
+        });
+        // Add any workers from Firebase not in local
+        fbW.forEach(function(fw){
+          if(!merged.find(function(x){return x.id===fw.id;})){
+            merged.push(fw);
+          }
+        });
+        localStorage.setItem("eev_"+companyId+"_workers",JSON.stringify(merged));
+        logs=logs; // keep logs
+        while(workers.length) workers.pop();
+        merged.forEach(function(w){workers.push(w);});
+        if(typeof adminIn!=="undefined"&&adminIn){
+          if(typeof renderWorkerGrid==="function") renderWorkerGrid();
+          if(typeof renderWorkersList==="function") renderWorkersList();
+        }
+        console.log("Live update: "+merged.length+" workers");
+      },function(e){console.warn("Worker listener:",e.message);});
+
+    console.log("Firebase listeners started for",companyId);
+  };
+
+  window.fbStopListeners=function(){
+    if(window._fbLogsUnsub){window._fbLogsUnsub();window._fbLogsUnsub=null;}
+    if(window._fbWorkersUnsub){window._fbWorkersUnsub();window._fbWorkersUnsub=null;}
+  };
+
+})();
 </script>
 </body>
 </html>
