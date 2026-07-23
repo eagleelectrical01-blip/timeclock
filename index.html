@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Time Clock System v8</title>
+<title>Time Clock System v6.5</title>
 <script>
 (function(){
   const c=document.createElement('canvas');c.width=192;c.height=192;
@@ -40,8 +40,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{--navy:#0D1B2A;--orange:#F5820A;--blue:#1A6FD4;--green:#2DC653;--dark:#080F17;--surface:#111D2C;--surface2:#162436;--border:rgba(255,255,255,0.07);--text:#E8EDF2;--muted:#6B8099;--red:#E53E3E;}
@@ -388,7 +386,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <div id="logTotals"></div>
   <div class="log-table-wrap">
     <table>
-      <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>OT</th><th>Wage</th><th>Location</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>OT</th><th>Wage</th><th>Status</th><th></th></tr></thead>
       <tbody id="logBody"></tbody>
     </table>
   </div>
@@ -434,15 +432,6 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <p>Set working hours per day. Clock-in within 15 min before start rounds up. Clock-out within 15 min before end rounds up to end time.</p>
     <div id="schedGrid"></div>
     <button class="btn btn-primary" onclick="saveSchedule()" style="width:100%;padding:11px;margin-top:12px;">&#128190; Save Schedule</button>
-  </div>
-  <div class="divider"></div>
-  <div class="section-title">&#128205; Today's Job Site</div>
-  <div class="card">
-    <h3>&#128205; Set Job Site Location</h3>
-    <p>Press this button when you arrive at the job site. Workers must be within 50m to clock in.</p>
-    <div id="jobSiteStatus" style="background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.8rem;color:var(--muted);">No job site set yet</div>
-    <button class="btn btn-green" onclick="setJobSite()" id="jobSiteBtn" style="width:100%;padding:11px;margin-bottom:8px;">&#128205; Use My Current Location as Job Site</button>
-    <button class="btn btn-ghost" onclick="clearJobSite()" style="width:100%;padding:9px;font-size:0.78rem;">&#10005; Clear Job Site</button>
   </div>
   <div class="divider"></div>
   <div class="section-title">Manual Time Entry</div>
@@ -651,15 +640,6 @@ tr:hover td{background:rgba(255,255,255,0.02);}
           <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;">Scan to open TimeClock app</div>
           <button class="btn btn-green" onclick="downloadQR()" style="width:100%;padding:11px;">&#11015; Download QR Code (Print this)</button>
         </div>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div class="admin-section">
-      <div class="admin-section-title">&#9729;&#65039; First Time Setup</div>
-      <div class="card">
-        <h3>&#11014; Push All Data to Cloud</h3>
-        <p>Press this once to push all your companies, workers and logs to Firebase so staff phones can find them.</p>
-        <button class="btn btn-green" onclick="pushAllLocalDataToFirebase()" style="width:100%;padding:11px;">&#11014; Push All Data to Cloud Now</button>
       </div>
     </div>
     <div class="divider"></div>
@@ -889,13 +869,6 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 // CONSTANTS
 // ═══════════════════════════════════════
 const SA_PASSWORD = 'Eagle2026!';
-
-// Firebase — initialized at top so db is available throughout
-const firebaseConfig={apiKey:'AIzaSyArvw64h0aPZgbQ4jwAG9o69TYchgArhQ',authDomain:'timeclock-eagle.firebaseapp.com',projectId:'timeclock-eagle',storageBucket:'timeclock-eagle.firebasestorage.app',messagingSenderId:'81982976069',appId:'1:81982976069:web:9a05aeedc1489471f5b32c'};
-firebase.initializeApp(firebaseConfig);
-const db=firebase.firestore();
-var _jobSite=null;
-
 const SA_SETTINGS_KEY = 'eev_sa_settings';
 const COMPANIES_KEY = 'eev_companies';
 
@@ -953,19 +926,7 @@ function workerLoginFlow(){
   if(!code){showToast('Enter your company code first','error');return;}
   loadCompanies();
   const co=companies.find(c=>c.id===code);
-  if(!co){
-    showToast('Checking cloud...','');
-    db.collection("companies").doc(code).get().then(function(doc){
-      if(doc.exists&&doc.data()&&doc.data().id){
-        companies.push(doc.data());
-        localStorage.setItem('eev_companies',JSON.stringify(companies));
-        currentCompanyId=code;
-        document.getElementById('workerPinInput').value="";
-        document.getElementById('workerPinScreen').style.display="flex";
-      }else{showToast('Company code not found','error');}
-    }).catch(function(e){showToast('Cannot reach cloud: '+e.message,'error');});
-    return;
-  }
+  if(!co){showToast('Company code not found','error');return;}
   currentCompanyId=code;
   document.getElementById('workerPinInput').value='';
   document.getElementById('workerPinScreen').style.display='flex';
@@ -975,19 +936,7 @@ function adminLoginFlow(){
   if(!code){showToast('Enter your company code first','error');return;}
   loadCompanies();
   const co=companies.find(c=>c.id===code);
-  if(!co){
-    showToast('Checking cloud...','');
-    db.collection("companies").doc(code).get().then(function(doc){
-      if(doc.exists&&doc.data()&&doc.data().id){
-        companies.push(doc.data());
-        localStorage.setItem('eev_companies',JSON.stringify(companies));
-        currentCompanyId=code;
-        document.getElementById('workerPinInput').value="";
-        document.getElementById('workerPinScreen').style.display="flex";
-      }else{showToast('Company code not found','error');}
-    }).catch(function(e){showToast('Cannot reach cloud: '+e.message,'error');});
-    return;
-  }
+  if(!co){showToast('Company code not found','error');return;}
   currentCompanyId=code;
   if(co.mustChangePw){
     document.getElementById('companyScreen').classList.add('hidden');
@@ -1016,32 +965,7 @@ function submitWorkerPin(){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
-  // Fetch workers from Firebase (needed on other phones)
-  showToast('Loading...','');
-  var coId=currentCompanyId;
-  Promise.all([
-    db.collection("companies").doc(coId).collection("workers").get(),
-    loadJobSiteFromFirebase(coId)
-  ]).then(function(results){
-    var snap=results[0];
-    if(!snap.empty){
-      var fbWorkers=snap.docs.map(function(d){return d.data();});
-      // Merge face data from local into Firebase workers
-      var local=JSON.parse(localStorage.getItem("eev_"+coId+"_workers")||"[]");
-      var merged=fbWorkers.map(function(fw){
-        var lw=local.find(function(x){return x.id===fw.id;});
-        return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});
-      });
-      localStorage.setItem("eev_"+coId+"_workers",JSON.stringify(merged));
-      setWorkers(merged);
-      console.log("Workers from Firebase:",workers.map(function(w){return w.name;}));
-    }
-    showWorkerStep2();
-  }).catch(function(e){
-    console.error("Firebase load failed:",e.message);
-    loadJobSite();
-    showWorkerStep2();
-  });
+  showWorkerStep2();
 }
 function showWorkerStep1(){
   document.getElementById('workerStep1').style.display='block';
@@ -1055,44 +979,21 @@ function showWorkerStep2(){
   setTimeout(function(){document.getElementById('workerNameInput').focus();},100);
 }
 function submitWorkerName(){
-  var name=document.getElementById('workerNameInput').value.trim();
+  const name=document.getElementById('workerNameInput').value.trim();
   if(!name){showToast('Enter your name','error');return;}
-  showToast('Verifying...','');
-  var coId=currentCompanyId;
-  console.log('submitWorkerName: coId='+coId+' name='+name+' local workers='+workers.length);
-  db.collection("companies").doc(coId).collection("workers").get().then(function(snap){
-    var fbW=snap.empty?[]:snap.docs.map(function(d){return d.data();});
-    console.log('Firebase workers:',fbW.map(function(w){return JSON.stringify({id:w.id,name:w.name});}));
-    var local=JSON.parse(localStorage.getItem("eev_"+coId+"_workers")||"[]");
-    if(fbW.length){
-      setWorkers(fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});}));
-      localStorage.setItem("eev_"+coId+"_workers",JSON.stringify(workers));
-    }
-    var found=workers.find(function(x){return x.name.trim().toLowerCase()===name.trim().toLowerCase();});
-    if(found){
-      proceedWorkerLogin(found);
-    } else {
-      var avail=workers.map(function(x){return '"'+x.name+'"'}).join(', ');
-      alert('Name "'+name+'" not found.\n\nAvailable names: '+avail+'\n\nCompany ID: '+coId);
-      showToast('Name not found. Check the alert for details.','error');
-    }
-  }).catch(function(e){
-    console.error('submitWorkerName Firebase error:',e);
-    alert('Firebase error: '+e.message+'\n\nCompany ID: '+coId);
-    showToast('Cloud error: '+e.message,'error');
-  });
-}
-function proceedWorkerLogin(w){
+  const w=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
+  if(!w){showToast('Name not found — check spelling','error');return;}
   document.getElementById('workerPinScreen').style.display='none';
   document.getElementById('companyScreen').classList.add('hidden');
   updateHeaderLogo(); updateTrialBanner();
-  var ts=getTrialStatus();
+  const ts=getTrialStatus();
   if(ts.status==='expired'){checkExpired();return;}
   startClock(); loadFaceModels();
+  document.getElementById('publicTabs').style.display='flex';
   document.getElementById('logoutBtn').style.display='block';
-  document.getElementById('logoutBtn').textContent='Exit';
-  if(!workers.find(function(x){return x.id===w.id;})){workers.push(w);}
-  var action=w.clockedIn?'out':'in';
+  document.getElementById('logoutBtn').textContent='🔓 Exit';
+  showPage('clock');
+  const action=w.clockedIn?'out':'in';
   initClockAction(w.id,action);
 }
 function submitAdminPwScreen(){
@@ -1147,8 +1048,6 @@ function enterAdminMode(co){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
-  startFirebaseListeners(co.id);
-  loadJobSite();
   document.getElementById('companyScreen').classList.add('hidden');
   document.getElementById('setPwScreen').classList.remove('open');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
@@ -1236,7 +1135,6 @@ function showExpiredLogin(){
   doLogout();
 }
 function doLogout(){
-  stopFirebaseListeners();
   adminIn=false; isSuperAdmin=false;
   document.getElementById('adminTabs').style.display='none';
   document.getElementById('publicTabs').style.display='none';
@@ -1308,7 +1206,6 @@ function loadAdminPanel(){
   renderWorkerSelects();
   renderLSList();
   renderPaymentsList();
-  updateJobSiteUI();
   // Default close period to current month
   var now=new Date(),y=now.getFullYear(),m=now.getMonth();
   var fromD=y+'-'+String(m+1).padStart(2,'0')+'-01';
@@ -1641,8 +1538,6 @@ function initClockAction(workerId, action){
   if(ts.status==='expired'){checkExpired();return;}
   const w=workers.find(x=>x.id===workerId);
   if(!w){showToast('Worker not found','error');return;}
-  // Convert descriptor from plain array (Firebase) to Float32Array for face-api
-  if(w.descriptor&&Array.isArray(w.descriptor)) w=Object.assign({},w,{descriptor:new Float32Array(w.descriptor)});
   clockWorkerTarget=w; clockAction=action; faceMode='clock';
   document.getElementById('faceTitle').textContent=(action==='in'?'Clock In':'Clock Out')+': '+w.name;
   document.getElementById('faceSub').textContent='Look at camera to verify identity';
@@ -1797,8 +1692,7 @@ function processClockAction(descriptor){
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
   }
-  var isMatch=best.id===clockWorkerTarget.id||best.name.toLowerCase()===clockWorkerTarget.name.toLowerCase();
-  if(!isMatch){
+  if(best.id!==clockWorkerTarget.id){
     document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#10060;</div><div class="rm">Wrong person</div><div class="rd">Detected: '+best.name+'</div></div>';
     showFaceBtns({cancel:false,capture:false,register:false,tryAgain:true,done:false});
     return;
@@ -1807,36 +1701,6 @@ function processClockAction(descriptor){
 }
 function completeClockAction(wIn){
   let w=wIn; const now=new Date();
-  if(!adminIn&&currentCompanyId&&currentCompanyId!=='__SA__'){
-    var site=_jobSite||loadJobSite();
-    if(!site){
-      document.getElementById('faceResult').innerHTML='<div class="result-box error"><div class="ri">&#9888;</div><div class="rm">No job site set</div><div class="rd">Your supervisor has not set the job site yet. Please wait.</div></div>';
-      showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
-      return;
-    }
-    var rEl=document.getElementById('faceResult');
-    rEl.innerHTML='<div class="result-box"><div class="ri">&#128205;</div><div class="rm">Checking location…</div></div>';
-    getWorkerGPS().then(function(pos){
-      var dist=calcDistance(pos.coords.latitude,pos.coords.longitude,site.lat,site.lng);
-      if(dist>50){
-        rEl.innerHTML='<div class="result-box error"><div class="ri">&#128205;</div><div class="rm">Too far from job site ('+Math.round(dist)+'m)</div><div class="rd">Must be within 50m of:<br><strong>'+site.address+'</strong></div></div>';
-        showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
-        return;
-      }
-      reverseGeocode(pos.coords.latitude,pos.coords.longitude).then(function(address){
-        w._gpsAddress=address;w._gpsLat=pos.coords.latitude;w._gpsLng=pos.coords.longitude;w._gpsDist=Math.round(dist);
-        _doCompleteClockAction(w,now);
-      });
-    }).catch(function(){
-      rEl.innerHTML='<div class="result-box error"><div class="ri">&#128205;</div><div class="rm">Location access denied</div><div class="rd">Allow location access in browser settings to clock in.</div></div>';
-      showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
-    });
-    return;
-  }
-  _doCompleteClockAction(w,now);
-}
-function _doCompleteClockAction(wIn,now){
-  let w=wIn;
   if(clockAction==='in'){
     const rounded=applyClockInRounding(now);
     const wasRounded=rounded.getTime()!==now.getTime();
@@ -1900,17 +1764,6 @@ function _doCompleteClockAction(wIn,now){
     document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128308;</div><div class="rm">Clocked Out: '+w.name+'</div><div class="rd">'+timeStr+note+'<br>'+fmtHours(hrs)+otNote+' &nbsp;&#183;&nbsp; '+fmtMoney(wage)+'</div></div>';
   }
   saveCompanyData();
-  // Push to Firebase for cross-device sync
-  if(currentCompanyId&&currentCompanyId!=='__SA__'){
-    var ll=logs.length?logs[logs.length-1]:null;
-    if(ll){
-      if(w._gpsAddress){ll.address=w._gpsAddress;ll.lat=w._gpsLat;ll.lng=w._gpsLng;ll.distFromSite=w._gpsDist;localStorage.setItem('eev_'+currentCompanyId+'_logs',JSON.stringify(logs));}
-      db.collection("companies").doc(currentCompanyId).collection("logs").doc(ll.id).set(ll).catch(function(e){console.error("Log push:",e.message);});
-    }
-    db.collection("companies").doc(currentCompanyId).collection("workers").doc(w.id)
-      .set({id:w.id,name:w.name,clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null},{merge:true})
-      .catch(function(e){console.error("Worker push:",e.message);});
-  }
   renderWorkerGrid();
   showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
 }
@@ -2044,7 +1897,6 @@ function renderLogs(){
       +'<td class="mono">'+(complete?fmtHours(l.hoursWorked):'—')+'</td>'
       +'<td class="mono" style="color:'+(otHrs>0?'var(--orange)':'var(--muted)')+'">'+(complete?(otHrs>0?fmtHours(otHrs):'—'):'—')+'</td>'
       +'<td class="mono green">'+(complete?fmtMoney(l.wage):'—')+'</td>'
-      +'<td style="font-size:0.7rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+(l.address||'')+'">'+(l.address?'&#128205; '+l.address.split(',')[0]:'')+'</td>'
       +'<td><span class="badge '+(complete?'complete':'in')+'">'+(complete?'Done':'Active')+'</span></td>'
       +(isArchive?'<td></td>':'<td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="deleteLog(\''+l.id+'\')">×</button></td>')
       +'</tr>';
@@ -3093,135 +2945,6 @@ function populateQRCompanySelect(){
   var sel=document.getElementById('qrCompanySelect');
   if(!sel) return;
   sel.innerHTML='<option value="">-- Choose company --</option>'+companies.map(function(co){return '<option value="'+co.id+'">'+(co.name||co.id)+' ('+co.id+')</option>';}).join('');
-}
-// ═══ JOB SITE & GPS ═══
-function jobSiteKey(){return 'eev_'+currentCompanyId+'_jobsite';}
-function loadJobSite(){if(!currentCompanyId||currentCompanyId==='__SA__') return null;var s=localStorage.getItem(jobSiteKey());_jobSite=s?JSON.parse(s):null;return _jobSite;}
-function saveJobSiteLocal(site){localStorage.setItem(jobSiteKey(),JSON.stringify(site));_jobSite=site;}
-async function setJobSite(){
-  var btn=document.getElementById('jobSiteBtn');
-  if(btn){btn.textContent='Getting location...';btn.disabled=true;}
-  try{
-    var pos=await new Promise(function(res,rej){navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000});});
-    var lat=pos.coords.latitude,lng=pos.coords.longitude;
-    var address=await reverseGeocode(lat,lng);
-    var site={lat:lat,lng:lng,address:address,setAt:new Date().toISOString()};
-    saveJobSiteLocal(site);
-    if(currentCompanyId&&currentCompanyId!=='__SA__')
-      await db.collection('companies').doc(currentCompanyId).collection('settings').doc('jobsite').set(site);
-    updateJobSiteUI();
-    showToast('Job site set: '+address+' ✓','success');
-  }catch(e){showToast('Could not get location: '+e.message,'error');}
-  finally{if(btn){btn.innerHTML='&#128205; Use My Current Location as Job Site';btn.disabled=false;}}
-}
-function clearJobSite(){
-  if(!confirm('Clear the job site location?')) return;
-  localStorage.removeItem(jobSiteKey());_jobSite=null;
-  if(currentCompanyId&&currentCompanyId!=='__SA__')
-    db.collection('companies').doc(currentCompanyId).collection('settings').doc('jobsite').delete().catch(function(){});
-  updateJobSiteUI();showToast('Job site cleared','success');
-}
-function updateJobSiteUI(){
-  var el=document.getElementById('jobSiteStatus');if(!el) return;
-  loadJobSite();
-  if(_jobSite){
-    var d=new Date(_jobSite.setAt);
-    var t=d.toLocaleDateString('en-ZA',{day:'numeric',month:'short'})+' at '+d.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
-    el.innerHTML='<span style="color:var(--green);">&#10003; Active: </span><strong>'+_jobSite.address+'</strong><br><span style="font-size:0.7rem;color:var(--muted);">Set '+t+'</span>';
-  }else{
-    el.innerHTML='<span style="color:var(--orange);">&#9888; No job site set.</span> Press button above when you arrive at the site.';
-  }
-}
-async function reverseGeocode(lat,lng){
-  try{
-    var res=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng,{headers:{'Accept-Language':'en'}});
-    var d=await res.json();
-    if(d&&d.address){var a=d.address;var parts=[a.road||a.pedestrian,a.suburb||a.neighbourhood,a.city||a.town].filter(Boolean);return parts.length?parts.join(', '):d.display_name.split(',').slice(0,3).join(',').trim();}
-  }catch(e){console.warn('Geocode:',e.message);}
-  return lat.toFixed(5)+', '+lng.toFixed(5);
-}
-function calcDistance(lat1,lng1,lat2,lng2){
-  var R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
-  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-function getWorkerGPS(){
-  return new Promise(function(res,rej){
-    if(!navigator.geolocation){rej(new Error('GPS not available'));return;}
-    navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000,maximumAge:0});
-  });
-}
-async function loadJobSiteFromFirebase(companyId){
-  try{
-    var doc=await db.collection('companies').doc(companyId).collection('settings').doc('jobsite').get();
-    if(doc.exists){var site=doc.data();localStorage.setItem('eev_'+companyId+'_jobsite',JSON.stringify(site));_jobSite=site;return site;}
-  }catch(e){console.warn('loadJobSiteFromFirebase:',e.message);}
-  return loadJobSite();
-}
-
-// ═══ FIREBASE REAL-TIME LISTENERS (Admin) ═══
-var _fbLL=null,_fbWL=null;
-function startFirebaseListeners(companyId){
-  stopFirebaseListeners();
-  try{
-    _fbLL=db.collection('companies').doc(companyId).collection('logs').orderBy('clockIn','desc').limit(500)
-      .onSnapshot(function(snap){
-        var fbL=snap.docs.map(function(d){return d.data();});
-        var loc=JSON.parse(localStorage.getItem('eev_'+companyId+'_logs')||'[]');
-        var merged=fbL.slice();
-        loc.forEach(function(l){if(!merged.find(function(f){return f.id===l.id;})) merged.push(l);});
-        merged.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
-        localStorage.setItem('eev_'+companyId+'_logs',JSON.stringify(merged));
-        logs=merged;
-        if(adminIn){renderLogs();renderWorkerSelects();}
-      },function(e){console.warn('Log listener:',e.message);});
-    _fbWL=db.collection('companies').doc(companyId).collection('workers')
-      .onSnapshot(function(snap){
-        var fbW=snap.docs.map(function(d){return d.data();});
-        var locW=JSON.parse(localStorage.getItem('eev_'+companyId+'_workers')||'[]');
-        var merged=locW.map(function(lw){var fw=fbW.find(function(x){return x.id===lw.id;});return fw?Object.assign({},lw,{clockedIn:fw.clockedIn,clockInTime:fw.clockInTime}):lw;});
-        localStorage.setItem('eev_'+companyId+'_workers',JSON.stringify(merged));
-        setWorkers(merged);
-        if(adminIn){renderWorkerGrid();renderWorkersList();}
-      },function(e){console.warn('Worker listener:',e.message);});
-  }catch(e){console.warn('Listeners failed:',e.message);}
-}
-function stopFirebaseListeners(){
-  if(_fbLL){_fbLL();_fbLL=null;}
-  if(_fbWL){_fbWL();_fbWL=null;}
-}
-
-async function pushAllLocalDataToFirebase(){
-  var coList=JSON.parse(localStorage.getItem("eev_companies")||"[]");
-  if(!coList.length){showToast("No companies found — register a company first","error");return;}
-  showToast("Pushing to cloud...","");
-  var results=[];
-  for(var co of coList){
-    try{
-      await db.collection("companies").doc(co.id).set({id:co.id,name:co.name||"",password:co.password||"",workerPin:co.workerPin||"1234",mustChangePw:co.mustChangePw||false,trialDays:co.trialDays||30,createdAt:co.createdAt||new Date().toISOString()});
-      var wList=JSON.parse(localStorage.getItem("eev_"+co.id+"_workers")||"[]");
-      for(var w of wList){
-        await db.collection("companies").doc(co.id).collection("workers").doc(w.id).set({id:w.id,name:w.name||"",title:w.title||"",rate:w.rate||0,overtimeRate:w.overtimeRate||w.rate||0,clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null,descriptor:w.descriptor||null,photoURL:w.photoURL||null});
-      }
-      var lList=JSON.parse(localStorage.getItem("eev_"+co.id+"_logs")||"[]");
-      var b=db.batch(),cnt=0;
-      for(var l of lList){b.set(db.collection("companies").doc(co.id).collection("logs").doc(l.id),l);cnt++;if(cnt>=400){await b.commit();b=db.batch();cnt=0;}}
-      if(cnt>0) await b.commit();
-      results.push(co.name+": OK ("+wList.length+" workers, "+lList.length+" logs)");
-    }catch(e){
-      showToast("Push failed: "+e.message,"error");
-      alert("Firebase error:\n"+e.message+"\n\nMake sure Firebase Firestore Rules are set to test mode."); return;
-    }
-  }
-  showToast("Done! "+results.join(" | "),"success");
-  alert("Push complete!\n"+results.join("\n"));
-}
-
-function setWorkers(arr){
-  // Safe setter for global workers array - avoids const reassignment issues
-  while(workers.length) workers.pop();
-  arr.forEach(function(w){workers.push(w);});
-  return workers;
 }
 window.addEventListener('load',function(){
   loadSASettings();
