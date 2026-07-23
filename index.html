@@ -492,6 +492,12 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   </div>
 
   <div class="divider"></div>
+  <div class="section-title">&#9729;&#65039; Cloud Sync</div>
+  <div class="card">
+    <p>Pull all latest records from Firebase cloud to this phone.</p>
+    <button class="btn btn-primary" onclick="doPullFromCloud()" style="width:100%;padding:11px;margin-bottom:8px;">&#11015; Pull from Cloud Now</button>
+  </div>
+  <div class="divider"></div>
   <div class="section-title">&#128190; Backup &amp; Restore</div>
   <div class="card">
     <h3>&#128190; Download Backup</h3>
@@ -1117,7 +1123,21 @@ function enterWorkerMode(co){
   document.getElementById('publicTabs').style.display='flex';
   document.getElementById('logoutBtn').style.display='block';
   document.getElementById('logoutBtn').textContent='\uD83D\uDD13 Exit';
-  showPage('clock'); renderWorkerGrid();
+  showPage('clock');
+  if(window.fbLoadWorkers&&!workers.length){
+    window.fbLoadWorkers(currentCompanyId).then(function(fbW){
+      if(fbW&&fbW.length){
+        var local=JSON.parse(localStorage.getItem('eev_'+currentCompanyId+'_workers')||'[]');
+        var merged=fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
+        localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(merged));
+        while(workers.length) workers.pop();
+        merged.forEach(function(w){workers.push(w);});
+      }
+      renderWorkerGrid();
+    }).catch(function(){renderWorkerGrid();});
+  } else {
+    renderWorkerGrid();
+  }
 }
 function enterAdminMode(co){
   let sub=getSubData(co.id);
@@ -1125,6 +1145,19 @@ function enterAdminMode(co){
   loadSASettings(); loadCompanyData();
   // Start real-time Firebase listeners
   if(window.fbStartListeners) window.fbStartListeners(co.id);
+  // Pull workers from Firebase to get latest status
+  if(window.fbLoadWorkers){
+    window.fbLoadWorkers(co.id).then(function(fbW){
+      if(fbW&&fbW.length){
+        var local=JSON.parse(localStorage.getItem('eev_'+co.id+'_workers')||'[]');
+        var merged=fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
+        localStorage.setItem('eev_'+co.id+'_workers',JSON.stringify(merged));
+        while(workers.length) workers.pop();
+        merged.forEach(function(w){workers.push(w);});
+        if(adminIn){renderWorkerGrid();renderWorkersList();}
+      }
+    }).catch(function(){});
+  }
   document.getElementById('companyScreen').classList.add('hidden');
   document.getElementById('setPwScreen').classList.remove('open');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
@@ -3065,6 +3098,35 @@ function lookupCompanyFromFirebase(code, onFound, onNotFound){
       onNotFound();
     }
   }).catch(function(){onNotFound();});
+}
+
+function doPullFromCloud(){
+  if(!window._fbdb){showToast("Firebase not ready","error");return;}
+  if(!currentCompanyId||currentCompanyId==="__SA__"){showToast("Log in as Admin first","error");return;}
+  var db=window._fbdb,coId=currentCompanyId;
+  showToast("Pulling from cloud...","");
+  Promise.all([
+    db.collection("companies").doc(coId).collection("logs").orderBy("clockIn","desc").limit(500).get(),
+    db.collection("companies").doc(coId).collection("workers").get()
+  ]).then(function(res){
+    var fbLogs=res[0].docs.map(function(d){return d.data();});
+    var localLogs=JSON.parse(localStorage.getItem("eev_"+coId+"_logs")||"[]");
+    var mergedLogs=fbLogs.slice();
+    localLogs.forEach(function(l){if(!mergedLogs.find(function(f){return f.id===l.id;})) mergedLogs.push(l);});
+    mergedLogs.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
+    localStorage.setItem("eev_"+coId+"_logs",JSON.stringify(mergedLogs));
+    logs=mergedLogs;
+    var fbW=res[1].docs.map(function(d){return d.data();});
+    if(fbW.length){
+      var localW=JSON.parse(localStorage.getItem("eev_"+coId+"_workers")||"[]");
+      var mW=fbW.map(function(fw){var lw=localW.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
+      localStorage.setItem("eev_"+coId+"_workers",JSON.stringify(mW));
+      while(workers.length) workers.pop();
+      mW.forEach(function(w){workers.push(w);});
+    }
+    renderLogs();renderWorkerGrid();renderWorkersList();renderWorkerSelects();
+    showToast("Pulled "+mergedLogs.length+" logs + "+workers.length+" workers from cloud","success");
+  }).catch(function(e){showToast("Pull failed: "+e.message,"error");});
 }
 
 window.addEventListener('load',function(){
