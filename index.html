@@ -1050,26 +1050,31 @@ function showWorkerStep2(){
 function submitWorkerName(){
   const name=document.getElementById('workerNameInput').value.trim();
   if(!name){showToast('Enter your name','error');return;}
-  var w=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
-  if(!w){
-    // Try Firebase one more time
-    showToast('Checking cloud...','');
-    db.collection("companies").doc(currentCompanyId).collection("workers").get().then(function(snap){
-      if(!snap.empty){
-        var fbW=snap.docs.map(function(d){return d.data();});
-        var local=JSON.parse(localStorage.getItem("eev_"+currentCompanyId+"_workers")||"[]");
-        workers=fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
-        localStorage.setItem("eev_"+currentCompanyId+"_workers",JSON.stringify(workers));
-      }
-      var found=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
-      if(found){proceedWorkerLogin(found);}
-      else{showToast('Name not found. Available: '+workers.map(function(x){return x.name;}).join(', '),'error');}
-    }).catch(function(){
-      showToast('Name not found — check spelling','error');
-    });
-    return;
-  }
-  proceedWorkerLogin(w);
+  // Always fetch fresh from Firebase to ensure latest worker list
+  showToast('Verifying...','');
+  var coId=currentCompanyId;
+  console.log('submitWorkerName: coId='+coId+' name='+name+' local workers='+workers.length);
+  db.collection("companies").doc(coId).collection("workers").get().then(function(snap){
+    var fbW=snap.empty?[]:snap.docs.map(function(d){return d.data();});
+    console.log('Firebase workers:',fbW.map(function(w){return JSON.stringify({id:w.id,name:w.name});}));
+    var local=JSON.parse(localStorage.getItem("eev_"+coId+"_workers")||"[]");
+    if(fbW.length){
+      workers=fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
+      localStorage.setItem("eev_"+coId+"_workers",JSON.stringify(workers));
+    }
+    var found=workers.find(function(x){return x.name.trim().toLowerCase()===name.trim().toLowerCase();});
+    if(found){
+      proceedWorkerLogin(found);
+    } else {
+      var avail=workers.map(function(x){return '"'+x.name+'"'}).join(', ');
+      alert('Name "'+name+'" not found.\n\nAvailable names: '+avail+'\n\nCompany ID: '+coId);
+      showToast('Name not found. Check the alert for details.','error');
+    }
+  }).catch(function(e){
+    console.error('submitWorkerName Firebase error:',e);
+    alert('Firebase error: '+e.message+'\n\nCompany ID: '+coId);
+    showToast('Cloud error: '+e.message,'error');
+  });
 }
 function proceedWorkerLogin(w){
   document.getElementById('workerPinScreen').style.display='none';
