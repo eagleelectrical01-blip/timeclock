@@ -2086,6 +2086,13 @@ function deleteLog(id){
   loadCompanyData();
   logs=logs.filter(function(l){return l.id!==id;});
   saveCompanyData();
+  // Delete from Firebase too
+  if(window._fbdb&&currentCompanyId&&currentCompanyId!=='__SA__'){
+    window._fbdb.collection("companies").doc(currentCompanyId)
+      .collection("logs").doc(id).delete()
+      .then(function(){console.log("Log deleted from Firebase:",id);})
+      .catch(function(e){console.warn("Firebase delete failed:",e.message);});
+  }
   loadCompanyData();
   renderLogs();
   showToast('Record deleted','success');
@@ -3110,12 +3117,10 @@ function doPullFromCloud(){
     db.collection("companies").doc(coId).collection("workers").get()
   ]).then(function(res){
     var fbLogs=res[0].docs.map(function(d){return d.data();});
-    var localLogs=JSON.parse(localStorage.getItem("eev_"+coId+"_logs")||"[]");
-    var mergedLogs=fbLogs.slice();
-    localLogs.forEach(function(l){if(!mergedLogs.find(function(f){return f.id===l.id;})) mergedLogs.push(l);});
-    mergedLogs.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
-    localStorage.setItem("eev_"+coId+"_logs",JSON.stringify(mergedLogs));
-    logs=mergedLogs;
+    // Use Firebase as source of truth - it reflects all deletions
+    fbLogs.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
+    localStorage.setItem("eev_"+coId+"_logs",JSON.stringify(fbLogs));
+    logs=fbLogs;
     var fbW=res[1].docs.map(function(d){return d.data();});
     if(fbW.length){
       var localW=JSON.parse(localStorage.getItem("eev_"+coId+"_workers")||"[]");
@@ -3209,15 +3214,28 @@ window.addEventListener('load',function(){
           descriptor:w.descriptor||null,photoURL:w.photoURL||null
         });
       }
-      // Logs
+      // Logs — delete all existing Firebase logs first, then re-add from localStorage
+      // This ensures any deletions made locally are reflected in Firebase
       var ls=JSON.parse(localStorage.getItem("eev_"+companyId+"_logs")||"[]");
+      var localIds=ls.map(function(l){return l.id;});
+      // Get existing Firebase logs and delete any not in local
+      var existingSnap=await db.collection("companies").doc(companyId).collection("logs").get();
+      var delBatch=db.batch(),delCnt=0;
+      existingSnap.docs.forEach(function(doc){
+        if(localIds.indexOf(doc.id)===-1){
+          delBatch.delete(doc.ref);
+          delCnt++;
+        }
+      });
+      if(delCnt>0) await delBatch.commit();
+      // Now add/update all local logs
       var b=db.batch(),cnt=0;
       for(var l of ls){
         b.set(db.collection("companies").doc(companyId).collection("logs").doc(l.id),l);
         if(++cnt>=400){await b.commit();b=db.batch();cnt=0;}
       }
       if(cnt>0) await b.commit();
-      return "OK: "+ws.length+" workers, "+ls.length+" logs";
+      return "OK: "+ws.length+" workers, "+ls.length+" logs (deleted "+delCnt+" old records)";
     }catch(e){
       throw e;
     }
@@ -3253,15 +3271,10 @@ window.addEventListener('load',function(){
       .collection("logs").orderBy("clockIn","desc").limit(500)
       .onSnapshot(function(snap){
         var fbLogs=snap.docs.map(function(d){return d.data();});
-        var local=JSON.parse(localStorage.getItem("eev_"+companyId+"_logs")||"[]");
-        // Merge: Firebase + any local-only records
-        var merged=fbLogs.slice();
-        local.forEach(function(l){
-          if(!merged.find(function(f){return f.id===l.id;})) merged.push(l);
-        });
-        merged.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
-        localStorage.setItem("eev_"+companyId+"_logs",JSON.stringify(merged));
-        logs=merged;
+        // Firebase is source of truth — reflects all changes from all phones
+        fbLogs.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
+        localStorage.setItem("eev_"+companyId+"_logs",JSON.stringify(fbLogs));
+        logs=fbLogs;
         if(typeof adminIn!=="undefined"&&adminIn){
           if(typeof renderLogs==="function") renderLogs();
           if(typeof renderWorkerSelects==="function") renderWorkerSelects();
