@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Time Clock System v9</title>
+<title>Time Clock System v10</title>
 <script>
 (function(){
   const c=document.createElement('canvas');c.width=192;c.height=192;
@@ -492,10 +492,9 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   </div>
 
   <div class="divider"></div>
-  <div class="section-title">&#9729;&#65039; Cloud Sync</div>
+  <div class="section-title">&#9729; Cloud Sync</div>
   <div class="card">
-    <p>Pull all latest records from Firebase cloud to this phone.</p>
-    <button class="btn btn-primary" onclick="doPullFromCloud()" style="width:100%;padding:11px;margin-bottom:8px;">&#11015; Pull from Cloud Now</button>
+    <button class="btn btn-primary" onclick="doPullFromCloud()" style="width:100%;padding:11px;">&#11015; Pull Latest from Cloud</button>
   </div>
   <div class="divider"></div>
   <div class="section-title">&#128190; Backup &amp; Restore</div>
@@ -652,10 +651,10 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     </div>
     <div class="divider"></div>
     <div class="admin-section">
-      <div class="admin-section-title">&#9729;&#65039; Cloud Sync</div>
+      <div class="admin-section-title">&#9729; Cloud Sync</div>
       <div class="card">
         <h3>&#11014; Push All Data to Cloud</h3>
-        <p>First time setup: push all companies, workers and logs to Firebase so all phones sync.</p>
+        <p>First time setup or after major changes: push everything to Firebase so all phones sync.</p>
         <button class="btn btn-green" id="pushAllBtn" onclick="doPushAll()" style="width:100%;padding:11px;">&#11014; Push All Data to Cloud Now</button>
       </div>
     </div>
@@ -914,11 +913,8 @@ function saveCompanyData(){
   localStorage.setItem(cKey('workers'), JSON.stringify(workers));
   localStorage.setItem(cKey('logs'),    JSON.stringify(logs));
   localStorage.setItem(cKey('ls'),      JSON.stringify(lsData));
-  // Push latest log to Firebase
-  if(window.fbPushLog&&logs.length){
-    var last=logs[logs.length-1];
-    window.fbPushLog(currentCompanyId,last);
-  }
+  // Push latest log + worker status to Firebase
+  if(logs.length) fbWriteLog(currentCompanyId, logs[logs.length-1]);
 }
 function loadSASettings(){
   saSettings = JSON.parse(localStorage.getItem(SA_SETTINGS_KEY)||'{}');
@@ -950,13 +946,14 @@ function workerLoginFlow(){
   const co=companies.find(c=>c.id===code);
   if(!co){
     showToast('Checking cloud...','');
-    lookupCompanyFromFirebase(code,function(found){
+    fbLoadCompany(code).then(function(fbCo){
+      if(!fbCo){showToast('Company code not found','error');return;}
+      companies.push(fbCo);
+      localStorage.setItem('eev_companies',JSON.stringify(companies));
       currentCompanyId=code;
       document.getElementById('workerPinInput').value='';
       document.getElementById('workerPinScreen').style.display='flex';
-    },function(){
-      showToast('Company code not found','error');
-    });
+    }).catch(function(){showToast('Company code not found','error');});
     return;
   }
   currentCompanyId=code;
@@ -997,30 +994,20 @@ function submitWorkerPin(){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
-  // Load workers from Firebase if none locally
-  if(!workers.length&&window.fbLoadWorkers){
-    showToast('Loading...','');
-    window.fbLoadWorkers(currentCompanyId).then(function(fbW){
-      if(fbW&&fbW.length){
+  if(workers.length){
+    showWorkerStep2();
+  } else {
+    showToast('Loading workers...','');
+    fbLoadWorkers(currentCompanyId).then(function(fbW){
+      if(fbW.length){
         var local=JSON.parse(localStorage.getItem('eev_'+currentCompanyId+'_workers')||'[]');
-        var merged=fbW.map(function(fw){
-          var lw=local.find(function(x){return x.id===fw.id;});
-          return Object.assign({},fw,{
-            descriptor:fw.descriptor||(lw?lw.descriptor:null),
-            photoURL:fw.photoURL||(lw?lw.photoURL:null)
-          });
-        });
+        var merged=fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
         localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(merged));
         while(workers.length) workers.pop();
         merged.forEach(function(w){workers.push(w);});
       }
       showWorkerStep2();
-    }).catch(function(e){
-      console.warn('Firebase workers load failed:',e.message);
-      showWorkerStep2();
-    });
-  } else {
-    showWorkerStep2();
+    }).catch(function(){showWorkerStep2();});
   }
 }
 function showWorkerStep1(){
@@ -1039,31 +1026,27 @@ function submitWorkerName(){
   if(!name){showToast('Enter your name','error');return;}
   const w=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
   if(!w){
-    if(window.fbLoadWorkers&&currentCompanyId){
-      showToast('Checking cloud...','');
-      window.fbLoadWorkers(currentCompanyId).then(function(fbW){
-        if(fbW&&fbW.length){
-          var local=JSON.parse(localStorage.getItem('eev_'+currentCompanyId+'_workers')||'[]');
-          var merged=fbW.map(function(fw){
-            var lw=local.find(function(x){return x.id===fw.id;});
-            return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});
-          });
-          localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(merged));
-          while(workers.length) workers.pop();
-          merged.forEach(function(ww){workers.push(ww);});
-        }
-        var found=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
-        if(found){continueWorkerLogin(found);}
-        else{showToast('Name not found. Available: '+workers.map(function(x){return x.name;}).join(', '),'error');}
-      }).catch(function(){showToast('Name not found — check spelling','error');});
-    } else {
-      showToast('Name not found — check spelling','error');
-    }
+    showToast('Checking cloud...','');
+    fbLoadWorkers(currentCompanyId).then(function(fbW){
+      if(fbW.length){
+        var local=JSON.parse(localStorage.getItem('eev_'+currentCompanyId+'_workers')||'[]');
+        var m=fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
+        localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(m));
+        while(workers.length) workers.pop();
+        m.forEach(function(ww){workers.push(ww);});
+      }
+      var found=workers.find(function(x){return x.name.toLowerCase()===name.toLowerCase();});
+      if(found){
+        continueAfterName(found);
+      } else {
+        showToast('Name not found. Names: '+workers.map(function(x){return x.name;}).join(', '),'error');
+      }
+    }).catch(function(){showToast('Name not found — check spelling','error');});
     return;
   }
-  continueWorkerLogin(w);
+  continueAfterName(w);
 }
-function continueWorkerLogin(w){
+function continueAfterName(w){
   document.getElementById('workerPinScreen').style.display='none';
   document.getElementById('companyScreen').classList.add('hidden');
   updateHeaderLogo(); updateTrialBanner();
@@ -1124,40 +1107,13 @@ function enterWorkerMode(co){
   document.getElementById('logoutBtn').style.display='block';
   document.getElementById('logoutBtn').textContent='\uD83D\uDD13 Exit';
   showPage('clock');
-  if(window.fbLoadWorkers&&!workers.length){
-    window.fbLoadWorkers(currentCompanyId).then(function(fbW){
-      if(fbW&&fbW.length){
-        var local=JSON.parse(localStorage.getItem('eev_'+currentCompanyId+'_workers')||'[]');
-        var merged=fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
-        localStorage.setItem('eev_'+currentCompanyId+'_workers',JSON.stringify(merged));
-        while(workers.length) workers.pop();
-        merged.forEach(function(w){workers.push(w);});
-      }
-      renderWorkerGrid();
-    }).catch(function(){renderWorkerGrid();});
-  } else {
-    renderWorkerGrid();
-  }
+  fbLoadAndRenderWorkers(currentCompanyId);
 }
 function enterAdminMode(co){
   let sub=getSubData(co.id);
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
-  // Start real-time Firebase listeners
-  if(window.fbStartListeners) window.fbStartListeners(co.id);
-  // Pull workers from Firebase to get latest status
-  if(window.fbLoadWorkers){
-    window.fbLoadWorkers(co.id).then(function(fbW){
-      if(fbW&&fbW.length){
-        var local=JSON.parse(localStorage.getItem('eev_'+co.id+'_workers')||'[]');
-        var merged=fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
-        localStorage.setItem('eev_'+co.id+'_workers',JSON.stringify(merged));
-        while(workers.length) workers.pop();
-        merged.forEach(function(w){workers.push(w);});
-        if(adminIn){renderWorkerGrid();renderWorkersList();}
-      }
-    }).catch(function(){});
-  }
+  fbStartListeners(co.id);
   document.getElementById('companyScreen').classList.add('hidden');
   document.getElementById('setPwScreen').classList.remove('open');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
@@ -1245,7 +1201,7 @@ function showExpiredLogin(){
   doLogout();
 }
 function doLogout(){
-  if(window.fbStopListeners) window.fbStopListeners();
+  fbStopListeners();
   adminIn=false; isSuperAdmin=false;
   document.getElementById('adminTabs').style.display='none';
   document.getElementById('publicTabs').style.display='none';
@@ -1649,7 +1605,6 @@ function initClockAction(workerId, action){
   if(ts.status==='expired'){checkExpired();return;}
   const w=workers.find(x=>x.id===workerId);
   if(!w){showToast('Worker not found','error');return;}
-  // Convert descriptor from plain array (Firebase) to Float32Array for face-api
   if(w.descriptor&&Array.isArray(w.descriptor)) w=Object.assign({},w,{descriptor:new Float32Array(w.descriptor)});
   clockWorkerTarget=w; clockAction=action; faceMode='clock';
   document.getElementById('faceTitle').textContent=(action==='in'?'Clock In':'Clock Out')+': '+w.name;
@@ -1879,10 +1834,7 @@ function completeClockAction(wIn){
     document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128308;</div><div class="rm">Clocked Out: '+w.name+'</div><div class="rd">'+timeStr+note+'<br>'+fmtHours(hrs)+otNote+' &nbsp;&#183;&nbsp; '+fmtMoney(wage)+'</div></div>';
   }
   saveCompanyData();
-  // Push worker clockedIn status to Firebase immediately
-  if(window.fbPushWorkerStatus&&currentCompanyId&&currentCompanyId!=='__SA__'){
-    window.fbPushWorkerStatus(currentCompanyId,w);
-  }
+  fbWriteWorkerStatus(currentCompanyId, w);
   renderWorkerGrid();
   showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
 }
@@ -2086,13 +2038,7 @@ function deleteLog(id){
   loadCompanyData();
   logs=logs.filter(function(l){return l.id!==id;});
   saveCompanyData();
-  // Delete from Firebase too
-  if(window._fbdb&&currentCompanyId&&currentCompanyId!=='__SA__'){
-    window._fbdb.collection("companies").doc(currentCompanyId)
-      .collection("logs").doc(id).delete()
-      .then(function(){console.log("Log deleted from Firebase:",id);})
-      .catch(function(e){console.warn("Firebase delete failed:",e.message);});
-  }
+  fbDeleteLog(currentCompanyId, id);
   loadCompanyData();
   renderLogs();
   showToast('Record deleted','success');
@@ -3072,69 +3018,188 @@ function populateQRCompanySelect(){
   if(!sel) return;
   sel.innerHTML='<option value="">-- Choose company --</option>'+companies.map(function(co){return '<option value="'+co.id+'">'+(co.name||co.id)+' ('+co.id+')</option>';}).join('');
 }
+// ═══════════════════════════════════════════════════════════════
+// FIREBASE — Single source of truth for all data
+// ═══════════════════════════════════════════════════════════════
+var _db = null;
+var _unsubLogs = null;
+var _unsubWorkers = null;
+
+function fbInit(){
+  try{
+    var cfg={apiKey:"AIzaSyArvw64h0aPZgbQ4jwAG9o69TYchgArhQ",authDomain:"timeclock-eagle.firebaseapp.com",projectId:"timeclock-eagle",storageBucket:"timeclock-eagle.firebasestorage.app",messagingSenderId:"81982976069",appId:"1:81982976069:web:9a05aeedc1489471f5b32c"};
+    if(!firebase.apps.length) firebase.initializeApp(cfg);
+    _db=firebase.firestore();
+    console.log('[FB] Ready');
+  }catch(e){console.warn('[FB] Init failed:',e.message);}
+}
+
+function fbLogsCol(coId){return _db.collection('companies').doc(coId).collection('logs');}
+function fbWorkersCol(coId){return _db.collection('companies').doc(coId).collection('workers');}
+
+// Write a single log record to Firebase
+function fbWriteLog(coId,log){
+  if(!_db||!coId||coId==='__SA__') return;
+  fbLogsCol(coId).doc(log.id).set(log).catch(function(e){console.warn('[FB] writeLog:',e.message);});
+}
+
+// Delete a single log from Firebase
+function fbDeleteLog(coId,logId){
+  if(!_db||!coId||coId==='__SA__') return;
+  fbLogsCol(coId).doc(logId).delete().catch(function(e){console.warn('[FB] deleteLog:',e.message);});
+}
+
+// Write worker status
+function fbWriteWorkerStatus(coId,w){
+  if(!_db||!coId||coId==='__SA__') return;
+  fbWorkersCol(coId).doc(w.id).set({
+    id:w.id,name:w.name,title:w.title||'',rate:w.rate||0,
+    overtimeRate:w.overtimeRate||w.rate||0,
+    clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null,
+    descriptor:w.descriptor||null,photoURL:w.photoURL||null
+  },{merge:true}).catch(function(e){console.warn('[FB] writeWorker:',e.message);});
+}
+
+// Load a company from Firebase
+function fbLoadCompany(coId){
+  if(!_db) return Promise.resolve(null);
+  return _db.collection('companies').doc(coId).get()
+    .then(function(doc){return doc.exists?doc.data():null;});
+}
+
+// Load workers from Firebase
+function fbLoadWorkers(coId){
+  if(!_db) return Promise.resolve([]);
+  return fbWorkersCol(coId).get()
+    .then(function(snap){return snap.docs.map(function(d){return d.data();});});
+}
+
+// Load workers and render grid (for worker phones)
+function fbLoadAndRenderWorkers(coId){
+  if(!_db){renderWorkerGrid();return;}
+  fbLoadWorkers(coId).then(function(fbW){
+    if(fbW.length){
+      var local=JSON.parse(localStorage.getItem('eev_'+coId+'_workers')||'[]');
+      var merged=fbW.map(function(fw){
+        var lw=local.find(function(x){return x.id===fw.id;});
+        return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});
+      });
+      localStorage.setItem('eev_'+coId+'_workers',JSON.stringify(merged));
+      while(workers.length) workers.pop();
+      merged.forEach(function(w){workers.push(w);});
+    }
+    renderWorkerGrid();
+  }).catch(function(){renderWorkerGrid();});
+}
+
+// Start real-time listeners — Firebase is SINGLE source of truth
+function fbStartListeners(coId){
+  fbStopListeners();
+  if(!_db) return;
+  console.log('[FB] Starting listeners for',coId);
+
+  // LOGS: Firebase is the only truth — no merging with local
+  _unsubLogs=fbLogsCol(coId).orderBy('clockIn','desc').limit(500)
+    .onSnapshot(function(snap){
+      var fbLogs=snap.docs.map(function(d){return d.data();});
+      fbLogs.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
+      localStorage.setItem('eev_'+coId+'_logs',JSON.stringify(fbLogs));
+      while(logs.length) logs.pop();
+      fbLogs.forEach(function(l){logs.push(l);});
+      if(adminIn){
+        renderLogs();
+        renderWorkerSelects();
+      }
+      console.log('[FB] Logs snapshot:',fbLogs.length,'records');
+    },function(e){console.warn('[FB] Logs listener:',e.message);});
+
+  // WORKERS: Merge face data from local (too large for Firestore)
+  _unsubWorkers=fbWorkersCol(coId)
+    .onSnapshot(function(snap){
+      var fbW=snap.docs.map(function(d){return d.data();});
+      var local=JSON.parse(localStorage.getItem('eev_'+coId+'_workers')||'[]');
+      var merged=fbW.map(function(fw){
+        var lw=local.find(function(x){return x.id===fw.id;});
+        return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});
+      });
+      localStorage.setItem('eev_'+coId+'_workers',JSON.stringify(merged));
+      while(workers.length) workers.pop();
+      merged.forEach(function(w){workers.push(w);});
+      if(adminIn){renderWorkerGrid();renderWorkersList();}
+      console.log('[FB] Workers snapshot:',merged.length,'workers');
+    },function(e){console.warn('[FB] Workers listener:',e.message);});
+}
+
+function fbStopListeners(){
+  if(_unsubLogs){_unsubLogs();_unsubLogs=null;}
+  if(_unsubWorkers){_unsubWorkers();_unsubWorkers=null;}
+}
+
+// Push ALL local data to Firebase (respects deletions)
 async function doPushAll(){
-  var btn=document.getElementById("pushAllBtn");
-  if(btn){btn.textContent="Pushing...";btn.disabled=true;}
-  if(!window.fbPushAll){alert("Firebase not ready — wait a moment and try again");if(btn){btn.textContent="↑ Push All Data to Cloud Now";btn.disabled=false;}return;}
-  var cos=JSON.parse(localStorage.getItem("eev_companies")||"[]");
-  if(!cos.length){alert("No companies found. Register a company first.");if(btn){btn.textContent="↑ Push All Data to Cloud Now";btn.disabled=false;}return;}
+  var btn=document.getElementById('pushAllBtn');
+  if(btn){btn.textContent='Pushing...';btn.disabled=true;}
+  if(!_db){alert('Firebase not ready — wait a moment');if(btn){btn.innerHTML='&#11014; Push All Data to Cloud Now';btn.disabled=false;}return;}
+  var cos=JSON.parse(localStorage.getItem('eev_companies')||'[]');
+  if(!cos.length){alert('No companies found. Register a company first.');if(btn){btn.innerHTML='&#11014; Push All Data to Cloud Now';btn.disabled=false;}return;}
   var results=[];
   for(var co of cos){
     try{
-      var msg=await window.fbPushAll(co.id);
-      results.push(co.name+": "+msg);
-    }catch(e){
-      results.push(co.name+": FAILED - "+e.message);
-    }
-  }
-  alert("Push complete!\n"+results.join("\n"));
-  if(btn){btn.innerHTML="&#11014; Push All Data to Cloud Now";btn.disabled=false;}
-}
-
-function lookupCompanyFromFirebase(code, onFound, onNotFound){
-  if(!window.fbLoadCompany){onNotFound();return;}
-  window.fbLoadCompany(code).then(function(co){
-    if(co&&co.id){
-      var cos=JSON.parse(localStorage.getItem("eev_companies")||"[]");
-      if(!cos.find(function(x){return x.id===co.id;})){
-        cos.push(co);
-        localStorage.setItem("eev_companies",JSON.stringify(cos));
+      await _db.collection('companies').doc(co.id).set({id:co.id,name:co.name||'',password:co.password||'',workerPin:co.workerPin||'1234',trialDays:co.trialDays||30,createdAt:co.createdAt||new Date().toISOString()});
+      var ws=JSON.parse(localStorage.getItem('eev_'+co.id+'_workers')||'[]');
+      for(var w of ws){
+        await fbWorkersCol(co.id).doc(w.id).set({id:w.id,name:w.name,title:w.title||'',rate:w.rate||0,overtimeRate:w.overtimeRate||w.rate||0,clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null,descriptor:w.descriptor||null,photoURL:w.photoURL||null});
       }
-      onFound(co);
-    } else {
-      onNotFound();
-    }
-  }).catch(function(){onNotFound();});
+      var ls=JSON.parse(localStorage.getItem('eev_'+co.id+'_logs')||'[]');
+      var localIds=ls.map(function(l){return l.id;});
+      // Delete Firebase logs that were deleted locally
+      var existing=await fbLogsCol(co.id).get();
+      var db2=_db; var delB=db2.batch(); var dc=0;
+      existing.docs.forEach(function(doc){if(localIds.indexOf(doc.id)===-1){delB.delete(doc.ref);dc++;}});
+      if(dc>0) await delB.commit();
+      // Write current local logs
+      var b=_db.batch(); var cnt=0;
+      for(var l of ls){b.set(fbLogsCol(co.id).doc(l.id),l);if(++cnt>=400){await b.commit();b=_db.batch();cnt=0;}}
+      if(cnt>0) await b.commit();
+      results.push(co.name+': OK ('+ws.length+' workers, '+ls.length+' logs, '+dc+' deleted)');
+    }catch(e){results.push(co.name+': FAILED - '+e.message);}
+  }
+  alert('Push complete!\n'+results.join('\n'));
+  if(btn){btn.innerHTML='&#11014; Push All Data to Cloud Now';btn.disabled=false;}
 }
 
+// Pull latest from Firebase to this phone
 function doPullFromCloud(){
-  if(!window._fbdb){showToast("Firebase not ready","error");return;}
-  if(!currentCompanyId||currentCompanyId==="__SA__"){showToast("Log in as Admin first","error");return;}
-  var db=window._fbdb,coId=currentCompanyId;
-  showToast("Pulling from cloud...","");
+  if(!_db){showToast('Firebase not ready','error');return;}
+  if(!currentCompanyId||currentCompanyId==='__SA__'){showToast('Log in as Admin first','error');return;}
+  var coId=currentCompanyId;
+  showToast('Pulling from cloud...','');
   Promise.all([
-    db.collection("companies").doc(coId).collection("logs").orderBy("clockIn","desc").limit(500).get(),
-    db.collection("companies").doc(coId).collection("workers").get()
+    fbLogsCol(coId).orderBy('clockIn','desc').limit(500).get(),
+    fbWorkersCol(coId).get()
   ]).then(function(res){
+    // Logs — Firebase is truth
     var fbLogs=res[0].docs.map(function(d){return d.data();});
-    // Use Firebase as source of truth - it reflects all deletions
     fbLogs.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
-    localStorage.setItem("eev_"+coId+"_logs",JSON.stringify(fbLogs));
-    logs=fbLogs;
+    localStorage.setItem('eev_'+coId+'_logs',JSON.stringify(fbLogs));
+    while(logs.length) logs.pop();
+    fbLogs.forEach(function(l){logs.push(l);});
+    // Workers — merge face data
     var fbW=res[1].docs.map(function(d){return d.data();});
     if(fbW.length){
-      var localW=JSON.parse(localStorage.getItem("eev_"+coId+"_workers")||"[]");
-      var mW=fbW.map(function(fw){var lw=localW.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
-      localStorage.setItem("eev_"+coId+"_workers",JSON.stringify(mW));
+      var local=JSON.parse(localStorage.getItem('eev_'+coId+'_workers')||'[]');
+      var merged=fbW.map(function(fw){var lw=local.find(function(x){return x.id===fw.id;});return Object.assign({},fw,{descriptor:fw.descriptor||(lw?lw.descriptor:null),photoURL:fw.photoURL||(lw?lw.photoURL:null)});});
+      localStorage.setItem('eev_'+coId+'_workers',JSON.stringify(merged));
       while(workers.length) workers.pop();
-      mW.forEach(function(w){workers.push(w);});
+      merged.forEach(function(w){workers.push(w);});
     }
     renderLogs();renderWorkerGrid();renderWorkersList();renderWorkerSelects();
-    showToast("Pulled "+mergedLogs.length+" logs + "+workers.length+" workers from cloud","success");
-  }).catch(function(e){showToast("Pull failed: "+e.message,"error");});
+    showToast('Pulled '+fbLogs.length+' logs + '+workers.length+' workers ✓','success');
+  }).catch(function(e){showToast('Pull failed: '+e.message,'error');});
 }
 
 window.addEventListener('load',function(){
+  fbInit();
   loadSASettings();
   loadCompanies();
   startClock();
@@ -3142,182 +3207,6 @@ window.addEventListener('load',function(){
   // Start loading face models immediately in background
   loadFaceModels();
 });
-</script>
-
-<script>
-// ═══════════════════════════════════════════════════════
-// FIREBASE SYNC — runs after all other scripts loaded
-// ═══════════════════════════════════════════════════════
-(function(){
-  try{
-    var fbConfig={
-      apiKey:"AIzaSyArvw64h0aPZgbQ4jwAG9o69TYchgArhQ",
-      authDomain:"timeclock-eagle.firebaseapp.com",
-      projectId:"timeclock-eagle",
-      storageBucket:"timeclock-eagle.firebasestorage.app",
-      messagingSenderId:"81982976069",
-      appId:"1:81982976069:web:9a05aeedc1489471f5b32c"
-    };
-    firebase.initializeApp(fbConfig);
-    var db=firebase.firestore();
-    window._fbdb=db; // expose globally
-    console.log("Firebase ready");
-  }catch(e){
-    console.warn("Firebase init failed:",e.message);
-    window._fbdb=null;
-  }
-
-  // ── Helper: push a single log record to Firebase ──────────────────────────
-  window.fbPushLog=function(companyId, logRecord){
-    if(!window._fbdb) return;
-    window._fbdb.collection("companies").doc(companyId)
-      .collection("logs").doc(logRecord.id)
-      .set(logRecord)
-      .then(function(){console.log("Log pushed:",logRecord.id);})
-      .catch(function(e){console.warn("Log push failed:",e.message);});
-  };
-
-  // ── Helper: push worker status (clockedIn/clockInTime) ───────────────────
-  window.fbPushWorkerStatus=function(companyId, worker){
-    if(!window._fbdb) return;
-    window._fbdb.collection("companies").doc(companyId)
-      .collection("workers").doc(worker.id)
-      .set({
-        id:worker.id, name:worker.name,
-        clockedIn:worker.clockedIn||false,
-        clockInTime:worker.clockInTime||null
-      },{merge:true})
-      .catch(function(e){console.warn("Worker push failed:",e.message);});
-  };
-
-  // ── Helper: push full company data (called by Push All button) ────────────
-  window.fbPushAll=async function(companyId){
-    if(!window._fbdb){alert("Firebase not ready");return;}
-    var db=window._fbdb;
-    try{
-      // Companies list
-      var cos=JSON.parse(localStorage.getItem("eev_companies")||"[]");
-      for(var co of cos){
-        await db.collection("companies").doc(co.id).set({
-          id:co.id,name:co.name||"",password:co.password||"",
-          workerPin:co.workerPin||"1234",trialDays:co.trialDays||30,
-          createdAt:co.createdAt||new Date().toISOString()
-        });
-      }
-      // Workers (with face descriptors for cross-device face scan)
-      var ws=JSON.parse(localStorage.getItem("eev_"+companyId+"_workers")||"[]");
-      for(var w of ws){
-        await db.collection("companies").doc(companyId).collection("workers").doc(w.id).set({
-          id:w.id,name:w.name,title:w.title||"",rate:w.rate||0,
-          overtimeRate:w.overtimeRate||w.rate||0,
-          clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null,
-          descriptor:w.descriptor||null,photoURL:w.photoURL||null
-        });
-      }
-      // Logs — delete all existing Firebase logs first, then re-add from localStorage
-      // This ensures any deletions made locally are reflected in Firebase
-      var ls=JSON.parse(localStorage.getItem("eev_"+companyId+"_logs")||"[]");
-      var localIds=ls.map(function(l){return l.id;});
-      // Get existing Firebase logs and delete any not in local
-      var existingSnap=await db.collection("companies").doc(companyId).collection("logs").get();
-      var delBatch=db.batch(),delCnt=0;
-      existingSnap.docs.forEach(function(doc){
-        if(localIds.indexOf(doc.id)===-1){
-          delBatch.delete(doc.ref);
-          delCnt++;
-        }
-      });
-      if(delCnt>0) await delBatch.commit();
-      // Now add/update all local logs
-      var b=db.batch(),cnt=0;
-      for(var l of ls){
-        b.set(db.collection("companies").doc(companyId).collection("logs").doc(l.id),l);
-        if(++cnt>=400){await b.commit();b=db.batch();cnt=0;}
-      }
-      if(cnt>0) await b.commit();
-      return "OK: "+ws.length+" workers, "+ls.length+" logs (deleted "+delCnt+" old records)";
-    }catch(e){
-      throw e;
-    }
-  };
-
-  // ── Helper: load workers from Firebase (for other phones) ─────────────────
-  window.fbLoadWorkers=function(companyId){
-    if(!window._fbdb) return Promise.resolve([]);
-    return window._fbdb.collection("companies").doc(companyId)
-      .collection("workers").get()
-      .then(function(snap){
-        return snap.docs.map(function(d){return d.data();});
-      });
-  };
-
-  // ── Helper: load company from Firebase ────────────────────────────────────
-  window.fbLoadCompany=function(companyId){
-    if(!window._fbdb) return Promise.resolve(null);
-    return window._fbdb.collection("companies").doc(companyId).get()
-      .then(function(doc){return doc.exists?doc.data():null;});
-  };
-
-  // ── Admin real-time listener: auto-updates logs when any phone clocks in ──
-  window._fbLogsUnsub=null;
-  window._fbWorkersUnsub=null;
-
-  window.fbStartListeners=function(companyId){
-    window.fbStopListeners();
-    if(!window._fbdb) return;
-    var db=window._fbdb;
-
-    window._fbLogsUnsub=db.collection("companies").doc(companyId)
-      .collection("logs").orderBy("clockIn","desc").limit(500)
-      .onSnapshot(function(snap){
-        var fbLogs=snap.docs.map(function(d){return d.data();});
-        // Firebase is source of truth — reflects all changes from all phones
-        fbLogs.sort(function(a,b){return new Date(a.clockIn)-new Date(b.clockIn);});
-        localStorage.setItem("eev_"+companyId+"_logs",JSON.stringify(fbLogs));
-        logs=fbLogs;
-        if(typeof adminIn!=="undefined"&&adminIn){
-          if(typeof renderLogs==="function") renderLogs();
-          if(typeof renderWorkerSelects==="function") renderWorkerSelects();
-        }
-        console.log("Live update: "+merged.length+" logs");
-      },function(e){console.warn("Log listener:",e.message);});
-
-    window._fbWorkersUnsub=db.collection("companies").doc(companyId)
-      .collection("workers")
-      .onSnapshot(function(snap){
-        var fbW=snap.docs.map(function(d){return d.data();});
-        var local=JSON.parse(localStorage.getItem("eev_"+companyId+"_workers")||"[]");
-        // Merge: keep local face data, update status from Firebase
-        var merged=local.map(function(lw){
-          var fw=fbW.find(function(x){return x.id===lw.id;});
-          return fw?Object.assign({},lw,{clockedIn:fw.clockedIn,clockInTime:fw.clockInTime}):lw;
-        });
-        // Add any workers from Firebase not in local
-        fbW.forEach(function(fw){
-          if(!merged.find(function(x){return x.id===fw.id;})){
-            merged.push(fw);
-          }
-        });
-        localStorage.setItem("eev_"+companyId+"_workers",JSON.stringify(merged));
-        logs=logs; // keep logs
-        while(workers.length) workers.pop();
-        merged.forEach(function(w){workers.push(w);});
-        if(typeof adminIn!=="undefined"&&adminIn){
-          if(typeof renderWorkerGrid==="function") renderWorkerGrid();
-          if(typeof renderWorkersList==="function") renderWorkersList();
-        }
-        console.log("Live update: "+merged.length+" workers");
-      },function(e){console.warn("Worker listener:",e.message);});
-
-    console.log("Firebase listeners started for",companyId);
-  };
-
-  window.fbStopListeners=function(){
-    if(window._fbLogsUnsub){window._fbLogsUnsub();window._fbLogsUnsub=null;}
-    if(window._fbWorkersUnsub){window._fbWorkersUnsub();window._fbWorkersUnsub=null;}
-  };
-
-})();
 </script>
 </body>
 </html>
