@@ -889,6 +889,13 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 // CONSTANTS
 // ═══════════════════════════════════════
 const SA_PASSWORD = 'Eagle2026!';
+
+// Firebase — initialized at top so db is available throughout
+const firebaseConfig={apiKey:'AIzaSyArvw64h0aPZgbQ4jwAG9o69TYchgArhQ',authDomain:'timeclock-eagle.firebaseapp.com',projectId:'timeclock-eagle',storageBucket:'timeclock-eagle.firebasestorage.app',messagingSenderId:'81982976069',appId:'1:81982976069:web:9a05aeedc1489471f5b32c'};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+var _jobSite=null;
+
 const SA_SETTINGS_KEY = 'eev_sa_settings';
 const COMPANIES_KEY = 'eev_companies';
 
@@ -3087,13 +3094,7 @@ function populateQRCompanySelect(){
   if(!sel) return;
   sel.innerHTML='<option value="">-- Choose company --</option>'+companies.map(function(co){return '<option value="'+co.id+'">'+(co.name||co.id)+' ('+co.id+')</option>';}).join('');
 }
-// ═══ FIREBASE ═══
-const firebaseConfig={apiKey:"AIzaSyArvw64h0aPZgbQ4jwAG9o69TYchgArhQ",authDomain:"timeclock-eagle.firebaseapp.com",projectId:"timeclock-eagle",storageBucket:"timeclock-eagle.firebasestorage.app",messagingSenderId:"81982976069",appId:"1:81982976069:web:9a05aeedc1489471f5b32c"};
-firebase.initializeApp(firebaseConfig);
-const db=firebase.firestore();
-
 // ═══ JOB SITE & GPS ═══
-var _jobSite=null;
 function jobSiteKey(){return 'eev_'+currentCompanyId+'_jobsite';}
 function loadJobSite(){if(!currentCompanyId||currentCompanyId==='__SA__') return null;var s=localStorage.getItem(jobSiteKey());_jobSite=s?JSON.parse(s):null;return _jobSite;}
 function saveJobSiteLocal(site){localStorage.setItem(jobSiteKey(),JSON.stringify(site));_jobSite=site;}
