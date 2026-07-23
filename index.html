@@ -913,8 +913,12 @@ function saveCompanyData(){
   localStorage.setItem(cKey('workers'), JSON.stringify(workers));
   localStorage.setItem(cKey('logs'),    JSON.stringify(logs));
   localStorage.setItem(cKey('ls'),      JSON.stringify(lsData));
-  // Push latest log + worker status to Firebase
-  if(logs.length) fbWriteLog(currentCompanyId, logs[logs.length-1]);
+  if(currentCompanyId&&currentCompanyId!=='__SA__'){
+    // Push latest log to Firebase
+    if(logs.length) fbWriteLog(currentCompanyId, logs[logs.length-1]);
+    // Push all workers to Firebase (so other phones see any worker changes)
+    if(typeof fbWriteAllWorkers==='function') fbWriteAllWorkers(currentCompanyId, workers);
+  }
 }
 function loadSASettings(){
   saSettings = JSON.parse(localStorage.getItem(SA_SETTINGS_KEY)||'{}');
@@ -1850,7 +1854,14 @@ function timeSince(iso){
 }
 function renderWorkerGrid(){
   const el=document.getElementById('workerGrid');
-  if(!workers.length){ el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers added yet.<br>Contact your admin to add workers.</p></div>'; return; }
+  if(!workers.length){
+    if(window._fbLoadingWorkers){
+      el.innerHTML='<div class="empty-state"><div class="icon">&#8987;</div><p>Loading workers from cloud...</p></div>';
+    } else {
+      el.innerHTML='<div class="empty-state"><div class="icon">&#128119;</div><p>No workers added yet.<br>Contact your admin to add workers.</p></div>';
+    }
+    return;
+  }
   const ts=getTrialStatus();
   const expired=ts.status==='expired';
   el.innerHTML=workers.map(w=>{
@@ -3049,6 +3060,21 @@ function fbDeleteLog(coId,logId){
   fbLogsCol(coId).doc(logId).delete().catch(function(e){console.warn('[FB] deleteLog:',e.message);});
 }
 
+// Write ALL workers to Firebase
+function fbWriteAllWorkers(coId, workerList){
+  if(!_db||!coId||coId==='__SA__') return;
+  var batch=_db.batch();
+  workerList.forEach(function(w){
+    batch.set(fbWorkersCol(coId).doc(w.id),{
+      id:w.id,name:w.name,title:w.title||'',rate:w.rate||0,
+      overtimeRate:w.overtimeRate||w.rate||0,
+      clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null,
+      descriptor:w.descriptor||null,photoURL:w.photoURL||null
+    });
+  });
+  batch.commit().catch(function(e){console.warn('[FB] writeAllWorkers:',e.message);});
+}
+
 // Write worker status
 function fbWriteWorkerStatus(coId,w){
   if(!_db||!coId||coId==='__SA__') return;
@@ -3077,7 +3103,10 @@ function fbLoadWorkers(coId){
 // Load workers and render grid (for worker phones)
 function fbLoadAndRenderWorkers(coId){
   if(!_db){renderWorkerGrid();return;}
+  window._fbLoadingWorkers=true;
+  renderWorkerGrid(); // shows loading spinner
   fbLoadWorkers(coId).then(function(fbW){
+    window._fbLoadingWorkers=false;
     if(fbW.length){
       var local=JSON.parse(localStorage.getItem('eev_'+coId+'_workers')||'[]');
       var merged=fbW.map(function(fw){
@@ -3087,9 +3116,18 @@ function fbLoadAndRenderWorkers(coId){
       localStorage.setItem('eev_'+coId+'_workers',JSON.stringify(merged));
       while(workers.length) workers.pop();
       merged.forEach(function(w){workers.push(w);});
+      renderWorkerGrid();
+    } else {
+      // Nothing in Firebase - try local
+      loadCompanyData();
+      renderWorkerGrid();
     }
+  }).catch(function(e){
+    console.warn('fbLoadAndRenderWorkers:',e.message);
+    window._fbLoadingWorkers=false;
+    loadCompanyData();
     renderWorkerGrid();
-  }).catch(function(){renderWorkerGrid();});
+  });
 }
 
 // Start real-time listeners — Firebase is SINGLE source of truth
