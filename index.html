@@ -1048,9 +1048,8 @@ function showWorkerStep2(){
   setTimeout(function(){document.getElementById('workerNameInput').focus();},100);
 }
 function submitWorkerName(){
-  const name=document.getElementById('workerNameInput').value.trim();
+  var name=document.getElementById('workerNameInput').value.trim();
   if(!name){showToast('Enter your name','error');return;}
-  // Always fetch fresh from Firebase to ensure latest worker list
   showToast('Verifying...','');
   var coId=currentCompanyId;
   console.log('submitWorkerName: coId='+coId+' name='+name+' local workers='+workers.length);
@@ -1080,14 +1079,13 @@ function proceedWorkerLogin(w){
   document.getElementById('workerPinScreen').style.display='none';
   document.getElementById('companyScreen').classList.add('hidden');
   updateHeaderLogo(); updateTrialBanner();
-  const ts=getTrialStatus();
+  var ts=getTrialStatus();
   if(ts.status==='expired'){checkExpired();return;}
   startClock(); loadFaceModels();
-  document.getElementById('publicTabs').style.display='flex';
   document.getElementById('logoutBtn').style.display='block';
-  document.getElementById('logoutBtn').textContent='🔓 Exit';
-  showPage('clock');
-  const action=w.clockedIn?'out':'in';
+  document.getElementById('logoutBtn').textContent='Exit';
+  if(!workers.find(function(x){return x.id===w.id;})) workers.push(w);
+  var action=w.clockedIn?'out':'in';
   initClockAction(w.id,action);
 }
 function submitAdminPwScreen(){
