@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Time Clock System v10</title>
+<title>Time Clock System v11</title>
 <script>
 (function(){
   const c=document.createElement('canvas');c.width=192;c.height=192;
@@ -388,7 +388,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <div id="logTotals"></div>
   <div class="log-table-wrap">
     <table>
-      <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>OT</th><th>Wage</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th>OT</th><th>Wage</th><th>Location</th><th>Status</th><th></th></tr></thead>
       <tbody id="logBody"></tbody>
     </table>
   </div>
@@ -434,6 +434,15 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <p>Set working hours per day. Clock-in within 15 min before start rounds up. Clock-out within 15 min before end rounds up to end time.</p>
     <div id="schedGrid"></div>
     <button class="btn btn-primary" onclick="saveSchedule()" style="width:100%;padding:11px;margin-top:12px;">&#128190; Save Schedule</button>
+  </div>
+  <div class="divider"></div>
+  <div class="section-title">&#128205; Job Site Location</div>
+  <div class="card">
+    <h3>&#128205; Set Today's Job Site</h3>
+    <p>Press when you arrive at the work location. Workers must be within <strong>50m</strong> to clock in or out.</p>
+    <div id="jobSiteInfo" style="background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.82rem;">No job site set</div>
+    <button class="btn btn-green" id="setJobSiteBtn" onclick="adminSetJobSite()" style="width:100%;padding:11px;margin-bottom:8px;">&#128205; Use My Current Location</button>
+    <button class="btn btn-ghost" onclick="adminClearJobSite()" style="width:100%;padding:9px;font-size:0.8rem;">&#10005; Clear Job Site</button>
   </div>
   <div class="divider"></div>
   <div class="section-title">Manual Time Entry</div>
@@ -1133,6 +1142,7 @@ function enterAdminMode(co){
   if(!sub){sub={trialStart:new Date().toISOString()};saveSubData(co.id,sub);}
   loadSASettings(); loadCompanyData();
   fbStartListeners(co.id);
+  loadAndShowJobSite();
   document.getElementById('companyScreen').classList.add('hidden');
   document.getElementById('setPwScreen').classList.remove('open');
   updateHeaderLogo(); updateTrialBanner(); checkExpired();
@@ -1302,6 +1312,7 @@ function loadAdminPanel(){
   renderWorkerSelects();
   renderLSList();
   renderPaymentsList();
+  loadAndShowJobSite();
   // Default close period to current month
   var now=new Date(),y=now.getFullYear(),m=now.getMonth();
   var fromD=y+'-'+String(m+1).padStart(2,'0')+'-01';
@@ -1807,7 +1818,50 @@ function processClockAction(descriptor){
   completeClockAction(best);
 }
 function completeClockAction(wIn){
-  let w=wIn; const now=new Date();
+  var now=new Date();
+  var w=wIn;
+  if(!adminIn&&currentCompanyId&&currentCompanyId!=='__SA__'){
+    // Show checking status
+    var rEl=document.getElementById('faceResult');
+    rEl.innerHTML='<div class="result-box"><div class="ri">&#128205;</div><div class="rm">Checking location...</div></div>';
+    gpsLoadJobSite(currentCompanyId).then(function(site){
+      if(!site){
+        // No job site - allow without geofence
+        gpsGetPosition().then(function(pos){
+          gpsGetAddress(pos.coords.latitude,pos.coords.longitude).then(function(addr){
+            doCompleteClockAction(w,now,{lat:pos.coords.latitude,lng:pos.coords.longitude,address:addr,dist:0});
+          });
+        }).catch(function(){
+          doCompleteClockAction(w,now,null);
+        });
+        return;
+      }
+      gpsGetPosition().then(function(pos){
+        var lat=pos.coords.latitude,lng=pos.coords.longitude;
+        var dist=Math.round(gpsDistance(lat,lng,site.lat,site.lng));
+        if(dist>50){
+          rEl.innerHTML='<div class="result-box error"><div class="ri">&#128205;</div><div class="rm">Too far from job site</div><div class="rd">You are '+dist+'m away.<br>Must be within 50m of:<br><strong>'+site.address+'</strong></div></div>';
+          showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
+          return;
+        }
+        gpsGetAddress(lat,lng).then(function(address){
+          doCompleteClockAction(w,now,{lat:lat,lng:lng,address:address,dist:dist});
+        });
+      }).catch(function(e){
+        rEl.innerHTML='<div class="result-box error"><div class="ri">&#128205;</div><div class="rm">Location access denied</div><div class="rd">Please allow location access in your browser settings to clock in/out.</div></div>';
+        showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
+      });
+    }).catch(function(){
+      doCompleteClockAction(w,now,null);
+    });
+    return;
+  }
+  // Admin manual clock - no GPS needed
+  doCompleteClockAction(w,now,null);
+}
+
+function doCompleteClockAction(wIn, now, gpsData){
+  let w=wIn;
   if(clockAction==='in'){
     const rounded=applyClockInRounding(now);
     const wasRounded=rounded.getTime()!==now.getTime();
@@ -1816,6 +1870,7 @@ function completeClockAction(wIn){
     const wFresh=workers.find(function(x){return x.id===w.id;});
     const ww=wFresh||w;
     ww.clockedIn=true; ww.clockInTime=rounded.toISOString();
+    if(gpsData){ww.clockInLocation=gpsData.address;ww.clockInLat=gpsData.lat;ww.clockInLng=gpsData.lng;}
     w=ww;
     const timeStr=rounded.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
     const note=wasRounded?' <span style="font-size:0.65rem;color:#FDBA74;">(rounded from '+now.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+')</span>':'';
@@ -1865,7 +1920,10 @@ function completeClockAction(wIn){
     const wage=Math.round((normalHrs*w.rate+otHrs*(w.overtimeRate||w.rate*1.5))*100)/100;
     const timeStr=rounded.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
     const note=wasRounded?' <span style="font-size:0.65rem;color:#FDBA74;">(rounded from '+rawOut.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+')</span>':'';
-    const log={id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,clockIn:w.clockInTime,clockOut:rounded.toISOString(),hoursWorked:Math.round(hrs*100)/100,normalHours:Math.round(normalHrs*100)/100,overtimeHours:Math.round(otHrs*100)/100,rate:w.rate,overtimeRate:w.overtimeRate||w.rate*1.5,wage,manual:false};
+    var log={id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,clockIn:w.clockInTime,clockOut:rounded.toISOString(),hoursWorked:Math.round(hrs*100)/100,normalHours:Math.round(normalHrs*100)/100,overtimeHours:Math.round(otHrs*100)/100,rate:w.rate,overtimeRate:w.overtimeRate||w.rate*1.5,wage:wage,manual:false};
+    // GPS data: clock-in location from worker, clock-out from current GPS
+    if(w.clockInLocation){log.locationIn=w.clockInLocation;log.latIn=w.clockInLat;log.lngIn=w.clockInLng;}
+    if(gpsData){log.locationOut=gpsData.address;log.latOut=gpsData.lat;log.lngOut=gpsData.lng;}
     logs.push(log); w.clockedIn=false; w.clockInTime=null;
     const otNote=otHrs>0?' &nbsp;&#183;&nbsp; OT: '+fmtHours(otHrs):'';
     document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128308;</div><div class="rm">Clocked Out: '+w.name+'</div><div class="rd">'+timeStr+note+'<br>'+fmtHours(hrs)+otNote+' &nbsp;&#183;&nbsp; '+fmtMoney(wage)+'</div></div>';
@@ -2056,6 +2114,7 @@ function renderLogs(){
       +'<td class="mono">'+(complete?fmtHours(l.hoursWorked):'—')+'</td>'
       +'<td class="mono" style="color:'+(otHrs>0?'var(--orange)':'var(--muted)')+'">'+(complete?(otHrs>0?fmtHours(otHrs):'—'):'—')+'</td>'
       +'<td class="mono green">'+(complete?fmtMoney(l.wage):'—')+'</td>'
+      +'<td style="font-size:0.7rem;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+(l.locationIn||l.locationOut||'')+'">'+(l.locationIn?'&#128205; '+l.locationIn.split(',')[0]:(l.locationOut?'&#128205; '+l.locationOut.split(',')[0]:''))+'</td>'
       +'<td><span class="badge '+(complete?'complete':'in')+'">'+(complete?'Done':'Active')+'</span></td>'
       +(isArchive?'<td></td>':'<td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="deleteLog(\''+l.id+'\')">×</button></td>')
       +'</tr>';
@@ -3167,6 +3226,8 @@ function fbWriteWorkerStatus(coId,w){
     id:w.id,name:w.name,title:w.title||'',rate:w.rate||0,
     overtimeRate:w.overtimeRate||w.rate||0,
     clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null,
+    clockInLocation:w.clockInLocation||null,
+    clockInLat:w.clockInLat||null,clockInLng:w.clockInLng||null,
     descriptor:w.descriptor||null,photoURL:w.photoURL||null
   },{merge:true}).catch(function(e){console.warn('[FB] writeWorker:',e.message);});
 }
@@ -3270,6 +3331,47 @@ function fbStopListeners(){
   if(_unsubWorkers){_unsubWorkers();_unsubWorkers=null;}
 }
 
+// ── GPS helpers ────────────────────────────────────────────────────────
+function gpsGetPosition(){
+  return new Promise(function(res,rej){
+    if(!navigator.geolocation){rej(new Error("GPS not available"));return;}
+    navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+  });
+}
+function gpsGetAddress(lat,lng){
+  return fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat="+lat+"&lon="+lng,{headers:{"Accept-Language":"en"}})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var a=d.address||{};
+      var parts=[a.road||a.pedestrian,a.suburb||a.neighbourhood,a.city||a.town].filter(Boolean);
+      return parts.length?parts.join(", "):(lat.toFixed(4)+", "+lng.toFixed(4));
+    }).catch(function(){return lat.toFixed(4)+", "+lng.toFixed(4);});
+}
+function gpsDistance(lat1,lng1,lat2,lng2){
+  var R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function gpsSaveJobSite(coId,site){
+  localStorage.setItem("eev_"+coId+"_jobsite",JSON.stringify(site));
+  if(_db) _db.collection("companies").doc(coId).collection("settings").doc("jobsite").set(site).catch(function(e){console.warn("[GPS] save:",e.message);});
+}
+function gpsLoadJobSite(coId){
+  if(_db){
+    return _db.collection("companies").doc(coId).collection("settings").doc("jobsite").get()
+      .then(function(doc){
+        if(doc.exists){var s=doc.data();localStorage.setItem("eev_"+coId+"_jobsite",JSON.stringify(s));return s;}
+        var local=localStorage.getItem("eev_"+coId+"_jobsite");
+        return local?JSON.parse(local):null;
+      }).catch(function(){
+        var local=localStorage.getItem("eev_"+coId+"_jobsite");
+        return local?JSON.parse(local):null;
+      });
+  }
+  var local=localStorage.getItem("eev_"+coId+"_jobsite");
+  return Promise.resolve(local?JSON.parse(local):null);
+}
+
 // Push ALL local data to Firebase (respects deletions)
 async function doPushAll(){
   var btn=document.getElementById('pushAllBtn');
@@ -3331,6 +3433,47 @@ function doPullFromCloud(){
     renderLogs();renderWorkerGrid();renderWorkersList();renderWorkerSelects();
     showToast('Pulled '+fbLogs.length+' logs + '+workers.length+' workers ✓','success');
   }).catch(function(e){showToast('Pull failed: '+e.message,'error');});
+}
+
+// ── Admin: set/clear job site ─────────────────────────────────────────
+function adminSetJobSite(){
+  var btn=document.getElementById("setJobSiteBtn");
+  if(btn){btn.textContent="Getting location...";btn.disabled=true;}
+  gpsGetPosition().then(function(pos){
+    var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
+    return gpsGetAddress(lat,lng).then(function(address){
+      var site={lat:lat,lng:lng,address:address,accuracy:acc,setAt:new Date().toISOString()};
+      gpsSaveJobSite(currentCompanyId,site);
+      updateJobSiteUI(site);
+      showToast("Job site set: "+address+" ✓","success");
+    });
+  }).catch(function(e){
+    showToast("Could not get location: "+e.message,"error");
+  }).finally(function(){
+    if(btn){btn.innerHTML="&#128205; Use My Current Location";btn.disabled=false;}
+  });
+}
+function adminClearJobSite(){
+  if(!confirm("Clear the job site location?")) return;
+  localStorage.removeItem("eev_"+currentCompanyId+"_jobsite");
+  if(_db) _db.collection("companies").doc(currentCompanyId).collection("settings").doc("jobsite").delete().catch(function(){});
+  updateJobSiteUI(null);
+  showToast("Job site cleared","success");
+}
+function updateJobSiteUI(site){
+  var el=document.getElementById("jobSiteInfo");
+  if(!el) return;
+  if(site){
+    var d=new Date(site.setAt);
+    var when=d.toLocaleDateString("en-ZA",{day:"numeric",month:"short"})+" at "+d.toLocaleTimeString("en-ZA",{hour:"2-digit",minute:"2-digit"});
+    el.innerHTML='<span style="color:var(--green)">&#10003; Active: </span><strong>'+site.address+'</strong><br><span style="font-size:0.7rem;color:var(--muted)">Set '+when+' &middot; Accuracy: '+site.accuracy+'m</span>';
+  } else {
+    el.innerHTML='<span style="color:var(--orange)">&#9888; No job site set</span> &mdash; Workers need a job site to clock in.';
+  }
+}
+function loadAndShowJobSite(){
+  if(!currentCompanyId||currentCompanyId==="__SA__") return;
+  gpsLoadJobSite(currentCompanyId).then(function(site){updateJobSiteUI(site||null);}).catch(function(){updateJobSiteUI(null);});
 }
 
 window.addEventListener('load',function(){
