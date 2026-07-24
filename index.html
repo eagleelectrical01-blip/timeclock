@@ -1768,6 +1768,14 @@ function completeRegister(){
   const w={id:Date.now().toString(),name:name,title:title,rate:rate,overtimeRate:ot,descriptor:capturedDescriptor,photoURL:capturedPhoto,clockedIn:false,clockInTime:null};
   workers.push(w);
   saveCompanyData();
+  // Push new worker to Firebase immediately
+  if(_db&&currentCompanyId&&currentCompanyId!=='__SA__'){
+    fbWorkersCol(currentCompanyId).doc(w.id).set({
+      id:w.id,name:w.name,title:w.title,rate:w.rate,overtimeRate:w.overtimeRate,
+      clockedIn:false,clockInTime:null,
+      descriptor:w.descriptor||null,photoURL:w.photoURL||null
+    }).catch(function(e){console.warn('[FB] New worker push failed:',e.message);});
+  }
   document.getElementById('workerName').value='';
   document.getElementById('workerTitle').value='';
   document.getElementById('workerRate').value='';
@@ -1930,17 +1938,41 @@ function saveEditWorker(){
   if(!newName||!newRate){showToast('Name and rate are required','error');return;}
   const oldName=w.name;
   w.name=newName; w.title=document.getElementById('editWorkerTitle').value.trim(); w.rate=newRate; w.overtimeRate=newOT||newRate*1.5;
-  if(newName!==oldName) logs.forEach(l=>{ if(l.workerId===id) l.workerName=newName; });
+  if(newName!==oldName) logs.forEach(function(l){if(l.workerId===id) l.workerName=newName;});
   saveCompanyData();
+  // Push to Firebase
+  if(_db&&currentCompanyId&&currentCompanyId!=='__SA__'){
+    fbWorkersCol(currentCompanyId).doc(w.id).set({
+      id:w.id,name:w.name,title:w.title,rate:w.rate,overtimeRate:w.overtimeRate,
+      clockedIn:w.clockedIn||false,clockInTime:w.clockInTime||null,
+      descriptor:w.descriptor||null,photoURL:w.photoURL||null
+    }).catch(function(e){console.warn('[FB] Worker update:',e.message);});
+  }
   closeEditWorkerModal(); renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
-  showToast('Worker updated \u2713','success');
+  showToast('Worker updated ✓','success');
 }
 function deleteWorker(id){
   if(!confirm('Delete worker and all their records?')) return;
-  workers=workers.filter(w=>w.id!==id);
-  logs=logs.filter(l=>l.workerId!==id);
+  workers=workers.filter(function(w){return w.id!==id;});
+  logs=logs.filter(function(l){return l.workerId!==id;});
   delete lsData[id];
-  saveCompanyData(); renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
+  saveCompanyData();
+  // Delete worker from Firebase
+  if(_db&&currentCompanyId&&currentCompanyId!=='__SA__'){
+    fbWorkersCol(currentCompanyId).doc(id).delete()
+      .then(function(){console.log('[FB] Worker deleted:',id);})
+      .catch(function(e){console.warn('[FB] Worker delete failed:',e.message);});
+    // Also delete their logs from Firebase
+    fbLogsCol(currentCompanyId).where('workerId','==',id).get()
+      .then(function(snap){
+        var batch=_db.batch();
+        snap.docs.forEach(function(doc){batch.delete(doc.ref);});
+        return batch.commit();
+      })
+      .then(function(){console.log('[FB] Worker logs deleted for:',id);})
+      .catch(function(e){console.warn('[FB] Worker logs delete failed:',e.message);});
+  }
+  renderWorkerGrid(); renderWorkersList(); renderWorkerSelects();
   showToast('Worker deleted','success');
 }
 
