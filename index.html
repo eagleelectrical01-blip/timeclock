@@ -955,12 +955,14 @@ function workerLoginFlow(){
       companies.push(fbCo);
       localStorage.setItem('eev_companies',JSON.stringify(companies));
       currentCompanyId=code;
+      window._workerFlow=true;
       document.getElementById('workerPinInput').value='';
       document.getElementById('workerPinScreen').style.display='flex';
     }).catch(function(){showToast('Company code not found','error');});
     return;
   }
   currentCompanyId=code;
+  window._workerFlow=true;
   document.getElementById('workerPinInput').value='';
   document.getElementById('workerPinScreen').style.display='flex';
 }
@@ -1142,7 +1144,16 @@ function enterAdminMode(co){
   switchAdminTab('logs');
   renderWorkerSelects(); renderLSList();
 }
-function enterCompanyApp(co){ enterWorkerMode(co); }
+function enterCompanyApp(co){
+  if(window._workerFlow){
+    // Worker came through Worker Login - go to PIN screen
+    currentCompanyId=co.id;
+    document.getElementById('workerPinInput').value='';
+    document.getElementById('workerPinScreen').style.display='flex';
+  } else {
+    enterWorkerMode(co);
+  }
+}
 function initSuperAdminUI(){
   document.getElementById('publicTabs').style.display='none';
   document.getElementById('adminTabs').style.display='flex';
@@ -1219,6 +1230,7 @@ function showExpiredLogin(){
 }
 function doLogout(){
   fbStopListeners();
+  window._workerFlow=false;
   adminIn=false; isSuperAdmin=false;
   document.getElementById('adminTabs').style.display='none';
   document.getElementById('publicTabs').style.display='none';
@@ -1620,8 +1632,8 @@ function openReCaptureFace(){
 function initClockAction(workerId, action){
   const ts=getTrialStatus();
   if(ts.status==='expired'){checkExpired();return;}
-  const w=workers.find(x=>x.id===workerId);
-  if(!w){showToast('Worker not found','error');return;}
+  var w=workers.find(function(x){return x.id===workerId;});
+  if(!w){showToast('Worker not found — please try again','error');return;}
   if(w.descriptor&&Array.isArray(w.descriptor)) w=Object.assign({},w,{descriptor:new Float32Array(w.descriptor)});
   clockWorkerTarget=w; clockAction=action; faceMode='clock';
   document.getElementById('faceTitle').textContent=(action==='in'?'Clock In':'Clock Out')+': '+w.name;
