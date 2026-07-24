@@ -2114,7 +2114,17 @@ function renderLogs(){
       +'<td class="mono">'+(complete?fmtHours(l.hoursWorked):'—')+'</td>'
       +'<td class="mono" style="color:'+(otHrs>0?'var(--orange)':'var(--muted)')+'">'+(complete?(otHrs>0?fmtHours(otHrs):'—'):'—')+'</td>'
       +'<td class="mono green">'+(complete?fmtMoney(l.wage):'—')+'</td>'
-      +'<td style="font-size:0.7rem;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+(l.locationIn||l.locationOut||'')+'">'+(l.locationIn?'&#128205; '+l.locationIn.split(',')[0]:(l.locationOut?'&#128205; '+l.locationOut.split(',')[0]:''))+'</td>'
+      +(function(){
+        var locLabel=l.locationIn?l.locationIn.split(',')[0]:(l.locationOut?l.locationOut.split(',')[0]:'');
+        var lat=l.latIn||l.latOut||null;
+        var lng=l.lngIn||l.lngOut||null;
+        var fullAddr=(l.locationIn&&l.locationOut&&l.locationIn!==l.locationOut)?'In: '+l.locationIn+'\nOut: '+l.locationOut:(l.locationIn||l.locationOut||'');
+        if(lat&&lng){
+          var mapsUrl='https://www.google.com/maps?q='+lat+','+lng;
+          return '<td style="font-size:0.7rem;max-width:120px;"><a href="'+mapsUrl+'" target="_blank" title="'+fullAddr+'" style="color:var(--orange);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">&#128205; '+locLabel+'</a></td>';
+        }
+        return '<td style="font-size:0.7rem;color:var(--muted);" title="'+fullAddr+'">'+( locLabel?'&#128205; '+locLabel:'')+'</td>';
+      })()
       +'<td><span class="badge '+(complete?'complete':'in')+'">'+(complete?'Done':'Active')+'</span></td>'
       +(isArchive?'<td></td>':'<td style="white-space:nowrap;"><button class="btn-sm edit" onclick="openEditLog(\''+l.id+'\')" style="margin-right:4px;">Edit</button><button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="deleteLog(\''+l.id+'\')">×</button></td>')
       +'</tr>';
