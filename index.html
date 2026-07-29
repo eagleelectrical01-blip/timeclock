@@ -1872,6 +1872,23 @@ function doCompleteClockAction(wIn, now, gpsData){
     ww.clockedIn=true; ww.clockInTime=rounded.toISOString();
     if(gpsData){ww.clockInLocation=gpsData.address;ww.clockInLat=gpsData.lat;ww.clockInLng=gpsData.lng;}
     w=ww;
+    // Write partial clock-in log to Firebase so clock-out on any phone can find it
+    if(_db&&currentCompanyId&&currentCompanyId!=='__SA__'){
+      var partialLog={id:'ci_'+w.id+'_'+Date.now(),workerId:w.id,workerName:w.name,
+        workerTitle:w.title,clockIn:rounded.toISOString(),clockOut:null,
+        hoursWorked:0,normalHours:0,overtimeHours:0,wage:0,manual:false};
+      if(gpsData){partialLog.locationIn=gpsData.address;partialLog.latIn=gpsData.lat;partialLog.lngIn=gpsData.lng;}
+      fbLogsCol(currentCompanyId).doc(partialLog.id).set(partialLog)
+        .then(function(){console.log('[ClockIn] Partial log written to Firebase:',partialLog.id);})
+        .catch(function(e){console.warn('[ClockIn] Partial log failed:',e.message);});
+      // Also store locally
+      var localLogs=JSON.parse(localStorage.getItem('eev_'+currentCompanyId+'_logs')||'[]');
+      localLogs=localLogs.filter(function(l){return !(l.workerId===w.id&&!l.clockOut);});
+      localLogs.push(partialLog);
+      localStorage.setItem('eev_'+currentCompanyId+'_logs',JSON.stringify(localLogs));
+      while(logs.length) logs.pop();
+      localLogs.forEach(function(l){logs.push(l);});
+    }
     const timeStr=rounded.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
     const note=wasRounded?' <span style="font-size:0.65rem;color:#FDBA74;">(rounded from '+now.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+')</span>':'';
     document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128994;</div><div class="rm">Clocked In: '+w.name+'</div><div class="rd">'+timeStr+note+'</div></div>';
@@ -1920,18 +1937,74 @@ function doCompleteClockAction(wIn, now, gpsData){
     const wage=Math.round((normalHrs*w.rate+otHrs*(w.overtimeRate||w.rate*1.5))*100)/100;
     const timeStr=rounded.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
     const note=wasRounded?' <span style="font-size:0.65rem;color:#FDBA74;">(rounded from '+rawOut.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})+')</span>':'';
-    var log={id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,clockIn:w.clockInTime,clockOut:rounded.toISOString(),hoursWorked:Math.round(hrs*100)/100,normalHours:Math.round(normalHrs*100)/100,overtimeHours:Math.round(otHrs*100)/100,rate:w.rate,overtimeRate:w.overtimeRate||w.rate*1.5,wage:wage,manual:false};
-    // GPS data: clock-in location from worker, clock-out from current GPS
+    // Build the complete log record
+    var log={id:Date.now().toString(),workerId:w.id,workerName:w.name,workerTitle:w.title,
+      clockIn:w.clockInTime,clockOut:rounded.toISOString(),
+      hoursWorked:Math.round(hrs*100)/100,normalHours:Math.round(normalHrs*100)/100,
+      overtimeHours:Math.round(otHrs*100)/100,rate:w.rate,
+      overtimeRate:w.overtimeRate||w.rate*1.5,wage:wage,manual:false};
     if(w.clockInLocation){log.locationIn=w.clockInLocation;log.latIn=w.clockInLat;log.lngIn=w.clockInLng;}
     if(gpsData){log.locationOut=gpsData.address;log.latOut=gpsData.lat;log.lngOut=gpsData.lng;}
+    // Check if there is already an open clock-in log in Firebase for this worker
+    // (happens when clocked in on a different phone)
+    var coId=currentCompanyId;
+    if(_db&&coId&&coId!=='__SA__'){
+      fbLogsCol(coId).where('workerId','==',w.id).where('clockOut','==',null).limit(1).get()
+        .then(function(snap){
+          if(!snap.empty){
+            // Found existing open log - update it with clock-out data
+            var existingDoc=snap.docs[0];
+            var existingData=existingDoc.data();
+            log.id=existingDoc.id; // keep same ID
+            log.clockIn=existingData.clockIn; // keep original clock-in time
+            log.locationIn=existingData.locationIn||log.locationIn||null;
+            log.latIn=existingData.latIn||log.latIn||null;
+            log.lngIn=existingData.lngIn||log.lngIn||null;
+            // Remove any local open log for this worker and add completed one
+            while(logs.length) logs.pop();
+            var localLogs=JSON.parse(localStorage.getItem('eev_'+coId+'_logs')||'[]');
+            localLogs=localLogs.filter(function(l){return !(l.workerId===w.id&&!l.clockOut);});
+            localLogs.push(log);
+            localLogs.forEach(function(l){logs.push(l);});
+            localStorage.setItem('eev_'+coId+'_logs',JSON.stringify(localLogs));
+            console.log('[ClockOut] Updated existing Firebase log:',log.id);
+          } else {
+            // No open log in Firebase - use local array
+            logs.push(log);
+            console.log('[ClockOut] Created new log:',log.id);
+          }
+          w.clockedIn=false; w.clockInTime=null;
+          saveCompanyData();
+          fbWriteWorkerStatus(coId,w);
+          renderWorkerGrid();
+          showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
+        })
+        .catch(function(e){
+          console.warn('[ClockOut] Firebase lookup failed:',e.message,'- using local');
+          logs.push(log);
+          w.clockedIn=false; w.clockInTime=null;
+          saveCompanyData();
+          fbWriteWorkerStatus(coId,w);
+          renderWorkerGrid();
+          showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
+        });
+      // Return early - saveCompanyData called inside callbacks above
+      w.clockedIn=false; w.clockInTime=null;
+      return;
+    }
+    // No Firebase - just use local
     logs.push(log); w.clockedIn=false; w.clockInTime=null;
     const otNote=otHrs>0?' &nbsp;&#183;&nbsp; OT: '+fmtHours(otHrs):'';
     document.getElementById('faceResult').innerHTML='<div class="result-box success"><div class="ri">&#128308;</div><div class="rm">Clocked Out: '+w.name+'</div><div class="rd">'+timeStr+note+'<br>'+fmtHours(hrs)+otNote+' &nbsp;&#183;&nbsp; '+fmtMoney(wage)+'</div></div>';
   }
-  saveCompanyData();
-  fbWriteWorkerStatus(currentCompanyId, w);
-  renderWorkerGrid();
-  showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
+  // For clock-in: save data (clock-out handled in async callbacks above)
+  if(clockAction==='in'){
+    saveCompanyData();
+    fbWriteWorkerStatus(currentCompanyId, w);
+    renderWorkerGrid();
+    showFaceBtns({cancel:false,capture:false,register:false,tryAgain:false,done:true});
+  }
+  // clock-out: handled inside Firebase callback above
 }
 
 // ═══════════════════════════════════════
