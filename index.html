@@ -439,8 +439,15 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <div class="section-title">&#128205; Job Site Location</div>
   <div class="card">
     <h3>&#128205; Set Today's Job Site</h3>
-    <p>Press when you arrive at the work location. Workers must be within <strong>50m</strong> to clock in or out.</p>
+    <p>Press when you arrive at the work location. Workers must be within the set radius to clock in or out.</p>
     <div id="jobSiteInfo" style="background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.82rem;">No job site set</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <label style="font-size:0.8rem;color:var(--muted);white-space:nowrap;">Allowed radius:</label>
+      <input type="number" id="jobSiteRadius" min="10" max="1000" value="50" step="10"
+        style="width:80px;text-align:center;font-size:0.9rem;padding:6px;"
+        onchange="saveJobSiteRadius(this.value)">
+      <span style="font-size:0.8rem;color:var(--muted);">metres</span>
+    </div>
     <button class="btn btn-green" id="setJobSiteBtn" onclick="adminSetJobSite()" style="width:100%;padding:11px;margin-bottom:8px;">&#128205; Use My Current Location</button>
     <button class="btn btn-ghost" onclick="adminClearJobSite()" style="width:100%;padding:9px;font-size:0.8rem;">&#10005; Clear Job Site</button>
   </div>
@@ -1839,8 +1846,9 @@ function completeClockAction(wIn){
       gpsGetPosition().then(function(pos){
         var lat=pos.coords.latitude,lng=pos.coords.longitude;
         var dist=Math.round(gpsDistance(lat,lng,site.lat,site.lng));
-        if(dist>50){
-          rEl.innerHTML='<div class="result-box error"><div class="ri">&#128205;</div><div class="rm">Too far from job site</div><div class="rd">You are '+dist+'m away.<br>Must be within 50m of:<br><strong>'+site.address+'</strong></div></div>';
+        var maxDist=site.radius||50;
+        if(dist>maxDist){
+          rEl.innerHTML='<div class="result-box error"><div class="ri">&#128205;</div><div class="rm">Too far from job site</div><div class="rd">You are '+dist+'m away.<br>Must be within '+maxDist+'m of:<br><strong>'+site.address+'</strong></div></div>';
           showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
           return;
         }
@@ -3525,7 +3533,8 @@ function adminSetJobSite(){
   gpsGetPosition().then(function(pos){
     var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
     return gpsGetAddress(lat,lng).then(function(address){
-      var site={lat:lat,lng:lng,address:address,accuracy:acc,setAt:new Date().toISOString()};
+      var r=getJobSiteRadius();
+      var site={lat:lat,lng:lng,address:address,accuracy:acc,radius:r,setAt:new Date().toISOString()};
       gpsSaveJobSite(currentCompanyId,site);
       updateJobSiteUI(site);
       showToast("Job site set: "+address+" ✓","success");
@@ -3549,14 +3558,39 @@ function updateJobSiteUI(site){
   if(site){
     var d=new Date(site.setAt);
     var when=d.toLocaleDateString("en-ZA",{day:"numeric",month:"short"})+" at "+d.toLocaleTimeString("en-ZA",{hour:"2-digit",minute:"2-digit"});
-    el.innerHTML='<span style="color:var(--green)">&#10003; Active: </span><strong>'+site.address+'</strong><br><span style="font-size:0.7rem;color:var(--muted)">Set '+when+' &middot; Accuracy: '+site.accuracy+'m</span>';
+    el.innerHTML='<span style="color:var(--green)">&#10003; Active: </span><strong>'+site.address+'</strong><br><span style="font-size:0.7rem;color:var(--muted)">Set '+when+' &middot; GPS accuracy: '+site.accuracy+'m &middot; Allowed radius: '+(site.radius||50)+'m</span>';
   } else {
     el.innerHTML='<span style="color:var(--orange)">&#9888; No job site set</span> &mdash; Workers need a job site to clock in.';
   }
 }
+function saveJobSiteRadius(val){
+  var r=Math.max(10,Math.min(1000,parseInt(val)||50));
+  localStorage.setItem("eev_"+currentCompanyId+"_radius",r);
+  if(_db&&currentCompanyId&&currentCompanyId!=="__SA__"){
+    _db.collection("companies").doc(currentCompanyId)
+      .collection("settings").doc("jobsite")
+      .set({radius:r},{merge:true})
+      .catch(function(e){console.warn("[GPS] radius save:",e.message);});
+  }
+  showToast("Radius set to "+r+"m","success");
+}
+
+function getJobSiteRadius(){
+  var local=parseInt(localStorage.getItem("eev_"+currentCompanyId+"_radius")||"50");
+  return local||50;
+}
+
 function loadAndShowJobSite(){
   if(!currentCompanyId||currentCompanyId==="__SA__") return;
-  gpsLoadJobSite(currentCompanyId).then(function(site){updateJobSiteUI(site||null);}).catch(function(){updateJobSiteUI(null);});
+  gpsLoadJobSite(currentCompanyId).then(function(site){
+    updateJobSiteUI(site||null);
+    // Load saved radius
+    var radiusInput=document.getElementById("jobSiteRadius");
+    if(radiusInput){
+      if(site&&site.radius) localStorage.setItem("eev_"+currentCompanyId+"_radius",site.radius);
+      radiusInput.value=getJobSiteRadius();
+    }
+  }).catch(function(){updateJobSiteUI(null);});
 }
 
 window.addEventListener('load',function(){
