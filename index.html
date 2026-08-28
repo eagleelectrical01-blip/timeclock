@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Time Clock System v11</title>
+<title>Time Clock System v12</title>
 <script>
 (function(){
   const c=document.createElement('canvas');c.width=192;c.height=192;
@@ -244,6 +244,10 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .spw-card .spw-icon{font-size:2.4rem;margin-bottom:10px;}
 .spw-card h3{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:var(--green);margin-bottom:4px;}
 .spw-card p{font-size:0.76rem;color:var(--muted);margin-bottom:18px;line-height:1.6;}
+.pw-wrap{position:relative;display:flex;align-items:center;}
+.pw-wrap input{flex:1;padding-right:38px !important;}
+.pw-eye{position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;padding:4px;line-height:1;}
+.pw-eye:hover{color:var(--orange);}
 </style>
 </head>
 <body>
@@ -267,7 +271,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     </div>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
       <p style="font-size:0.7rem;color:var(--muted);margin-bottom:10px;">System Administrator?</p>
-      <input type="password" id="saCodeInput" placeholder="Super Admin password" style="margin-bottom:8px;" onkeydown="if(event.key==='Enter')submitSACode()">
+      <div class="pw-wrap"><input type="password" id="saCodeInput" placeholder="Super Admin password" style="margin-bottom:8px;" onkeydown="if(event.key==='Enter')submitSACode()"><button type="button" class="pw-eye" onclick="togglePw('saCodeInput')" tabindex="-1">&#128065;</button></div>
       <button class="btn btn-ghost" onclick="submitSACode()" style="width:100%;padding:10px;font-size:0.78rem;">Super Admin Login</button>
     </div>
   </div>
@@ -283,7 +287,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <p>Enter the worker PIN provided by your admin.</p>
     <div style="margin-bottom:16px;text-align:left;">
       <label>PIN</label>
-      <input type="password" id="workerPinInput" placeholder="Enter PIN" inputmode="numeric" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:1.4rem;letter-spacing:4px;" onkeydown="if(event.key==='Enter')submitWorkerPin()">
+      <div class="pw-wrap"><input type="password" id="workerPinInput" placeholder="Enter PIN" inputmode="numeric" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:1.4rem;letter-spacing:4px;" onkeydown="if(event.key==='Enter')submitWorkerPin()"><button type="button" class="pw-eye" onclick="togglePw('workerPinInput')" tabindex="-1">&#128065;</button></div>
     </div>
     <button class="btn btn-green" onclick="submitWorkerPin()" style="width:100%;padding:13px;">Enter</button>
     <button class="btn btn-ghost" onclick="backToCompanyScreen()" style="width:100%;padding:10px;margin-top:8px;font-size:0.78rem;">&#8592; Back</button>
@@ -311,7 +315,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <p>Enter the admin password to access the management panel.</p>
     <div style="margin-bottom:16px;text-align:left;">
       <label>Password</label>
-      <input type="password" id="adminPwScreenInput" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')submitAdminPwScreen()">
+      <div class="pw-wrap"><input type="password" id="adminPwScreenInput" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')submitAdminPwScreen()"><button type="button" class="pw-eye" onclick="togglePw('adminPwScreenInput')" tabindex="-1">&#128065;</button></div>
     </div>
     <button class="btn btn-primary" onclick="submitAdminPwScreen()" style="width:100%;padding:13px;">Login</button>
     <button class="btn btn-ghost" onclick="backToCompanyScreen()" style="width:100%;padding:10px;margin-top:8px;font-size:0.78rem;">&#8592; Back</button>
@@ -328,11 +332,11 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <p>Welcome! You are logging in for the first time.<br>Please create your own admin password.</p>
     <div style="margin-bottom:10px;text-align:left;">
       <label>New Password</label>
-      <input type="password" id="newPwInput" placeholder="Enter new password">
+      <div class="pw-wrap"><input type="password" id="newPwInput" placeholder="Enter new password"><button type="button" class="pw-eye" onclick="togglePw('newPwInput')" tabindex="-1">&#128065;</button></div>
     </div>
     <div style="margin-bottom:16px;text-align:left;">
       <label>Confirm Password</label>
-      <input type="password" id="confirmPwInput" placeholder="Confirm new password" onkeydown="if(event.key==='Enter')saveNewPassword()">
+      <div class="pw-wrap"><input type="password" id="confirmPwInput" placeholder="Confirm new password" onkeydown="if(event.key==='Enter')saveNewPassword()"><button type="button" class="pw-eye" onclick="togglePw('confirmPwInput')" tabindex="-1">&#128065;</button></div>
     </div>
     <button class="btn btn-green" onclick="saveNewPassword()" style="width:100%;padding:13px;">Save Password &amp; Enter</button>
   </div>
@@ -422,7 +426,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <p>Update your company name and admin password.</p>
     <div class="form-field" style="margin-bottom:10px;"><label>Company Name</label><input type="text" id="companyNameInput" placeholder="e.g. Smith Builders" oninput="previewCompanyName()"></div>
     <div class="form-row">
-      <div class="form-field"><label>New Admin Password</label><input type="password" id="newAdminPw" placeholder="Leave blank to keep current"></div>
+      <div class="form-field"><label>New Admin Password</label><div class="pw-wrap"><input type="password" id="newAdminPw" placeholder="Leave blank to keep current"><button type="button" class="pw-eye" onclick="togglePw('newAdminPw')" tabindex="-1">&#128065;</button></div></div>
       <div class="form-field"><label>Worker PIN</label><input type="text" id="workerPinField" placeholder="Default: 1234" inputmode="numeric" maxlength="8"></div>
     </div>
     <button class="btn btn-primary" onclick="saveCompanySettings()" style="width:100%;padding:11px;">&#128190; Save Settings</button>
@@ -436,20 +440,21 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     <button class="btn btn-primary" onclick="saveSchedule()" style="width:100%;padding:11px;margin-top:12px;">&#128190; Save Schedule</button>
   </div>
   <div class="divider"></div>
-  <div class="section-title">&#128205; Job Site Location</div>
+  <div class="section-title">&#128205; Job Sites</div>
   <div class="card">
-    <h3>&#128205; Set Today's Job Site</h3>
-    <p>Press when you arrive at the work location. Workers must be within the set radius to clock in or out.</p>
-    <div id="jobSiteInfo" style="background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.82rem;">No job site set</div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <label style="font-size:0.8rem;color:var(--muted);white-space:nowrap;">Allowed radius:</label>
-      <input type="number" id="jobSiteRadius" min="10" max="1000" value="50" step="10"
-        style="width:80px;text-align:center;font-size:0.9rem;padding:6px;"
-        onchange="saveJobSiteRadius(this.value)">
-      <span style="font-size:0.8rem;color:var(--muted);">metres</span>
+    <h3>&#128205; Saved Sites</h3>
+    <p style="font-size:0.8rem;color:var(--muted);">Workers can clock in at any saved site within its radius.</p>
+    <div id="savedSitesList" style="margin-bottom:12px;"></div>
+    <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+      <div style="font-size:0.8rem;font-weight:600;margin-bottom:8px;">&#43; Add New Site</div>
+      <input type="text" id="newSiteName" placeholder="Site name (e.g. Head Office)" style="margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <label style="font-size:0.8rem;color:var(--muted);white-space:nowrap;">Radius:</label>
+        <input type="number" id="newSiteRadius" min="10" max="1000" value="50" step="10" style="width:80px;text-align:center;">
+        <span style="font-size:0.8rem;color:var(--muted);">metres</span>
+      </div>
+      <button class="btn btn-green" id="addSiteBtn" onclick="adminAddSite()" style="width:100%;padding:10px;">&#128205; Capture My Location &amp; Save Site</button>
     </div>
-    <button class="btn btn-green" id="setJobSiteBtn" onclick="adminSetJobSite()" style="width:100%;padding:11px;margin-bottom:8px;">&#128205; Use My Current Location</button>
-    <button class="btn btn-ghost" onclick="adminClearJobSite()" style="width:100%;padding:9px;font-size:0.8rem;">&#10005; Clear Job Site</button>
   </div>
   <div class="divider"></div>
   <div class="section-title">Manual Time Entry</div>
@@ -1831,36 +1836,33 @@ function completeClockAction(wIn){
     // Show checking status
     var rEl=document.getElementById('faceResult');
     rEl.innerHTML='<div class="result-box"><div class="ri">&#128205;</div><div class="rm">Checking location...</div></div>';
-    gpsLoadJobSite(currentCompanyId).then(function(site){
-      if(!site){
-        // No job site - allow without geofence
-        gpsGetPosition().then(function(pos){
-          gpsGetAddress(pos.coords.latitude,pos.coords.longitude).then(function(addr){
-            doCompleteClockAction(w,now,{lat:pos.coords.latitude,lng:pos.coords.longitude,address:addr,dist:0});
-          });
-        }).catch(function(){
-          doCompleteClockAction(w,now,null);
-        });
+    gpsGetPosition().then(function(pos){
+      var lat=pos.coords.latitude,lng=pos.coords.longitude;
+      var sites=getSites();
+      if(!sites.length){
+        // No sites - allow but capture location
+        gpsGetAddress(lat,lng).then(function(addr){doCompleteClockAction(w,now,{lat:lat,lng:lng,address:addr,dist:0});});
         return;
       }
-      gpsGetPosition().then(function(pos){
-        var lat=pos.coords.latitude,lng=pos.coords.longitude;
-        var dist=Math.round(gpsDistance(lat,lng,site.lat,site.lng));
-        var maxDist=site.radius||50;
-        if(dist>maxDist){
-          rEl.innerHTML='<div class="result-box error"><div class="ri">&#128205;</div><div class="rm">Too far from job site</div><div class="rd">You are '+dist+'m away.<br>Must be within '+maxDist+'m of:<br><strong>'+site.address+'</strong></div></div>';
-          showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
-          return;
-        }
-        gpsGetAddress(lat,lng).then(function(address){
-          doCompleteClockAction(w,now,{lat:lat,lng:lng,address:address,dist:dist});
-        });
-      }).catch(function(e){
-        rEl.innerHTML='<div class="result-box error"><div class="ri">&#128205;</div><div class="rm">Location access denied</div><div class="rd">Please allow location access in your browser settings to clock in/out.</div></div>';
+      // Find closest site within its radius
+      var bestSite=null,bestDist=999999;
+      sites.forEach(function(site){
+        var d=Math.round(gpsDistance(lat,lng,site.lat,site.lng));
+        if(d<bestDist){bestDist=d;bestSite=site;}
+      });
+      var maxDist=bestSite?(bestSite.radius||50):50;
+      if(!bestSite||bestDist>maxDist){
+        var nearest=bestSite?bestSite.name+" ("+bestDist+"m away)":"none";
+        rEl.innerHTML='<div class="result-box error"><div class="ri">&#128205;</div><div class="rm">Not at a registered site</div><div class="rd">Nearest: '+nearest+'.<br>Must be within '+maxDist+'m.</div></div>';
         showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
+        return;
+      }
+      gpsGetAddress(lat,lng).then(function(address){
+        doCompleteClockAction(w,now,{lat:lat,lng:lng,address:address,dist:bestDist,siteName:bestSite.name});
       });
     }).catch(function(){
-      doCompleteClockAction(w,now,null);
+      rEl.innerHTML='<div class="result-box error"><div class="ri">&#128205;</div><div class="rm">Location access denied</div><div class="rd">Please allow location access in browser settings.</div></div>';
+      showFaceBtns({cancel:true,capture:false,register:false,tryAgain:false,done:false});
     });
     return;
   }
@@ -3527,6 +3529,55 @@ function doPullFromCloud(){
 }
 
 // ── Admin: set/clear job site ─────────────────────────────────────────
+function getSites(){var s=localStorage.getItem("eev_"+currentCompanyId+"_sites");return s?JSON.parse(s):[];}
+function saveSites(sites){
+  localStorage.setItem("eev_"+currentCompanyId+"_sites",JSON.stringify(sites));
+  if(_db&&currentCompanyId&&currentCompanyId!=="__SA__")
+    _db.collection("companies").doc(currentCompanyId).collection("settings").doc("sites").set({list:sites}).catch(function(){});
+}
+function adminAddSite(){
+  var name=document.getElementById("newSiteName").value.trim();
+  if(!name){showToast("Enter a site name first","error");return;}
+  var radius=parseInt(document.getElementById("newSiteRadius").value)||50;
+  var btn=document.getElementById("addSiteBtn");
+  if(btn){btn.textContent="Getting location...";btn.disabled=true;}
+  gpsGetPosition().then(function(pos){
+    var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
+    return gpsGetAddress(lat,lng).then(function(address){
+      var site={id:Date.now().toString(),name:name,lat:lat,lng:lng,address:address,radius:radius,accuracy:acc,createdAt:new Date().toISOString()};
+      var sites=getSites();sites.push(site);saveSites(sites);
+      gpsSaveJobSite(currentCompanyId,site);
+      document.getElementById("newSiteName").value="";
+      renderSavedSites();
+      showToast("Site \""+name+"\" saved ✓","success");
+    });
+  }).catch(function(e){showToast("Could not get location: "+e.message,"error");})
+  .finally(function(){if(btn){btn.innerHTML="&#128205; Capture My Location &amp; Save Site";btn.disabled=false;}});
+}
+function adminDeleteSite(id){
+  if(!confirm("Delete this site?")) return;
+  saveSites(getSites().filter(function(s){return s.id!==id;}));
+  renderSavedSites();showToast("Site deleted","success");
+}
+function renderSavedSites(){
+  var el=document.getElementById("savedSitesList");if(!el) return;
+  var sites=getSites();
+  if(!sites.length){el.innerHTML='<div style="color:var(--muted);font-size:0.8rem;text-align:center;padding:8px 0;">No sites saved yet</div>';return;}
+  el.innerHTML=sites.map(function(s){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:6px;">'
+      +'<div style="flex:1;"><div style="font-weight:600;font-size:0.85rem;">&#128205; '+s.name+'</div>'
+      +'<div style="font-size:0.72rem;color:var(--muted);">'+s.address.split(",")[0]+' &middot; radius: '+s.radius+'m</div></div>'
+      +'<button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="adminDeleteSite(\'"+s.id+"\')">&#215;</button></div>';
+  }).join("");
+}
+function loadSitesFromFirebase(){
+  if(!_db||!currentCompanyId||currentCompanyId==="__SA__"){renderSavedSites();return;}
+  _db.collection("companies").doc(currentCompanyId).collection("settings").doc("sites").get()
+    .then(function(doc){
+      if(doc.exists&&doc.data().list) localStorage.setItem("eev_"+currentCompanyId+"_sites",JSON.stringify(doc.data().list));
+      renderSavedSites();
+    }).catch(function(){renderSavedSites();});
+}
 function adminSetJobSite(){
   var btn=document.getElementById("setJobSiteBtn");
   if(btn){btn.textContent="Getting location...";btn.disabled=true;}
@@ -3582,6 +3633,8 @@ function getJobSiteRadius(){
 
 function loadAndShowJobSite(){
   if(!currentCompanyId||currentCompanyId==="__SA__") return;
+  loadSitesFromFirebase();
+  return;
   gpsLoadJobSite(currentCompanyId).then(function(site){
     updateJobSiteUI(site||null);
     // Load saved radius
@@ -3591,6 +3644,14 @@ function loadAndShowJobSite(){
       radiusInput.value=getJobSiteRadius();
     }
   }).catch(function(){updateJobSiteUI(null);});
+}
+
+function togglePw(id){
+  var inp=document.getElementById(id);
+  if(!inp) return;
+  inp.type=inp.type==="password"?"text":"password";
+  var btn=inp.parentElement.querySelector(".pw-eye");
+  if(btn) btn.innerHTML=inp.type==="password"?"&#128065;":"&#128064;";
 }
 
 window.addEventListener('load',function(){
