@@ -3567,8 +3567,12 @@ function renderSavedSites(){
     return '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:6px;">'
       +'<div style="flex:1;"><div style="font-weight:600;font-size:0.85rem;">&#128205; '+s.name+'</div>'
       +'<div style="font-size:0.72rem;color:var(--muted);">'+s.address.split(",")[0]+' &middot; radius: '+s.radius+'m</div></div>'
-      +'<button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" onclick="adminDeleteSite(\'"+s.id+"\')">&#215;</button></div>';
+      +'<button class="btn-danger" style="font-size:0.66rem;padding:4px 8px;" data-siteid="'+s.id+'">&#215;</button></div>';
   }).join("");
+  // Attach delete handlers via addEventListener (Samsung Internet compatible)
+  el.querySelectorAll("[data-siteid]").forEach(function(btn){
+    btn.addEventListener("click",function(){adminDeleteSite(this.dataset.siteid);});
+  });
 }
 function loadSitesFromFirebase(){
   if(!_db||!currentCompanyId||currentCompanyId==="__SA__"){renderSavedSites();return;}
